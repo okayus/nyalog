@@ -60,7 +60,7 @@ Firebase Authentication または Google OAuth を採用する。比較調査の
 
 ### リポジトリ
 
-- パブリックリポジトリとして公開（セキュリティ上の問題なし。シークレットは環境変数で管理）
+- プライベートリポジトリ（Cloudflare Access の AUD タグ等、インフラ情報の露出を避けるため）
 - リポジトリ: https://github.com/okayus/nyalog
 
 ## 影響

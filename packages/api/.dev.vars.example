@@ -1,0 +1,4 @@
+# Cloudflare Access settings
+# Get these values after enabling Cloudflare Access on the Worker
+TEAM_DOMAIN=https://<team-name>.cloudflareaccess.com
+POLICY_AUD=<application-audience-tag>

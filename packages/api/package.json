@@ -10,8 +10,9 @@
     "db:migrate:prod": "wrangler d1 migrations apply nyalog-db --remote"
   },
   "dependencies": {
-    "hono": "^4",
     "drizzle-orm": "^0.40",
+    "hono": "^4",
+    "jose": "^6.2.2",
     "neverthrow": "^8",
     "zod": "^3"
   },

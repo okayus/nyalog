@@ -4,6 +4,10 @@
   "main": "src/index.ts",
   // Set to project creation date
   "compatibility_date": "2025-03-28",
+  "vars": {
+    "TEAM_DOMAIN": "https://toshiaki-mukai-9981.cloudflareaccess.com",
+    "POLICY_AUD": "6f9efbb7a4308b0c780b6c76f942a148ec610eb404b0cb14b15241fcced55a7a"
+  },
   "d1_databases": [
     {
       "binding": "DB",
