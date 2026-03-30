@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nyalog-api",
+  "main": "src/index.ts",
+  // Set to project creation date
+  "compatibility_date": "2025-03-28",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nyalog-db",
+      "database_id": "82db6367-0a73-46d3-baf3-c665adf1e10b",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

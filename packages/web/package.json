@@ -1,0 +1,23 @@
+{
+  "name": "@nyalog/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview",
+    "deploy": "vp build && wrangler pages deploy dist --project-name nyalog-web --branch main --commit-dirty=true"
+  },
+  "dependencies": {
+    "hono": "^4",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "vite-plus": "^0.1",
+    "wrangler": "^4"
+  }
+}

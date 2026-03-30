@@ -104,21 +104,36 @@ pnpm deploy           # Cloudflareへデプロイ
 
 ## ユーザーアクションが必要な操作
 
-以下の操作はClaudeが直接実行できないため、ユーザーに依頼する:
+**クレデンシャル（パスワード、APIキー、OAuthトークン等）の入力が必要な操作のみ**ユーザーに依頼する:
 
-- `sudo` が必要なシステム設定変更
-- 環境変数の設定（`.dev.vars`, Cloudflare Dashboardのシークレット）
-- Cloudflare / Firebase のダッシュボードでの設定
+- 認証フロー（`wrangler login`, `gcloud auth login` 等）
+- シークレットの設定（`.dev.vars`, Cloudflare Dashboardのシークレット管理）
 - 外部サービスのアカウント作成・APIキー取得
-- `wrangler login` 等の対話的な認証フロー
 
-これらが必要な場合は、具体的な手順を提示してユーザーにアクションを求める。
+クレデンシャルが不要な操作（対話的TUI、設定変更、コマンド実行等）はユーザーに依頼せず、設定ファイルやCLIフラグで自分で解決する。
 
 ## プロジェクト構成
 
 ```
 nyalog/
-├── docs/adr/          # Architecture Decision Records
-├── CLAUDE.md          # このファイル
-└── ...                # (プロジェクト初期化後に追記)
+├── packages/
+│   ├── api/             # Hono バックエンド (Cloudflare Workers)
+│   │   ├── src/
+│   │   │   ├── db/schema.ts  # Drizzle スキーマ
+│   │   │   └── index.ts      # エントリポイント
+│   │   ├── drizzle/          # マイグレーションファイル
+│   │   ├── drizzle.config.ts
+│   │   ├── wrangler.toml
+│   │   └── tsconfig.json
+│   └── web/             # React フロントエンド (Cloudflare Pages)
+│       ├── src/
+│       │   ├── App.tsx
+│       │   └── main.tsx
+│       ├── index.html
+│       ├── vite.config.ts   # Vite+ 設定 (Oxlint/Oxfmt 含む)
+│       └── tsconfig.json
+├── docs/adr/            # Architecture Decision Records
+├── package.json         # ルート (pnpm workspace)
+├── pnpm-workspace.yaml
+└── CLAUDE.md
 ```
