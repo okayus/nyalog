@@ -4,9 +4,9 @@
 
 ## 技術スタック
 
-- **インフラ**: Cloudflare Workers / Pages / D1
-- **バックエンド**: Hono (RPC)
-- **フロントエンド**: React + Vite+ (`vp`)
+- **インフラ**: Cloudflare Workers (Assets + D1) — SPA と API を単一 Worker で配信
+- **バックエンド**: Hono
+- **フロントエンド**: React + Vite+ (`vp`) + `@cloudflare/vite-plugin`
 - **ORM**: Drizzle ORM
 - **バリデーション**: Zod
 - **エラーハンドリング**: neverthrow (Result型)
@@ -117,23 +117,22 @@ pnpm deploy           # Cloudflareへデプロイ
 ```
 nyalog/
 ├── packages/
-│   ├── api/             # Hono バックエンド (Cloudflare Workers)
-│   │   ├── src/
-│   │   │   ├── db/schema.ts  # Drizzle スキーマ
-│   │   │   └── index.ts      # エントリポイント
-│   │   ├── drizzle/          # マイグレーションファイル
-│   │   ├── drizzle.config.ts
-│   │   ├── wrangler.toml
-│   │   └── tsconfig.json
-│   └── web/             # React フロントエンド (Cloudflare Pages)
-│       ├── src/
+│   └── web/                    # React SPA + Hono API (単一 Worker)
+│       ├── src/                # React フロントエンド
 │       │   ├── App.tsx
 │       │   └── main.tsx
+│       ├── worker/             # Hono バックエンド
+│       │   ├── index.ts        # API エントリポイント
+│       │   ├── access-auth.ts  # Cloudflare Access JWT 検証
+│       │   └── db/schema.ts    # Drizzle スキーマ
+│       ├── drizzle/            # マイグレーションファイル
+│       ├── drizzle.config.ts
+│       ├── wrangler.jsonc      # Workers 設定 (Assets + D1)
+│       ├── vite.config.ts      # Vite+ + @cloudflare/vite-plugin
 │       ├── index.html
-│       ├── vite.config.ts   # Vite+ 設定 (Oxlint/Oxfmt 含む)
 │       └── tsconfig.json
-├── docs/adr/            # Architecture Decision Records
-├── package.json         # ルート (pnpm workspace)
+├── docs/adr/                   # Architecture Decision Records
+├── package.json                # ルート (pnpm workspace)
 ├── pnpm-workspace.yaml
 └── CLAUDE.md
 ```

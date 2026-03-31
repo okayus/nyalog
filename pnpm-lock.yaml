@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  packages/api:
+  packages/web:
     dependencies:
       drizzle-orm:
         specifier: ^0.40
@@ -17,52 +17,42 @@ importers:
         specifier: ^4
         version: 4.12.9
       jose:
-        specifier: ^6.2.2
+        specifier: ^6
         version: 6.2.2
       neverthrow:
         specifier: ^8
         version: 8.2.0
-      zod:
-        specifier: ^3
-        version: 3.25.76
-    devDependencies:
-      '@cloudflare/workers-types':
-        specifier: ^4
-        version: 4.20260329.1
-      drizzle-kit:
-        specifier: ^0.30
-        version: 0.30.6
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-      wrangler:
-        specifier: ^4
-        version: 4.78.0(@cloudflare/workers-types@4.20260329.1)
-
-  packages/web:
-    dependencies:
-      hono:
-        specifier: ^4
-        version: 4.12.9
       react:
         specifier: ^19
         version: 19.2.4
       react-dom:
         specifier: ^19
         version: 19.2.4(react@19.2.4)
+      zod:
+        specifier: ^3
+        version: 3.25.76
     devDependencies:
+      '@cloudflare/vite-plugin':
+        specifier: ^1
+        version: 1.30.2(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12))(workerd@1.20260317.1)(wrangler@4.78.0(@cloudflare/workers-types@4.20260329.1))
+      '@cloudflare/workers-types':
+        specifier: ^4
+        version: 4.20260329.1
       '@types/react':
         specifier: ^19
         version: 19.2.14
       '@types/react-dom':
         specifier: ^19
         version: 19.2.3(@types/react@19.2.14)
+      drizzle-kit:
+        specifier: ^0.30
+        version: 0.30.6
       typescript:
         specifier: ^5
         version: 5.9.3
       vite-plus:
         specifier: ^0.1
-        version: 0.1.14(esbuild@0.27.3)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.27.3))
+        version: 0.1.14(esbuild@0.19.12)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12))
       wrangler:
         specifier: ^4
         version: 4.78.0(@cloudflare/workers-types@4.20260329.1)
@@ -81,6 +71,12 @@ packages:
     peerDependenciesMeta:
       workerd:
         optional: true
+
+  '@cloudflare/vite-plugin@1.30.2':
+    resolution: {integrity: sha512-1TG/GyYxMAVhRtbKs9dPCsJY+c4qaPk+NKiLywKLV/BuvgMTBGhrmIvkC9NQSaw9sa5fPOYmv9me68AIs5kXJQ==}
+    peerDependencies:
+      vite: ^6.1.0 || ^7.0.0 || ^8.0.0
+      wrangler: ^4.78.0
 
   '@cloudflare/workerd-darwin-64@1.20260317.1':
     resolution: {integrity: sha512-8hjh3sPMwY8M/zedq3/sXoA2Q4BedlGufn3KOOleIG+5a4ReQKLlUah140D7J6zlKmYZAFMJ4tWC7hCuI/s79g==}
@@ -1858,6 +1854,19 @@ snapshots:
     optionalDependencies:
       workerd: 1.20260317.1
 
+  '@cloudflare/vite-plugin@1.30.2(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12))(workerd@1.20260317.1)(wrangler@4.78.0(@cloudflare/workers-types@4.20260329.1))':
+    dependencies:
+      '@cloudflare/unenv-preset': 2.16.0(unenv@2.0.0-rc.24)(workerd@1.20260317.1)
+      miniflare: 4.20260317.3
+      unenv: 2.0.0-rc.24
+      vite: 8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12)
+      wrangler: 4.78.0(@cloudflare/workers-types@4.20260329.1)
+      ws: 8.18.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - workerd
+
   '@cloudflare/workerd-darwin-64@1.20260317.1':
     optional: true
 
@@ -2465,14 +2474,14 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@voidzero-dev/vite-plus-core@0.1.14(esbuild@0.27.3)(typescript@5.9.3)':
+  '@voidzero-dev/vite-plus-core@0.1.14(esbuild@0.19.12)(typescript@5.9.3)':
     dependencies:
       '@oxc-project/runtime': 0.121.0
       '@oxc-project/types': 0.122.0
       lightningcss: 1.32.0
       postcss: 8.5.8
     optionalDependencies:
-      esbuild: 0.27.3
+      esbuild: 0.19.12
       fsevents: 2.3.3
       typescript: 5.9.3
 
@@ -2494,11 +2503,11 @@ snapshots:
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.14':
     optional: true
 
-  '@voidzero-dev/vite-plus-test@0.1.14(esbuild@0.27.3)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.27.3))':
+  '@voidzero-dev/vite-plus-test@0.1.14(esbuild@0.19.12)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12))':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.14(esbuild@0.27.3)(typescript@5.9.3)
+      '@voidzero-dev/vite-plus-core': 0.1.14(esbuild@0.19.12)(typescript@5.9.3)
       es-module-lexer: 1.7.0
       obug: 2.1.1
       pixelmatch: 7.1.0
@@ -2508,7 +2517,7 @@ snapshots:
       tinybench: 2.9.0
       tinyexec: 1.0.4
       tinyglobby: 0.2.15
-      vite: 8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.27.3)
+      vite: 8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12)
       ws: 8.20.0
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
@@ -2971,11 +2980,11 @@ snapshots:
     dependencies:
       pathe: 2.0.3
 
-  vite-plus@0.1.14(esbuild@0.27.3)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.27.3)):
+  vite-plus@0.1.14(esbuild@0.19.12)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12)):
     dependencies:
       '@oxc-project/types': 0.122.0
-      '@voidzero-dev/vite-plus-core': 0.1.14(esbuild@0.27.3)(typescript@5.9.3)
-      '@voidzero-dev/vite-plus-test': 0.1.14(esbuild@0.27.3)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.27.3))
+      '@voidzero-dev/vite-plus-core': 0.1.14(esbuild@0.19.12)(typescript@5.9.3)
+      '@voidzero-dev/vite-plus-test': 0.1.14(esbuild@0.19.12)(typescript@5.9.3)(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12))
       cac: 7.0.0
       cross-spawn: 7.0.6
       oxfmt: 0.42.0
@@ -3019,7 +3028,7 @@ snapshots:
       - vite
       - yaml
 
-  vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.27.3):
+  vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(esbuild@0.19.12):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -3027,7 +3036,7 @@ snapshots:
       rolldown: 1.0.0-rc.12(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)
       tinyglobby: 0.2.15
     optionalDependencies:
-      esbuild: 0.27.3
+      esbuild: 0.19.12
       fsevents: 2.3.3
     transitivePeerDependencies:
       - '@emnapi/core'

@@ -6,16 +6,26 @@
     "dev": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
-    "deploy": "vp build && wrangler pages deploy dist --project-name nyalog-web --branch main --commit-dirty=true"
+    "deploy": "vp build && wrangler deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply nyalog-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply nyalog-db --remote"
   },
   "dependencies": {
+    "drizzle-orm": "^0.40",
     "hono": "^4",
+    "jose": "^6",
+    "neverthrow": "^8",
     "react": "^19",
-    "react-dom": "^19"
+    "react-dom": "^19",
+    "zod": "^3"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1",
+    "@cloudflare/workers-types": "^4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.30",
     "typescript": "^5",
     "vite-plus": "^0.1",
     "wrangler": "^4"

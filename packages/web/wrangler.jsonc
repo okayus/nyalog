@@ -1,12 +1,15 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "nyalog-api",
-  "main": "src/index.ts",
-  // Set to project creation date
+  "name": "nyalog",
   "compatibility_date": "2025-03-28",
+  "main": "./worker/index.ts",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/health"]
+  },
   "vars": {
     "TEAM_DOMAIN": "https://toshiaki-mukai-9981.cloudflareaccess.com",
-    "POLICY_AUD": "6f9efbb7a4308b0c780b6c76f942a148ec610eb404b0cb14b15241fcced55a7a"
+    "POLICY_AUD": "f6c819ef4ddd9b70048cbda9805a2b92bcc769c6492f733af156265d19110908"
   },
   "d1_databases": [
     {

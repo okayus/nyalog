@@ -2,11 +2,11 @@
   "name": "nyalog",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter @nyalog/api dev & pnpm --filter @nyalog/web dev",
-    "build": "pnpm --filter @nyalog/api build && pnpm --filter @nyalog/web build",
-    "deploy": "pnpm --filter @nyalog/api deploy && pnpm --filter @nyalog/web deploy",
-    "db:generate": "pnpm --filter @nyalog/api db:generate",
-    "db:migrate": "pnpm --filter @nyalog/api db:migrate",
-    "db:migrate:prod": "pnpm --filter @nyalog/api db:migrate:prod"
+    "dev": "pnpm --filter @nyalog/web dev",
+    "build": "pnpm --filter @nyalog/web build",
+    "deploy": "pnpm --filter @nyalog/web deploy",
+    "db:generate": "pnpm --filter @nyalog/web db:generate",
+    "db:migrate": "pnpm --filter @nyalog/web db:migrate",
+    "db:migrate:prod": "pnpm --filter @nyalog/web db:migrate:prod"
   }
 }

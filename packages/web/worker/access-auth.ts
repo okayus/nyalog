@@ -5,6 +5,7 @@ type Env = {
   Bindings: {
     TEAM_DOMAIN: string;
     POLICY_AUD: string;
+    DEV_SKIP_AUTH?: string;
   };
   Variables: {
     userEmail: string;
@@ -13,6 +14,12 @@ type Env = {
 
 export const accessAuth = () =>
   createMiddleware<Env>(async (c, next) => {
+    if (c.env.DEV_SKIP_AUTH === "true") {
+      c.set("userEmail", "dev@localhost");
+      await next();
+      return;
+    }
+
     const teamDomain = c.env.TEAM_DOMAIN;
     const policyAud = c.env.POLICY_AUD;
 
