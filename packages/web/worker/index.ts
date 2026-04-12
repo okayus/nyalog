@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { accessAuth } from "./access-auth";
 import { catRoutes } from "./routes/cats";
+import { toiletRoutes } from "./routes/toilet-records";
 import type { Env } from "./types";
 
 const app = new Hono<Env>();
@@ -19,6 +20,7 @@ authed.get("/me", (c) => {
 });
 
 authed.route("/cats", catRoutes);
+authed.route("/cats/:catId/toilet-records", toiletRoutes);
 
 app.route("/api", authed);
 

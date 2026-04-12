@@ -15,6 +15,13 @@
       "when": 1774962683049,
       "tag": "0001_dry_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1775996089021,
+      "tag": "0002_noisy_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }
