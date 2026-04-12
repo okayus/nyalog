@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c4273c7a-94c9-4c3d-a2c7-600102646628",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "5a86bc30-fa5c-43e5-8f78-f18d88b5f7d3",
+  "prevId": "c4273c7a-94c9-4c3d-a2c7-600102646628",
   "tables": {
     "cats": {
       "name": "cats",
@@ -21,8 +21,22 @@
           "notNull": true,
           "autoincrement": false
         },
+        "birthday": {
+          "name": "birthday",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

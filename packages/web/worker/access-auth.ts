@@ -1,16 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import { jwtVerify, createRemoteJWKSet } from "jose";
-
-type Env = {
-  Bindings: {
-    TEAM_DOMAIN: string;
-    POLICY_AUD: string;
-    DEV_SKIP_AUTH?: string;
-  };
-  Variables: {
-    userEmail: string;
-  };
-};
+import type { Env } from "./types";
 
 export const accessAuth = () =>
   createMiddleware<Env>(async (c, next) => {
@@ -33,9 +23,7 @@ export const accessAuth = () =>
     }
 
     try {
-      const jwks = createRemoteJWKSet(
-        new URL(`${teamDomain}/cdn-cgi/access/certs`),
-      );
+      const jwks = createRemoteJWKSet(new URL(`${teamDomain}/cdn-cgi/access/certs`));
 
       const { payload } = await jwtVerify(token, jwks, {
         issuer: teamDomain,
