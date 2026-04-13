@@ -1,4 +1,45 @@
-import { sqliteTable, text, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, index, integer } from "drizzle-orm/sqlite-core";
+
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  displayName: text("display_name").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const credentials = sqliteTable(
+  "credentials",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    publicKey: text("public_key").notNull(),
+    counter: integer("counter").notNull(),
+    transports: text("transports"),
+    deviceName: text("device_name"),
+    backedUp: integer("backed_up", { mode: "boolean" }).notNull(),
+    createdAt: text("created_at").notNull(),
+    lastUsedAt: text("last_used_at"),
+  },
+  (t) => ({
+    userIdIdx: index("credentials_user_id_idx").on(t.userId),
+  }),
+);
+
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => ({
+    userIdIdx: index("sessions_user_id_idx").on(t.userId),
+  }),
+);
 
 export const cats = sqliteTable("cats", {
   id: text("id").primaryKey(),

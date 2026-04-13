@@ -1,12 +1,16 @@
+import type { DisplayName, UserId } from "./domain/auth";
+
 type Bindings = {
   DB: D1Database;
-  TEAM_DOMAIN: string;
-  POLICY_AUD: string;
-  DEV_SKIP_AUTH?: string;
+  SESSION_SECRET: string;
+  RP_ID: string;
+  ORIGIN: string;
+  INITIAL_REGISTRATION_TOKEN?: string;
 };
 
 type Variables = {
-  userEmail: string;
+  userId: UserId;
+  displayName: DisplayName;
 };
 
 export type Env = { Bindings: Bindings; Variables: Variables };

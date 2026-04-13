@@ -1,28 +1,27 @@
 import { Hono } from "hono";
-import { accessAuth } from "./access-auth";
+import { authRoutes } from "./routes/auth";
 import { catRoutes } from "./routes/cats";
 import { toiletRoutes } from "./routes/toilet-records";
+import { sessionMiddleware } from "./middleware/session";
 import type { Env } from "./types";
 
 const app = new Hono<Env>();
 
-// Public endpoints (not protected by Cloudflare Access)
 app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Protected endpoints
-const authed = new Hono<Env>();
-authed.use("/*", accessAuth());
+const api = new Hono<Env>();
 
-authed.get("/me", (c) => {
-  return c.json({ email: c.get("userEmail") });
-});
+api.route("/auth", authRoutes);
 
-authed.route("/cats", catRoutes);
-authed.route("/cats/:catId/toilet-records", toiletRoutes);
+const protectedApi = new Hono<Env>();
+protectedApi.use("/*", sessionMiddleware());
+protectedApi.route("/cats", catRoutes);
+protectedApi.route("/cats/:catId/toilet-records", toiletRoutes);
+api.route("/", protectedApi);
 
-app.route("/api", authed);
+app.route("/api", api);
 
 export type AppType = typeof app;
 export default app;

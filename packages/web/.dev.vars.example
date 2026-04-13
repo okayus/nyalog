@@ -1,4 +1,8 @@
-# Cloudflare Access settings
-# Get these values after enabling Cloudflare Access on the Worker
-TEAM_DOMAIN=https://<team-name>.cloudflareaccess.com
-POLICY_AUD=<application-audience-tag>
+# WebAuthn / session settings (see ADR-003)
+# SESSION_SECRET: random 32+ byte secret for hono/jwt HS256 + challenge cookie
+# Generate with: openssl rand -hex 32
+SESSION_SECRET=<random-hex-string>
+
+# INITIAL_REGISTRATION_TOKEN: short-lived token for bootstrapping the first user.
+# Unset in production once onboarding is complete.
+INITIAL_REGISTRATION_TOKEN=<random-token-or-leave-unset>

@@ -12,6 +12,8 @@
     "db:migrate:prod": "wrangler d1 migrations apply nyalog-db --remote"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
+    "@simplewebauthn/server": "^13.3.0",
     "drizzle-orm": "^0.40",
     "hono": "^4",
     "jose": "^6",

@@ -4,24 +4,31 @@
 
 ## 現在のフェーズ
 
-**リリース前 / 認証方式の切り替え中**
+**リリース前 / 本番投入待ち**
 
-ADR-003 に基づき、Cloudflare Access からパスキー (WebAuthn) 認証への移行に着手するところ。移行完了後にリリースに向けた仕上げ (本番マイグレーション、デプロイ、最低限の CSS) を予定。
+パスキー (WebAuthn) 認証の実装は完了。PR #16 マージ後、本番のシークレット投入・マイグレーション・デプロイへ進む。
 
 ## 進行中
 
-- なし (次セッションで #14 に着手予定)
+- なし (PR #16 レビュー待ち → マージ後に本番投入へ)
 
 ## 次にやること
 
-1. **#14 パスキー認証への移行** (ADR-003)
-   - 依存: ADR-003 (#13 マージ済み)
-   - 規模: バックエンド + フロントエンド + デプロイ運用の大型タスク
-2. リリース向け仕上げ
-   - 本番 D1 マイグレーション適用 (0001, 0002 が未適用)
-   - 本番デプロイ (最終は 2026-03-30 で停止)
-   - 最低限の CSS / モバイル表示
-   - README の使い方ドキュメント
+**PR #16 マージ直後に実施する本番投入** (順序どおり):
+
+1. `wrangler.jsonc` の `RP_ID` / `ORIGIN` を本番 workers.dev ホスト名に確定 (暫定で `localhost` のまま)
+2. `openssl rand -hex 32 | pnpm exec wrangler secret put SESSION_SECRET`
+3. 本番 D1 にマイグレーション適用: `pnpm db:migrate:prod` (0001–0003 がまだ未適用)
+4. `pnpm deploy` で本番デプロイ
+5. `openssl rand -hex 32 | pnpm exec wrangler secret put INITIAL_REGISTRATION_TOKEN` → 本番 URL でパスキー登録 → `pnpm exec wrangler secret delete INITIAL_REGISTRATION_TOKEN`
+6. 動作確認 (ログイン → 猫プロフィール作成 → トイレ記録)
+7. Cloudflare Dashboard の Access Application を削除
+
+**その後のリリース仕上げ**:
+
+- 最低限の CSS / モバイル表示
+- README の使い方ドキュメント
+- 家族用の追加パスキー登録 (再度 `INITIAL_REGISTRATION_TOKEN` サイクル)
 
 ## 後回し (Backlog)
 
@@ -31,6 +38,7 @@ ADR-003 に基づき、Cloudflare Access からパスキー (WebAuthn) 認証へ
 
 ## 完了済み (最近)
 
+- #14 パスキー認証の実装 (バックエンド / フロントエンド / ローカル検証) — 本番投入のみ残
 - #12 トイレ記録機能 (Discriminated Union ドメイン + CRUD + React UI)
 - #11 猫プロフィール CRUD API
 - #13 ADR-003: パスキー認証への移行方針
