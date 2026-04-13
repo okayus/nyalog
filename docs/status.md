@@ -6,18 +6,21 @@
 
 **リリース仕上げ**
 
-パスキー (WebAuthn) 認証の本番投入は完了。最初のユーザのパスキー登録・動作確認まで済み。`INITIAL_REGISTRATION_TOKEN` は失効済み (新規登録は閉じている)。残るはリリース体験の磨き込み。
+パスキー (WebAuthn) 認証は本番稼働中。自分 (複数デバイス) と家族のアカウントが登録済みで、`INITIAL_REGISTRATION_TOKEN` は失効済み。モバイル向け最小 CSS も投入済み。残るは運用の自動化と、コンテンツ (薬・食事) の積み増し。
 
 ## 進行中
 
-- **CSS / モバイル対応** — iOS Safari でトイレ記録を素早くつけられる導線を最優先で整える
+- **CI/CD パイプライン整備** — main マージ時の自動デプロイ、および Playwright によるスモーク E2E (Virtual Authenticator) の導入。まずは main への push で `wrangler deploy` を走らせる最小構成から
 
 ## 次にやること
 
 優先度順:
 
-1. **家族用の追加パスキー登録** — 再度 `INITIAL_REGISTRATION_TOKEN` を払い出し → 家族のデバイスで登録 → 失効
-2. (任意) ログイン後に「自分のパスキーを追加 / 一覧 / 削除」が `CredentialsView` から動くか実機確認
+1. **main ブランチ保護** — GitHub Settings → Branches で `main` を直 push 禁止 + `check` status check 必須化 (ユーザー作業、1 分)
+2. **自動デプロイ** — `.github/workflows/deploy.yml` を追加。`CLOUDFLARE_API_TOKEN` (Workers Scripts:Edit + D1:Edit) を repo secret に投入
+3. **DB マイグレーションの自動化** — デプロイ前に `wrangler d1 migrations apply --remote` をワークフロー内で実行
+4. **(任意) スモーク E2E** — Playwright + CDP Virtual Authenticator で「登録 → ログイン → 猫作成 → トイレ記録 → ログアウト」を 1 本。staging 環境を別 Worker で建てるかは規模次第
+5. **README 更新** — CI/CD が入ったら「手動デプロイ」節を更新
 
 ## 後回し (Backlog)
 
@@ -27,6 +30,9 @@
 
 ## 完了済み (最近)
 
+- 家族用アカウント登録 (パスキー運用サイクル 1 周目)
+- 最小モバイル CSS (PR #18) — 44px タップ領域 / 1 カラム / card 風 list
+- PR check CI (PR #19) — `vp check` / `tsc` ×2 / `pnpm build` を PR と main push で走らせる
 - README (PR #17) — セットアップ / デプロイ / パスキー運用を記載
 - #14 パスキー認証への移行 (本番投入・初回ユーザ登録・動作確認まで完了、Cloudflare Access 撤去済み)
 - #12 トイレ記録機能 (Discriminated Union ドメイン + CRUD + React UI)
