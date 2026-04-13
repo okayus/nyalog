@@ -4,31 +4,22 @@
 
 ## 現在のフェーズ
 
-**リリース前 / 本番投入待ち**
+**リリース仕上げ**
 
-パスキー (WebAuthn) 認証の実装は完了。PR #16 マージ後、本番のシークレット投入・マイグレーション・デプロイへ進む。
+パスキー (WebAuthn) 認証の本番投入は完了。最初のユーザのパスキー登録・動作確認まで済み。`INITIAL_REGISTRATION_TOKEN` は失効済み (新規登録は閉じている)。残るはリリース体験の磨き込み。
 
 ## 進行中
 
-- なし (PR #16 レビュー待ち → マージ後に本番投入へ)
+- なし
 
 ## 次にやること
 
-**PR #16 マージ直後に実施する本番投入** (順序どおり):
+優先度順:
 
-1. `wrangler.jsonc` の `RP_ID` / `ORIGIN` を本番 workers.dev ホスト名に確定 (暫定で `localhost` のまま)
-2. `openssl rand -hex 32 | pnpm exec wrangler secret put SESSION_SECRET`
-3. 本番 D1 にマイグレーション適用: `pnpm db:migrate:prod` (0001–0003 がまだ未適用)
-4. `pnpm deploy` で本番デプロイ
-5. `openssl rand -hex 32 | pnpm exec wrangler secret put INITIAL_REGISTRATION_TOKEN` → 本番 URL でパスキー登録 → `pnpm exec wrangler secret delete INITIAL_REGISTRATION_TOKEN`
-6. 動作確認 (ログイン → 猫プロフィール作成 → トイレ記録)
-7. Cloudflare Dashboard の Access Application を削除
-
-**その後のリリース仕上げ**:
-
-- 最低限の CSS / モバイル表示
-- README の使い方ドキュメント
-- 家族用の追加パスキー登録 (再度 `INITIAL_REGISTRATION_TOKEN` サイクル)
+1. **最低限の CSS / モバイル表示** — モバイル (iOS Safari) でトイレ記録を素早くつけられる導線を最優先で整える
+2. **README の使い方ドキュメント** — セットアップ / デプロイ / パスキー追加運用 (`INITIAL_REGISTRATION_TOKEN` サイクル) を記載
+3. **家族用の追加パスキー登録** — 再度 `INITIAL_REGISTRATION_TOKEN` を払い出し → 家族のデバイスで登録 → 失効
+4. (任意) ログイン後に「自分のパスキーを追加 / 一覧 / 削除」が `CredentialsView` から動くか実機確認
 
 ## 後回し (Backlog)
 
@@ -38,7 +29,7 @@
 
 ## 完了済み (最近)
 
-- #14 パスキー認証の実装 (バックエンド / フロントエンド / ローカル検証) — 本番投入のみ残
+- #14 パスキー認証への移行 (本番投入・初回ユーザ登録・動作確認まで完了、Cloudflare Access 撤去済み)
 - #12 トイレ記録機能 (Discriminated Union ドメイン + CRUD + React UI)
 - #11 猫プロフィール CRUD API
 - #13 ADR-003: パスキー認証への移行方針
