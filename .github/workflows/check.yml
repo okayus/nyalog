@@ -1,0 +1,40 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Format & lint (vp check)
+        run: pnpm --filter @nyalog/web exec vp check
+
+      - name: Type check (frontend)
+        run: pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.json
+
+      - name: Type check (worker)
+        run: pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.worker.json
+
+      - name: Build
+        run: pnpm build
