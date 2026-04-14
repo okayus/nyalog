@@ -53,12 +53,14 @@ export const catRoutes = new Hono<Env>()
     const { name, birthday } = parsed.value;
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    const userId = c.get("userId");
 
     const db = drizzle(c.env.DB);
     await db.insert(cats).values({
       id,
       name,
       birthday,
+      createdBy: userId,
       createdAt: now,
       updatedAt: now,
     });
