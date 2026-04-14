@@ -20,6 +20,46 @@
 - 「CI/CD」節を新設して check / deploy の役割を説明
 - `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` の Repository secret 投入手順を追記
 
+### 2. セキュリティ監査対応 (PR #7)
+
+`security-best-practices` skill での監査結果 (PR #7 本文参照) を順に潰す。**データ所有モデル**は「記録は家族全員で共有 (閲覧・編集・削除すべて可)、ただし `createdBy` で作成者を記録する」方針で固める。作成者以外も触れるのは意図的: 家族の誰が付けた記録でもあとから補正できる。
+
+対応順は「影響 × 着手しやすさ」で並べた。上 4 つは別 PR 推奨、下 2 つは運用 TODO。
+
+1. **`feat/security-headers`** (HIGH、1 PR)
+   - `hono/secure-headers` を `app.use("*", secureHeaders({...}))` で導入
+   - 最低セット: HSTS / CSP `frame-ancestors 'none'` / `X-Content-Type-Options: nosniff` / `Referrer-Policy: strict-origin-when-cross-origin`
+   - 独自ドメイン化したときに HSTS 無しで事故らないための予防
+
+2. **`fix/global-error-handler`** (MEDIUM-HIGH、1 PR、小)
+   - `app.onError((err, c) => c.json({ error: { type: "internal" } }, 500))` を `worker/index.ts` に追加
+   - 本番で D1/Drizzle 例外のメッセージ・スタックがクライアントに漏れないようにする
+   - ログは `console.error(err)` で wrangler tail に残す
+
+3. **`fix/credentials-delete-where`** (CRITICAL、1 PR、極小)
+   - `worker/routes/auth.ts:398` の `db.delete(credentialsTable).where(eq(id, ...))` に `and(eq(userId, ...))` を追加
+   - 直前に所有者確認はしているので実害は現時点ゼロだが、防御多層化
+
+4. **`feat/created-by-column`** (CRITICAL、1 PR、中)
+   - `cats` と `toilet_records` に `created_by TEXT NOT NULL REFERENCES users(id)` を追加するマイグレーション
+   - Drizzle スキーマ更新 → ハンドラで INSERT 時に `c.get("userId")` を設定
+   - **アクセス制御は変えない**: SELECT/UPDATE/DELETE の WHERE に `createdBy` は入れない。家族全員が全件触れる
+   - `TodayView` で「誰が登録したか」を表示したい気持ちはあるが、それは別 PR
+   - 既存 1201 件のレコードは backfill が必要: 「家族の誰か代表 1 名」を `wrangler d1 execute --remote` で UPDATE → その後 NOT NULL 化 (2 段階マイグレーション)
+   - ADR を 1 本追加: 「family-shared + createdBy 属性」モデルの設計意図と、将来マルチテナント化する場合の影響範囲を明記
+
+5. **`chore/dev-bypass-guard`** (MEDIUM、小 or 運用 TODO)
+   - `DEV_BYPASS_USER_ID` は `c.env.ORIGIN` が本番ドメインと一致するときは無視するランタイムガードを `sessionMiddleware` に入れる
+   - 事故耐性を 1 段上げるだけ。後回し可
+
+6. **運用 TODO (コード変更なし、このステータスに残す)**
+   - `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
+   - Cloudflare WAF rate-limit を `/api/auth/*` に 1 ルール
+   - D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く
+   - Cloudflare の予算アラートを設定
+
+完了した項目は上から順にチェックを消してこの節を縮める。全部消えたら節ごと削除。
+
 ### 3. (任意) スモーク E2E
 
 - Playwright + CDP Virtual Authenticator で「登録 → ログイン → 猫作成 → トイレ記録 → ログアウト」を 1 本
