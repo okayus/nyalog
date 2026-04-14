@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 import { authRoutes } from "./routes/auth";
 import { catRoutes } from "./routes/cats";
 import { toiletRoutes } from "./routes/toilet-records";
@@ -6,6 +7,19 @@ import { sessionMiddleware } from "./middleware/session";
 import type { Env } from "./types";
 
 const app = new Hono<Env>();
+
+app.use(
+  "*",
+  secureHeaders({
+    strictTransportSecurity: "max-age=31536000; includeSubDomains",
+    referrerPolicy: "strict-origin-when-cross-origin",
+    xFrameOptions: "DENY",
+    contentSecurityPolicy: {
+      frameAncestors: ["'none'"],
+    },
+    crossOriginEmbedderPolicy: false,
+  }),
+);
 
 app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
