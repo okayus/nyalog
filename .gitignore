@@ -8,3 +8,10 @@ dist/
 .DS_Store
 .vite/
 .playwright-mcp/
+
+# Claude Code: skills はコミット対象、個人設定と下書きプランは除外
+.claude/settings.local.json
+.claude/plans/
+
+# vercel-labs/agent-skills のローカルキャッシュ（実体は .claude/skills/ に置く）
+.agents/

@@ -4,13 +4,13 @@
 
 ## 現在のフェーズ
 
-**UX 改善 — トップページのトイレ記録ワンタップ化 (実装完了、マージ前動作確認待ち)**
+**運用安定化 — 機能追加より整備フェーズ**
 
-`TodayView` を投入し、ログイン後に「今日の全猫のトイレ記録 + 猫×{おしっこ,うんち} クイックボタン + 時刻 inline 編集 + 猫管理 + 詳細記録リンク」をワンストップで扱えるようになった。次は本番で動作確認→残作業 (README 更新など)。
+トップページ UX 改善 (PR #5)、過去排尿ログ 1201 件のインポート、Claude Code skills の Git 登録 (PR #6) まで完了。日次運用は回っており、追加機能より整備・レビュー観点の充実に軸足を置いている。
 
 ## 進行中
 
-- **トップページのトイレ CRUD UI** — 実装済み。PR #5 (feat/top-toilet-crud) のマージと本番動作確認待ち
+- なし
 
 ## 次にやること (次セッションの出発点)
 
@@ -34,7 +34,9 @@
 
 ## 完了済み (最近)
 
-- **トップページのトイレ CRUD 統合** — `TodayView.tsx` を新設、`CatList.tsx` は吸収して削除。今日の全猫記録を 1 画面に集約、クイック記録ボタン (猫×{おしっこ,うんち}) で即投入、時刻 inline 編集 (PUT)、詳細記録リンクから既存 `ToiletRecordView` に遷移。`api.ts` に `updateToiletRecord` を追加。backend 変更なし
+- **Claude Code skills を Git 登録 (PR #6)** — `.claude/skills/` 以下を追跡対象化。vercel 製 2 skill (`vercel-react-best-practices`, `web-design-guidelines`) に加え、nyalog 専用セキュリティ skill `security-best-practices` を新規作成（8 セクション 23 ルール、Hono/Drizzle/WebAuthn+JWT セッションに即したコード例）。参考ドキュメント `docs/vibe-coding-security.md` と公開前チェックリストも追加。`.gitignore` で `.claude/settings.local.json` / `.claude/plans/` / `.agents/` を除外
+- **過去排尿ログ一括インポート** — おかゆ 862 件 + しらたま 339 件 (計 1201 件) を CSV から変換し本番 D1 に投入。使い捨てスクリプトで `INSERT` SQL を生成 → `wrangler d1 execute --remote --file` で一括流し込み。`created_at` マーカー付きで事故時の一括ロールバック可能にしていた。取り込み後 CSV・SQL・スクリプトとも削除済み
+- **トップページのトイレ CRUD 統合** — `TodayView.tsx` を新設、`CatList.tsx` は吸収して削除。今日の全猫記録を 1 画面に集約、クイック記録ボタン (猫×{おしっこ,うんち}) で即投入、時刻 inline 編集 (PUT)、詳細記録リンクから既存 `ToiletRecordView` に遷移。`api.ts` に `updateToiletRecord` を追加。backend 変更なし。併せて dev 専用認証バイパス `DEV_BYPASS_USER_ID` を `sessionMiddleware` に追加し、`docs/local-dev.md` を新設
 - 自動デプロイ workflow (`.github/workflows/deploy.yml`) — main push で `wrangler d1 migrations apply --remote` → `wrangler deploy` を実行。Repository secret (`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`) を使用。初回は `pnpm deploy` built-in と npm script 名の衝突で失敗 → root `package.json` の deploy script に `run` を明示して解消、本番デプロイ成功を確認済み
 - リポジトリ public 化 + Gmail 履歴スクラブ (`git filter-repo` で 51 コミット書き換え、旧 private リポを削除 → 同名 public で再作成、ruleset で main 保護)
 - main branch protection (ruleset): PR 必須 / `check` status check 必須 / force-push 禁止 / 削除禁止
