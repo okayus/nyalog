@@ -64,6 +64,23 @@ export async function revokeSession(c: Context<Env>): Promise<void> {
 
 export function sessionMiddleware() {
   return createMiddleware<Env>(async (c, next) => {
+    if (c.env.DEV_BYPASS_USER_ID) {
+      const db = drizzle(c.env.DB);
+      const devId = c.env.DEV_BYPASS_USER_ID;
+      const existing = await db.select().from(users).where(eq(users.id, devId));
+      if (existing.length === 0) {
+        await db.insert(users).values({
+          id: devId,
+          displayName: "dev",
+          createdAt: new Date().toISOString(),
+        });
+      }
+      c.set("userId", devId as UserId);
+      c.set("displayName", (existing[0]?.displayName ?? "dev") as DisplayName);
+      await next();
+      return;
+    }
+
     const token = getCookie(c, COOKIE_NAME);
     if (!token) {
       return c.json({ error: { type: "unauthorized", message: "No session" } }, 401);
