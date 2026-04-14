@@ -24,17 +24,17 @@
 
 ## 後回し (Backlog)
 
-- **#9** Hono RPC クライアント (chore) — 現在は手書き fetch ラッパで型安全は確保済み
-- **#7** 薬・動物病院の予定管理 — リリース後に着手
-- **#8** ご飯・カロリー管理 — リリース後に着手
+- Hono RPC クライアント (chore) — 現在は手書き fetch ラッパで型安全は確保済み
+- 薬・動物病院の予定管理 — リリース後に着手
+- ご飯・カロリー管理 — リリース後に着手
 
 ## 完了済み (最近)
 
 - 家族用アカウント登録 (パスキー運用サイクル 1 周目)
-- 最小モバイル CSS (PR #18) — 44px タップ領域 / 1 カラム / card 風 list
-- PR check CI (PR #19) — `vp check` / `tsc` ×2 / `pnpm build` を PR と main push で走らせる
-- README (PR #17) — セットアップ / デプロイ / パスキー運用を記載
-- #14 パスキー認証への移行 (本番投入・初回ユーザ登録・動作確認まで完了、Cloudflare Access 撤去済み)
-- #12 トイレ記録機能 (Discriminated Union ドメイン + CRUD + React UI)
-- #11 猫プロフィール CRUD API
-- #13 ADR-003: パスキー認証への移行方針
+- 最小モバイル CSS — 44px タップ領域 / 1 カラム / card 風 list
+- PR check CI — `vp check` / `tsc` ×2 / `pnpm build` を PR と main push で走らせる
+- README — セットアップ / デプロイ / パスキー運用を記載
+- パスキー認証への移行 (本番投入・初回ユーザ登録・動作確認まで完了、Cloudflare Access 撤去済み)
+- トイレ記録機能 (Discriminated Union ドメイン + CRUD + React UI)
+- 猫プロフィール CRUD API
+- ADR-003: パスキー認証への移行方針
