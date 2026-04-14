@@ -6,57 +6,52 @@
 
 **運用安定化 — 機能追加より整備フェーズ**
 
-トップページ UX 改善 (PR #5)、過去排尿ログ 1201 件のインポート、Claude Code skills の Git 登録 (PR #6) まで完了。日次運用は回っており、追加機能より整備・レビュー観点の充実に軸足を置いている。
+PR #7 のセキュリティ監査で挙がっていたコード修正 5 件 (PR #8〜#12) をすべてマージし本番反映。トップページ UX / 過去ログインポート / Claude Code skills の Git 登録も完了済み。日次運用は回っており、追加機能より整備・レビュー観点の充実に軸足を置いている。
 
 ## 進行中
 
-- **PR #8 `fix/credentials-delete-where`** — CRITICAL の防御多層化。`db.delete(credentialsTable)` の WHERE に `userId` を追加。レビュー/マージ待ち
+- なし
 
 ## 次にやること (次セッションの出発点)
 
-### 1. README 更新 (CI/CD 反映)
+### 1. PR #11 phase 2: `created_by` backfill + NOT NULL 化
 
-- 「デプロイ」節を「main へのマージで自動デプロイ。手動は非常時のみ」に書き換え
-- 「CI/CD」節を新設して check / deploy の役割を説明
-- `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` の Repository secret 投入手順を追記
+PR #11 で `created_by` カラムを NULLABLE で追加済み。既存 1201 件は NULL のまま。残作業:
 
-### 2. セキュリティ監査対応 (PR #7)
+1. 本番 `users` から代表 1 名の id を確認:
+   ```bash
+   cd packages/web
+   pnpm exec wrangler d1 execute nyalog-db --remote \
+     --command "SELECT id, display_name FROM users"
+   ```
+2. backfill UPDATE (NULL 行のみ):
+   ```bash
+   pnpm exec wrangler d1 execute nyalog-db --remote --command \
+     "UPDATE cats SET created_by = '<USER_ID>' WHERE created_by IS NULL; \
+      UPDATE toilet_records SET created_by = '<USER_ID>' WHERE created_by IS NULL;"
+   ```
+3. 別 PR で Drizzle スキーマを `.notNull()` に変更 → `pnpm db:generate` → drizzle-kit が生成する SQL をレビュー (SQLite の ALTER 制約上テーブル再作成になる可能性大) → マージで本番適用
 
-`security-best-practices` skill での監査結果 (PR #7 本文参照) を順に潰す。**データ所有モデル**は「記録は家族全員で共有 (閲覧・編集・削除すべて可)、ただし `createdBy` で作成者を記録する」方針で固める。作成者以外も触れるのは意図的: 家族の誰が付けた記録でもあとから補正できる。
+本番 DB への書き込みを伴うので必ず人間が手動で実行すること。
 
-対応順は「影響 × 着手しやすさ」で並べた。上 4 つは別 PR 推奨、下 2 つは運用 TODO。
+### 2. SPA HTML への security-headers 適用 (follow-up from PR #9)
 
-1. **`feat/security-headers`** (HIGH、1 PR)
-   - `hono/secure-headers` を `app.use("*", secureHeaders({...}))` で導入
-   - 最低セット: HSTS / CSP `frame-ancestors 'none'` / `X-Content-Type-Options: nosniff` / `Referrer-Policy: strict-origin-when-cross-origin`
-   - 独自ドメイン化したときに HSTS 無しで事故らないための予防
+PR #9 で worker レスポンスには secureHeaders が付くようになったが、`run_worker_first: ["/api/*", "/health"]` のため SPA の静的 HTML には付かない。clickjacking 完全防止には worker を全リクエストに経由させる変更が必要:
 
-2. **`fix/global-error-handler`** (MEDIUM-HIGH、1 PR、小)
-   - `app.onError((err, c) => c.json({ error: { type: "internal" } }, 500))` を `worker/index.ts` に追加
-   - 本番で D1/Drizzle 例外のメッセージ・スタックがクライアントに漏れないようにする
-   - ログは `console.error(err)` で wrangler tail に残す
+- `wrangler.jsonc` の `run_worker_first` を `true` に
+- `worker/types.ts` の Bindings に `ASSETS: Fetcher` を追加
+- `worker/index.ts` に `app.notFound(c => c.env.ASSETS.fetch(c.req.raw))` を追加
 
-3. **`feat/created-by-column`** (CRITICAL、1 PR、中)
-   - `cats` と `toilet_records` に `created_by TEXT NOT NULL REFERENCES users(id)` を追加するマイグレーション
-   - Drizzle スキーマ更新 → ハンドラで INSERT 時に `c.get("userId")` を設定
-   - **アクセス制御は変えない**: SELECT/UPDATE/DELETE の WHERE に `createdBy` は入れない。家族全員が全件触れる
-   - `TodayView` で「誰が登録したか」を表示したい気持ちはあるが、それは別 PR
-   - 既存 1201 件のレコードは backfill が必要: 「家族の誰か代表 1 名」を `wrangler d1 execute --remote` で UPDATE → その後 NOT NULL 化 (2 段階マイグレーション)
-   - ADR を 1 本追加: 「family-shared + createdBy 属性」モデルの設計意図と、将来マルチテナント化する場合の影響範囲を明記
+優先度: 独自ドメイン化するまでは後回し可。
 
-4. **`chore/dev-bypass-guard`** (MEDIUM、小 or 運用 TODO)
-   - `DEV_BYPASS_USER_ID` は `c.env.ORIGIN` が本番ドメインと一致するときは無視するランタイムガードを `sessionMiddleware` に入れる
-   - 事故耐性を 1 段上げるだけ。後回し可
+### 3. 運用 TODO (コード変更なし)
 
-5. **運用 TODO (コード変更なし、このステータスに残す)**
-   - `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
-   - Cloudflare WAF rate-limit を `/api/auth/*` に 1 ルール
-   - D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く
-   - Cloudflare の予算アラートを設定
+- `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
+- Cloudflare WAF rate-limit を `/api/auth/*` に 1 ルール
+- D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く
+- Cloudflare の予算アラートを設定
 
-完了した項目は上から順にチェックを消してこの節を縮める。全部消えたら節ごと削除。
-
-### 3. (任意) スモーク E2E
+### 4. (任意) スモーク E2E
 
 - Playwright + CDP Virtual Authenticator で「登録 → ログイン → 猫作成 → トイレ記録 → ログアウト」を 1 本
 - staging Worker を別建てするかは規模次第 (今は本番直で OK)
@@ -70,6 +65,12 @@
 
 ## 完了済み (最近)
 
+- **セキュリティ監査対応 5 PR 一括マージ (PR #8〜#12)** —
+  - PR #8 `fix/credentials-delete-where`: 資格情報 DELETE の WHERE に `userId` を追加 (CRITICAL 防御多層化)
+  - PR #9 `feat/security-headers`: `hono/secure-headers` 導入。HSTS / CSP `frame-ancestors 'none'` / X-Frame-Options DENY / Referrer-Policy を worker レスポンスに付与。本番 `curl -I /api/health` で確認済み。SPA HTML 側は経路の都合で未カバー (follow-up あり)
+  - PR #10 `fix/global-error-handler`: `app.onError` で 500 を `{error:{type:"internal"}}` に正規化、スタック漏洩防止
+  - PR #11 `feat/created-by-column` (phase 1): `cats` / `toilet_records` に NULLABLE で追加、INSERT で自動埋め。ADR-004 で family-shared + createdBy の意図を明文化。phase 2 は手動運用 TODO
+  - PR #12 `chore/dev-bypass-guard`: `DEV_BYPASS_USER_ID` を `c.env.ORIGIN` hostname が localhost/127.0.0.1 のときのみ発動させるランタイムガード
 - **Claude Code skills を Git 登録 (PR #6)** — `.claude/skills/` 以下を追跡対象化。vercel 製 2 skill (`vercel-react-best-practices`, `web-design-guidelines`) に加え、nyalog 専用セキュリティ skill `security-best-practices` を新規作成（8 セクション 23 ルール、Hono/Drizzle/WebAuthn+JWT セッションに即したコード例）。参考ドキュメント `docs/vibe-coding-security.md` と公開前チェックリストも追加。`.gitignore` で `.claude/settings.local.json` / `.claude/plans/` / `.agents/` を除外
 - **過去排尿ログ一括インポート** — おかゆ 862 件 + しらたま 339 件 (計 1201 件) を CSV から変換し本番 D1 に投入。使い捨てスクリプトで `INSERT` SQL を生成 → `wrangler d1 execute --remote --file` で一括流し込み。`created_at` マーカー付きで事故時の一括ロールバック可能にしていた。取り込み後 CSV・SQL・スクリプトとも削除済み
 - **トップページのトイレ CRUD 統合** — `TodayView.tsx` を新設、`CatList.tsx` は吸収して削除。今日の全猫記録を 1 画面に集約、クイック記録ボタン (猫×{おしっこ,うんち}) で即投入、時刻 inline 編集 (PUT)、詳細記録リンクから既存 `ToiletRecordView` に遷移。`api.ts` に `updateToiletRecord` を追加。backend 変更なし。併せて dev 専用認証バイパス `DEV_BYPASS_USER_ID` を `sessionMiddleware` に追加し、`docs/local-dev.md` を新設
