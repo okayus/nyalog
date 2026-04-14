@@ -10,7 +10,7 @@
 
 ## 進行中
 
-- なし
+- **PR #8 `fix/credentials-delete-where`** — CRITICAL の防御多層化。`db.delete(credentialsTable)` の WHERE に `userId` を追加。レビュー/マージ待ち
 
 ## 次にやること (次セッションの出発点)
 
@@ -36,11 +36,7 @@
    - 本番で D1/Drizzle 例外のメッセージ・スタックがクライアントに漏れないようにする
    - ログは `console.error(err)` で wrangler tail に残す
 
-3. **`fix/credentials-delete-where`** (CRITICAL、1 PR、極小)
-   - `worker/routes/auth.ts:398` の `db.delete(credentialsTable).where(eq(id, ...))` に `and(eq(userId, ...))` を追加
-   - 直前に所有者確認はしているので実害は現時点ゼロだが、防御多層化
-
-4. **`feat/created-by-column`** (CRITICAL、1 PR、中)
+3. **`feat/created-by-column`** (CRITICAL、1 PR、中)
    - `cats` と `toilet_records` に `created_by TEXT NOT NULL REFERENCES users(id)` を追加するマイグレーション
    - Drizzle スキーマ更新 → ハンドラで INSERT 時に `c.get("userId")` を設定
    - **アクセス制御は変えない**: SELECT/UPDATE/DELETE の WHERE に `createdBy` は入れない。家族全員が全件触れる
@@ -48,11 +44,11 @@
    - 既存 1201 件のレコードは backfill が必要: 「家族の誰か代表 1 名」を `wrangler d1 execute --remote` で UPDATE → その後 NOT NULL 化 (2 段階マイグレーション)
    - ADR を 1 本追加: 「family-shared + createdBy 属性」モデルの設計意図と、将来マルチテナント化する場合の影響範囲を明記
 
-5. **`chore/dev-bypass-guard`** (MEDIUM、小 or 運用 TODO)
+4. **`chore/dev-bypass-guard`** (MEDIUM、小 or 運用 TODO)
    - `DEV_BYPASS_USER_ID` は `c.env.ORIGIN` が本番ドメインと一致するときは無視するランタイムガードを `sessionMiddleware` に入れる
    - 事故耐性を 1 段上げるだけ。後回し可
 
-6. **運用 TODO (コード変更なし、このステータスに残す)**
+5. **運用 TODO (コード変更なし、このステータスに残す)**
    - `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
    - Cloudflare WAF rate-limit を `/api/auth/*` に 1 ルール
    - D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く
