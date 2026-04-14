@@ -10,33 +10,26 @@
 
 ## 進行中
 
-- **CI/CD: 自動デプロイワークフロー追加** — main マージ時に `wrangler deploy` を走らせ、同じジョブ内で D1 マイグレーションも適用する最小構成から
+- **CI/CD 仕上げ** — 自動デプロイ workflow (`.github/workflows/deploy.yml`) は投入済み。クレデンシャル投入と初回実行ログの確認待ち
 
 ## 次にやること (次セッションの出発点)
 
-### 1. 自動デプロイワークフロー (今やる)
+### 1. CD クレデンシャル投入と初回実行確認 (今やる)
 
-`.github/workflows/deploy.yml` を新規作成:
+1. Cloudflare Dashboard → My Profile → API Tokens → Create Custom Token
+   - Permissions: `Account > Workers Scripts > Edit`, `Account > D1 > Edit`, `User > User Details > Read`
+   - Account Resources: `Include > <該当アカウント>`
+   - TTL: なし or 1 年
+2. GitHub repo Settings → Environments → `production` を作成
+3. production environment に secret を投入:
+   - `CLOUDFLARE_API_TOKEN` = 上で作ったトークン
+   - `CLOUDFLARE_ACCOUNT_ID` = `b206ff3a1f57cd57469b20adaf8be123`
+4. deploy workflow を含む PR をマージ → Actions タブで deploy 実行を見届ける
+   - マイグレーション step: `No migrations to apply` か既存分適用成功
+   - deploy step: `Deployed nyalog` と URL が出れば成功
+5. 失敗時は手動 `pnpm run deploy` で復旧 (従来経路は維持)
 
-- トリガ: `push` to `main` (+ 手動 `workflow_dispatch` で再実行可能に)
-- ジョブ内容:
-  1. `pnpm install --frozen-lockfile`
-  2. `pnpm --filter @nyalog/web exec wrangler d1 migrations apply nyalog-db --remote` (本番 D1 にマイグレーション適用、冪等)
-  3. `pnpm run deploy` (`vp build && wrangler deploy`)
-- 使う GitHub Action: `cloudflare/wrangler-action@v3` か、自前で `npx wrangler deploy` を叩くか。既存の check ワークフロー (`.github/workflows/check.yml`) の Node 22 + pnpm 10 パターンを踏襲
-
-**必要なクレデンシャル (ユーザー作業)**:
-
-- `CLOUDFLARE_API_TOKEN` を GitHub repo secret に投入
-  - Cloudflare Dashboard → My Profile → API Tokens → Create Custom Token
-  - Permissions: `Account > Workers Scripts > Edit`, `Account > D1 > Edit`, `User > User Details > Read`
-  - Account Resources: `Include > <該当アカウント>`
-  - TTL: なし or 1 年
-- `CLOUDFLARE_ACCOUNT_ID` を GitHub repo secret か vars に投入 (`b206ff3a1f57cd57469b20adaf8be123`)
-
-**テスト方針**: deploy workflow を含む PR をマージして main に入ると実デプロイが走る。初回は恐る恐る、ログを見届けて成功を確認。失敗時は手動 `pnpm run deploy` で復旧 (従来と同じ経路は残る)。
-
-### 2. (自動デプロイの後) README 更新
+### 2. (自動デプロイ稼働後) README 更新
 
 - 「デプロイ」節を「main へのマージで自動デプロイ。手動は非常時のみ」に書き換え
 - 「CI/CD」節を新設して check と deploy の役割を説明
@@ -56,6 +49,7 @@
 
 ## 完了済み (最近)
 
+- 自動デプロイ workflow (`.github/workflows/deploy.yml`) — main push で D1 マイグレーション適用 → Worker デプロイ。`production` environment に scope した secret を使用 (クレデンシャル投入は未完了)
 - リポジトリ public 化 + Gmail 履歴スクラブ (`git filter-repo` で 51 コミット書き換え、旧 private リポを削除 → 同名 public で再作成、ruleset で main 保護)
 - main branch protection (ruleset): PR 必須 / `check` status check 必須 / force-push 禁止 / 削除禁止
 - 家族用アカウント登録 (パスキー運用サイクル 1 周目)
