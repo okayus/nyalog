@@ -29,6 +29,8 @@ pnpm dev                   # http://localhost:5173/
 
 `packages/web/wrangler.jsonc` の `RP_ID` / `ORIGIN` は本番ホスト名固定。**ローカル動作確認はパスキー登録まで本番 URL を使う想定**。完全ローカルで試したい場合は wrangler.jsonc を一時的に `localhost` に書き換える。
 
+dev 環境でパスキー認証を丸ごとバイパスしたい (別マシンでの動作確認や Playwright 検証向け) 場合は [`docs/local-dev.md`](./docs/local-dev.md) を参照。
+
 ### よく使うコマンド
 
 ```bash

@@ -171,3 +171,53 @@ nav button {
 section {
   margin-top: 8px;
 }
+
+/* Quick-record grid on TodayView */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 12px 0 20px;
+}
+
+.quick-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+}
+
+.quick-cell button.link-button {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  min-height: 32px;
+  padding: 4px;
+  align-self: flex-end;
+}
+
+/* h2 disclosure button — flat text, no box */
+h2 button.disclosure {
+  background: transparent;
+  color: inherit;
+  border: none;
+  padding: 0;
+  min-height: auto;
+  font: inherit;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
+}

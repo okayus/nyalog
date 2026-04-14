@@ -13,6 +13,10 @@ type CreateToiletRecordInput =
   | { type: "urination"; timestamp: string }
   | { type: "defecation"; timestamp: string; condition: StoolCondition };
 
+type UpdateToiletRecordInput =
+  | { type: "urination"; timestamp?: string }
+  | { type: "defecation"; timestamp?: string; condition?: StoolCondition };
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -64,6 +68,17 @@ export function createToiletRecord(
 ): Promise<ToiletRecord> {
   return request<ToiletRecord>(`/api/cats/${catId}/toilet-records`, {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateToiletRecord(
+  catId: string,
+  id: string,
+  input: UpdateToiletRecordInput,
+): Promise<ToiletRecord> {
+  return request<ToiletRecord>(`/api/cats/${catId}/toilet-records/${id}`, {
+    method: "PUT",
     body: JSON.stringify(input),
   });
 }

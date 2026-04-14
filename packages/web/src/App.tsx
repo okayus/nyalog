@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { type AuthUser, ApiError, authApi } from "./api";
 import { AuthView } from "./components/AuthView";
-import { CatList } from "./components/CatList";
 import { CredentialsView } from "./components/CredentialsView";
+import { TodayView } from "./components/TodayView";
 import { ToiletRecordView } from "./components/ToiletRecordView";
 
 type View =
-  | { kind: "cats" }
+  | { kind: "today" }
   | { kind: "toilet"; catId: string; catName: string }
   | { kind: "credentials" };
 
@@ -17,7 +17,7 @@ type AuthState =
 
 export function App() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
-  const [view, setView] = useState<View>({ kind: "cats" });
+  const [view, setView] = useState<View>({ kind: "today" });
 
   useEffect(() => {
     authApi
@@ -37,7 +37,7 @@ export function App() {
       await authApi.logout();
     } finally {
       setAuth({ status: "unauthenticated" });
-      setView({ kind: "cats" });
+      setView({ kind: "today" });
     }
   }
 
@@ -74,19 +74,21 @@ export function App() {
         </button>
       </header>
 
-      {view.kind === "cats" && (
-        <CatList
-          onSelect={(cat) => setView({ kind: "toilet", catId: cat.id, catName: cat.name })}
+      {view.kind === "today" ? (
+        <TodayView
+          onOpenDetail={(cat) => setView({ kind: "toilet", catId: cat.id, catName: cat.name })}
         />
-      )}
-      {view.kind === "toilet" && (
+      ) : null}
+      {view.kind === "toilet" ? (
         <ToiletRecordView
           catId={view.catId}
           catName={view.catName}
-          onBack={() => setView({ kind: "cats" })}
+          onBack={() => setView({ kind: "today" })}
         />
-      )}
-      {view.kind === "credentials" && <CredentialsView onBack={() => setView({ kind: "cats" })} />}
+      ) : null}
+      {view.kind === "credentials" ? (
+        <CredentialsView onBack={() => setView({ kind: "today" })} />
+      ) : null}
     </main>
   );
 }
