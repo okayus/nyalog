@@ -145,6 +145,7 @@ export const toiletRoutes = new Hono<Env>()
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const input = parsed.value;
+    const userId = c.get("userId");
 
     await db.insert(toiletRecords).values({
       id,
@@ -152,6 +153,7 @@ export const toiletRoutes = new Hono<Env>()
       type: input.type,
       timestamp: input.timestamp,
       condition: input.type === "defecation" ? input.condition : null,
+      createdBy: userId,
       createdAt: now,
       updatedAt: now,
     });
