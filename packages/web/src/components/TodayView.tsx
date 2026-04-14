@@ -1,0 +1,295 @@
+import { useEffect, useState } from "react";
+import type { Cat } from "../../worker/domain/cat";
+import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
+import {
+  createCat,
+  createToiletRecord,
+  deleteCat,
+  deleteToiletRecord,
+  listCats,
+  listToiletRecords,
+  updateToiletRecord,
+} from "../api";
+
+type Props = {
+  onOpenDetail: (cat: Cat) => void;
+};
+
+const STOOL_LABEL: Record<StoolCondition, string> = {
+  normal: "普通",
+  soft: "軟便",
+  diarrhea: "下痢",
+  hard: "硬い",
+  bloody: "血便",
+};
+
+function startOfTodayMs(): number {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function toHHMM(iso: string): string {
+  const d = new Date(iso);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function replaceHHMM(iso: string, hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date(iso);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
+function typeLabel(r: ToiletRecord): string {
+  if (r.type === "urination") return "💧 排尿";
+  return `💩 排便 (${STOOL_LABEL[r.condition]})`;
+}
+
+export function TodayView({ onOpenDetail }: Props) {
+  const [cats, setCats] = useState<Cat[]>([]);
+  const [recordsByCat, setRecordsByCat] = useState<Record<string, ToiletRecord[]>>({});
+  const [name, setName] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [showCatManager, setShowCatManager] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const loaded = await listCats();
+        setCats(loaded);
+        const entries = await Promise.all(
+          loaded.map(async (c) => [c.id, await listToiletRecords(c.id)] as const),
+        );
+        setRecordsByCat(Object.fromEntries(entries));
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    })();
+  }, []);
+
+  async function handleQuick(catId: string, type: "urination" | "defecation") {
+    setError(null);
+    try {
+      const iso = new Date().toISOString();
+      const created =
+        type === "urination"
+          ? await createToiletRecord(catId, { type: "urination", timestamp: iso })
+          : await createToiletRecord(catId, {
+              type: "defecation",
+              timestamp: iso,
+              condition: "normal",
+            });
+      setRecordsByCat((prev) => ({
+        ...prev,
+        [catId]: [created, ...(prev[catId] ?? [])],
+      }));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleDeleteRecord(catId: string, id: string) {
+    if (!confirm("この記録を削除しますか？")) return;
+    setError(null);
+    try {
+      await deleteToiletRecord(catId, id);
+      setRecordsByCat((prev) => ({
+        ...prev,
+        [catId]: (prev[catId] ?? []).filter((r) => r.id !== id),
+      }));
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  function startEdit(r: ToiletRecord) {
+    setEditingId(r.id);
+    setEditingValue(toHHMM(r.timestamp));
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingValue("");
+  }
+
+  async function saveEdit(catId: string, r: ToiletRecord) {
+    if (!/^\d{2}:\d{2}$/.test(editingValue)) {
+      cancelEdit();
+      return;
+    }
+    const newIso = replaceHHMM(r.timestamp, editingValue);
+    setError(null);
+    try {
+      const updated = await updateToiletRecord(catId, r.id, {
+        type: r.type,
+        timestamp: newIso,
+      });
+      setRecordsByCat((prev) => ({
+        ...prev,
+        [catId]: (prev[catId] ?? []).map((x) => (x.id === r.id ? updated : x)),
+      }));
+      cancelEdit();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleCreateCat(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      const created = await createCat({ name, birthday: birthday || null });
+      setCats((prev) => [...prev, created]);
+      setRecordsByCat((prev) => ({ ...prev, [created.id]: [] }));
+      setName("");
+      setBirthday("");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleDeleteCat(id: string) {
+    if (!confirm("この猫を削除しますか？（紐づくトイレ記録も消えます）")) return;
+    setError(null);
+    try {
+      await deleteCat(id);
+      setCats((prev) => prev.filter((c) => c.id !== id));
+      setRecordsByCat((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const startMs = startOfTodayMs();
+  const todayItems = cats
+    .flatMap((c) =>
+      (recordsByCat[c.id] ?? [])
+        .filter((r) => new Date(r.timestamp).getTime() >= startMs)
+        .map((r) => ({ cat: c, record: r })),
+    )
+    .sort((a, b) => (a.record.timestamp < b.record.timestamp ? 1 : -1));
+
+  return (
+    <section>
+      <h2>今日のトイレ記録</h2>
+
+      {error ? <p style={{ color: "red" }}>エラー: {error}</p> : null}
+
+      {todayItems.length === 0 ? (
+        <p>今日の記録はまだありません</p>
+      ) : (
+        <ul>
+          {todayItems.map(({ cat, record }) => (
+            <li key={record.id}>
+              <strong>{cat.name}</strong>
+              <span>{typeLabel(record)}</span>
+              {editingId === record.id ? (
+                <>
+                  <label className="visually-hidden" htmlFor={`time-${record.id}`}>
+                    時刻
+                  </label>
+                  <input
+                    id={`time-${record.id}`}
+                    type="time"
+                    value={editingValue}
+                    onChange={(e) => setEditingValue(e.target.value)}
+                  />
+                  <button type="button" onClick={() => saveEdit(cat.id, record)}>
+                    保存
+                  </button>
+                  <button type="button" onClick={cancelEdit}>
+                    取消
+                  </button>
+                </>
+              ) : (
+                <>
+                  <time dateTime={record.timestamp}>{toHHMM(record.timestamp)}</time>
+                  <button type="button" aria-label="時刻を編集" onClick={() => startEdit(record)}>
+                    編集
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="記録を削除"
+                    onClick={() => handleDeleteRecord(cat.id, record.id)}
+                  >
+                    削除
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h2>クイック記録</h2>
+      {cats.length === 0 ? (
+        <p>先に猫を登録してください</p>
+      ) : (
+        <div className="quick-grid">
+          {cats.map((cat) => (
+            <div key={cat.id} className="quick-cell">
+              <button type="button" onClick={() => handleQuick(cat.id, "urination")}>
+                {cat.name} 💧 おしっこ
+              </button>
+              <button type="button" onClick={() => handleQuick(cat.id, "defecation")}>
+                {cat.name} 💩 うんち
+              </button>
+              <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
+                詳細記録 →
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2>
+        <button
+          type="button"
+          className="disclosure"
+          onClick={() => setShowCatManager((v) => !v)}
+          aria-expanded={showCatManager}
+        >
+          猫の管理 {showCatManager ? "▾" : "▸"}
+        </button>
+      </h2>
+      {showCatManager ? (
+        <>
+          <form onSubmit={handleCreateCat}>
+            <label>
+              名前
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+            </label>
+            <label>
+              誕生日
+              <input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+            </label>
+            <button type="submit">追加</button>
+          </form>
+          {cats.length > 0 ? (
+            <ul>
+              {cats.map((cat) => (
+                <li key={cat.id}>
+                  <strong>{cat.name}</strong>
+                  {cat.birthday ? <span>({cat.birthday})</span> : null}
+                  <button type="button" onClick={() => handleDeleteCat(cat.id)}>
+                    削除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+}

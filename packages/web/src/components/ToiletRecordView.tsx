@@ -73,7 +73,7 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
   return (
     <section>
       <button type="button" onClick={onBack}>
-        ← 猫一覧
+        ← 戻る
       </button>
 
       <h2>{catName} のトイレ記録</h2>
