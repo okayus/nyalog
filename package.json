@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "pnpm --filter @nyalog/web dev",
     "build": "pnpm --filter @nyalog/web build",
-    "deploy": "pnpm --filter @nyalog/web deploy",
+    "deploy": "pnpm --filter @nyalog/web run deploy",
     "db:generate": "pnpm --filter @nyalog/web db:generate",
     "db:migrate": "pnpm --filter @nyalog/web db:migrate",
     "db:migrate:prod": "pnpm --filter @nyalog/web db:migrate:prod"
