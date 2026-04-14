@@ -62,9 +62,18 @@ export async function revokeSession(c: Context<Env>): Promise<void> {
   deleteCookie(c, COOKIE_NAME, { path: "/" });
 }
 
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname;
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 export function sessionMiddleware() {
   return createMiddleware<Env>(async (c, next) => {
-    if (c.env.DEV_BYPASS_USER_ID) {
+    if (c.env.DEV_BYPASS_USER_ID && isLocalOrigin(c.env.ORIGIN)) {
       const db = drizzle(c.env.DB);
       const devId = c.env.DEV_BYPASS_USER_ID;
       const existing = await db.select().from(users).where(eq(users.id, devId));
@@ -79,6 +88,9 @@ export function sessionMiddleware() {
       c.set("displayName", (existing[0]?.displayName ?? "dev") as DisplayName);
       await next();
       return;
+    }
+    if (c.env.DEV_BYPASS_USER_ID) {
+      console.error("DEV_BYPASS_USER_ID is set on a non-local ORIGIN; ignoring for safety");
     }
 
     const token = getCookie(c, COOKIE_NAME);
