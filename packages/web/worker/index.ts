@@ -21,6 +21,11 @@ app.use(
   }),
 );
 
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: { type: "internal" } }, 500);
+});
+
 app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
