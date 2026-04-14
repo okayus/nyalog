@@ -6,3 +6,8 @@ SESSION_SECRET=<random-hex-string>
 # INITIAL_REGISTRATION_TOKEN: short-lived token for bootstrapping the first user.
 # Unset in production once onboarding is complete.
 INITIAL_REGISTRATION_TOKEN=<random-token-or-leave-unset>
+
+# DEV_BYPASS_USER_ID (dev only): if set, sessionMiddleware skips passkey auth and
+# injects this UUID as the logged-in user. Never set as a production secret.
+# See docs/local-dev.md for details.
+# DEV_BYPASS_USER_ID=00000000-0000-4000-8000-000000000000
