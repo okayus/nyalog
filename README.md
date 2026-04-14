@@ -45,11 +45,34 @@ pnpm db:migrate            # ローカル D1 適用
 pnpm db:migrate:prod       # 本番 D1 適用
 ```
 
+## CI/CD
+
+GitHub Actions で 2 本の workflow が走る:
+
+- **`.github/workflows/check.yml`** — PR / main push に対して `vp check` / `tsc` ×2 / `pnpm build` を実行。main branch protection で必須 status check にしている
+- **`.github/workflows/deploy.yml`** — main push で `wrangler d1 migrations apply --remote` → `wrangler deploy` を実行し、自動で本番反映する
+
+### GitHub Repository secrets
+
+deploy workflow が必要とする secret は 2 つ:
+
+- `CLOUDFLARE_API_TOKEN` — Account 権限: `Workers Scripts:Edit` / `D1:Edit` / `Workers R2 Storage:Edit` (Assets 用) を持つ API トークン
+- `CLOUDFLARE_ACCOUNT_ID` — `b206ff3a1f57cd57469b20adaf8be123` (dashboard → Workers & Pages から確認)
+
+設定手順:
+
+1. Cloudflare dashboard → My Profile → API Tokens → Create Token → `Edit Cloudflare Workers` テンプレートから作成
+2. GitHub リポジトリ → Settings → Secrets and variables → Actions → New repository secret で上記 2 つを登録
+
 ## デプロイ
+
+**通常**: main への merge で自動デプロイされる。手動デプロイは不要。
+
+**非常時 (CI が壊れた / ロールバックしたい等)**:
 
 ```bash
 pnpm db:migrate:prod       # 未適用のマイグレーションを本番に当てる
-pnpm deploy                # vp build && wrangler deploy
+pnpm run deploy            # vp build && wrangler deploy
 ```
 
 `SESSION_SECRET` は本番 secret に投入済み。新しい環境にゼロから建てる場合は次の節を参照。
