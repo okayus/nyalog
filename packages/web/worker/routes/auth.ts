@@ -395,7 +395,9 @@ export const authRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    await db.delete(credentialsTable).where(eq(credentialsTable.id, parsed.value));
+    await db
+      .delete(credentialsTable)
+      .where(and(eq(credentialsTable.id, parsed.value), eq(credentialsTable.userId, userId)));
     return c.json({});
   });
 
