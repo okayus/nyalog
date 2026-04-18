@@ -42,5 +42,10 @@ api.route("/", protectedApi);
 
 app.route("/api", api);
 
+app.notFound(async (c) => {
+  const res = await c.env.ASSETS.fetch(c.req.raw);
+  return new Response(res.body, res);
+});
+
 export type AppType = typeof app;
 export default app;
