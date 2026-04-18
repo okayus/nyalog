@@ -433,4 +433,44 @@
   .error-text {
     color: var(--color-danger);
   }
+
+  .record-item {
+    view-transition-class: record;
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+::view-transition-old(.record) {
+  animation: 180ms ease-in both record-fade-out;
+}
+
+::view-transition-new(.record) {
+  animation: 260ms ease-out both record-slide-in;
+}
+
+@keyframes record-slide-in {
+  from {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+}
+
+@keyframes record-fade-out {
+  to {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+  }
 }

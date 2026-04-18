@@ -4,6 +4,7 @@ import { AuthView } from "./components/AuthView";
 import { CredentialsView } from "./components/CredentialsView";
 import { TodayView } from "./components/TodayView";
 import { ToiletRecordView } from "./components/ToiletRecordView";
+import { withViewTransition } from "./view-transition";
 
 type View =
   | { kind: "today" }
@@ -36,8 +37,10 @@ export function App() {
     try {
       await authApi.logout();
     } finally {
-      setAuth({ status: "unauthenticated" });
-      setView({ kind: "today" });
+      withViewTransition(() => {
+        setAuth({ status: "unauthenticated" });
+        setView({ kind: "today" });
+      });
     }
   }
 
@@ -66,7 +69,10 @@ export function App() {
       <p>猫の健康管理アプリ</p>
       <header>
         <span>ログイン中: {auth.user.displayName}</span>{" "}
-        <button type="button" onClick={() => setView({ kind: "credentials" })}>
+        <button
+          type="button"
+          onClick={() => withViewTransition(() => setView({ kind: "credentials" }))}
+        >
           パスキー管理
         </button>{" "}
         <button type="button" onClick={handleLogout}>
@@ -76,18 +82,20 @@ export function App() {
 
       {view.kind === "today" ? (
         <TodayView
-          onOpenDetail={(cat) => setView({ kind: "toilet", catId: cat.id, catName: cat.name })}
+          onOpenDetail={(cat) =>
+            withViewTransition(() => setView({ kind: "toilet", catId: cat.id, catName: cat.name }))
+          }
         />
       ) : null}
       {view.kind === "toilet" ? (
         <ToiletRecordView
           catId={view.catId}
           catName={view.catName}
-          onBack={() => setView({ kind: "today" })}
+          onBack={() => withViewTransition(() => setView({ kind: "today" }))}
         />
       ) : null}
       {view.kind === "credentials" ? (
-        <CredentialsView onBack={() => setView({ kind: "today" })} />
+        <CredentialsView onBack={() => withViewTransition(() => setView({ kind: "today" }))} />
       ) : null}
     </main>
   );

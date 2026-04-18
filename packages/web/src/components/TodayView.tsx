@@ -10,6 +10,7 @@ import {
   listToiletRecords,
   updateToiletRecord,
 } from "../api";
+import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
 
 type Props = {
@@ -85,10 +86,12 @@ export function TodayView({ onOpenDetail }: Props) {
               timestamp: iso,
               condition: "normal",
             });
-      setRecordsByCat((prev) => ({
-        ...prev,
-        [catId]: [created, ...(prev[catId] ?? [])],
-      }));
+      withViewTransition(() => {
+        setRecordsByCat((prev) => ({
+          ...prev,
+          [catId]: [created, ...(prev[catId] ?? [])],
+        }));
+      });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -98,10 +101,12 @@ export function TodayView({ onOpenDetail }: Props) {
     setError(null);
     try {
       await deleteToiletRecord(catId, id);
-      setRecordsByCat((prev) => ({
-        ...prev,
-        [catId]: (prev[catId] ?? []).filter((r) => r.id !== id),
-      }));
+      withViewTransition(() => {
+        setRecordsByCat((prev) => ({
+          ...prev,
+          [catId]: (prev[catId] ?? []).filter((r) => r.id !== id),
+        }));
+      });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -129,11 +134,13 @@ export function TodayView({ onOpenDetail }: Props) {
         type: r.type,
         timestamp: newIso,
       });
-      setRecordsByCat((prev) => ({
-        ...prev,
-        [catId]: (prev[catId] ?? []).map((x) => (x.id === r.id ? updated : x)),
-      }));
-      cancelEdit();
+      withViewTransition(() => {
+        setRecordsByCat((prev) => ({
+          ...prev,
+          [catId]: (prev[catId] ?? []).map((x) => (x.id === r.id ? updated : x)),
+        }));
+        cancelEdit();
+      });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -188,7 +195,11 @@ export function TodayView({ onOpenDetail }: Props) {
       ) : (
         <ul>
           {todayItems.map(({ cat, record }) => (
-            <li key={record.id}>
+            <li
+              key={record.id}
+              className="record-item"
+              style={{ viewTransitionName: `record-${record.id}` }}
+            >
               <strong>{cat.name}</strong>
               <span>{typeLabel(record)}</span>
               {editingId === record.id ? (
