@@ -97,6 +97,7 @@
   }
 
   main {
+    container: app / inline-size;
     max-inline-size: 640px;
     margin-inline: auto;
     margin-block: 0;
@@ -267,12 +268,19 @@
 @layer components {
   .quick-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: 1fr;
     gap: var(--space-3);
     margin-block: var(--space-3) var(--space-6);
   }
 
+  @container app (min-inline-size: 30rem) {
+    .quick-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
   .quick-cell {
+    container: cell / inline-size;
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
@@ -282,6 +290,22 @@
     border-radius: var(--radius-md);
   }
 
+  .quick-cell-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  @container cell (min-inline-size: 20rem) {
+    .quick-cell-actions {
+      flex-direction: row;
+    }
+
+    .quick-cell-actions > button {
+      flex: 1;
+    }
+  }
+
   .quick-cell button.link-button {
     background: transparent;
     border: none;
@@ -289,6 +313,19 @@
     min-block-size: 32px;
     padding: var(--space-1);
     align-self: flex-end;
+  }
+
+  .cat-list {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: var(--space-2);
+  }
+
+  .cat-list > li {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
   }
 
   h2 button.disclosure {

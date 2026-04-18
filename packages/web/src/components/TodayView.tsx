@@ -238,12 +238,14 @@ export function TodayView({ onOpenDetail }: Props) {
         <div className="quick-grid">
           {cats.map((cat) => (
             <div key={cat.id} className="quick-cell">
-              <button type="button" onClick={() => handleQuick(cat.id, "urination")}>
-                {cat.name} 💧 おしっこ
-              </button>
-              <button type="button" onClick={() => handleQuick(cat.id, "defecation")}>
-                {cat.name} 💩 うんち
-              </button>
+              <div className="quick-cell-actions">
+                <button type="button" onClick={() => handleQuick(cat.id, "urination")}>
+                  {cat.name} 💧 おしっこ
+                </button>
+                <button type="button" onClick={() => handleQuick(cat.id, "defecation")}>
+                  {cat.name} 💩 うんち
+                </button>
+              </div>
               <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
                 詳細記録 →
               </button>
@@ -276,7 +278,7 @@ export function TodayView({ onOpenDetail }: Props) {
             <button type="submit">追加</button>
           </form>
           {cats.length > 0 ? (
-            <ul>
+            <ul className="cat-list">
               {cats.map((cat) => (
                 <li key={cat.id}>
                   <strong>{cat.name}</strong>
