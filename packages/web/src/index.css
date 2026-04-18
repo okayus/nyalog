@@ -436,6 +436,38 @@
 
   .record-item {
     view-transition-class: record;
+    animation: record-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 35%;
+  }
+
+  .scroll-progress {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    block-size: 2px;
+    background: var(--color-primary);
+    transform-origin: left center;
+    scale: 0 1;
+    pointer-events: none;
+    z-index: 10;
+    animation: scroll-progress-fill linear both;
+    animation-timeline: scroll(root);
+  }
+}
+
+@keyframes scroll-progress-fill {
+  to {
+    scale: 1 1;
+  }
+}
+
+@keyframes record-reveal {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -472,5 +504,13 @@
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation-duration: 0.01ms !important;
+  }
+
+  .record-item {
+    animation: none;
+  }
+
+  .scroll-progress {
+    display: none;
   }
 }
