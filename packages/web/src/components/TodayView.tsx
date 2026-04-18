@@ -10,6 +10,7 @@ import {
   listToiletRecords,
   updateToiletRecord,
 } from "../api";
+import { ConfirmButton } from "./ConfirmButton";
 
 type Props = {
   onOpenDetail: (cat: Cat) => void;
@@ -56,7 +57,6 @@ export function TodayView({ onOpenDetail }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
-  const [showCatManager, setShowCatManager] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -95,7 +95,6 @@ export function TodayView({ onOpenDetail }: Props) {
   }
 
   async function handleDeleteRecord(catId: string, id: string) {
-    if (!confirm("この記録を削除しますか？")) return;
     setError(null);
     try {
       await deleteToiletRecord(catId, id);
@@ -155,7 +154,6 @@ export function TodayView({ onOpenDetail }: Props) {
   }
 
   async function handleDeleteCat(id: string) {
-    if (!confirm("この猫を削除しますか？（紐づくトイレ記録も消えます）")) return;
     setError(null);
     try {
       await deleteCat(id);
@@ -217,13 +215,14 @@ export function TodayView({ onOpenDetail }: Props) {
                   <button type="button" aria-label="時刻を編集" onClick={() => startEdit(record)}>
                     編集
                   </button>
-                  <button
-                    type="button"
-                    aria-label="記録を削除"
-                    onClick={() => handleDeleteRecord(cat.id, record.id)}
-                  >
-                    削除
-                  </button>
+                  <ConfirmButton
+                    popoverId={`del-rec-${record.id}`}
+                    triggerLabel="削除"
+                    triggerAriaLabel="記録を削除"
+                    message="この記録を削除しますか？"
+                    confirmLabel="削除する"
+                    onConfirm={() => handleDeleteRecord(cat.id, record.id)}
+                  />
                 </>
               )}
             </li>
@@ -254,44 +253,40 @@ export function TodayView({ onOpenDetail }: Props) {
         </div>
       )}
 
-      <h2>
-        <button
-          type="button"
-          className="disclosure"
-          onClick={() => setShowCatManager((v) => !v)}
-          aria-expanded={showCatManager}
-        >
-          猫の管理 {showCatManager ? "▾" : "▸"}
-        </button>
-      </h2>
-      {showCatManager ? (
-        <>
-          <form onSubmit={handleCreateCat}>
-            <label>
-              名前
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
-            </label>
-            <label>
-              誕生日
-              <input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
-            </label>
-            <button type="submit">追加</button>
-          </form>
-          {cats.length > 0 ? (
-            <ul className="cat-list">
-              {cats.map((cat) => (
-                <li key={cat.id}>
-                  <strong>{cat.name}</strong>
-                  {cat.birthday ? <span>({cat.birthday})</span> : null}
-                  <button type="button" onClick={() => handleDeleteCat(cat.id)}>
-                    削除
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </>
-      ) : null}
+      <details className="cat-manager">
+        <summary>
+          <h2>猫の管理</h2>
+        </summary>
+        <form onSubmit={handleCreateCat}>
+          <label>
+            名前
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+          </label>
+          <label>
+            誕生日
+            <input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+          </label>
+          <button type="submit">追加</button>
+        </form>
+        {cats.length > 0 ? (
+          <ul className="cat-list">
+            {cats.map((cat) => (
+              <li key={cat.id}>
+                <strong>{cat.name}</strong>
+                {cat.birthday ? <span>({cat.birthday})</span> : null}
+                <ConfirmButton
+                  popoverId={`del-cat-${cat.id}`}
+                  triggerLabel="削除"
+                  triggerAriaLabel={`${cat.name} を削除`}
+                  message={`${cat.name} を削除しますか？ 紐づくトイレ記録も消えます。`}
+                  confirmLabel="削除する"
+                  onConfirm={() => handleDeleteCat(cat.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </details>
     </section>
   );
 }
