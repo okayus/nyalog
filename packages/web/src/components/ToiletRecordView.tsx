@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
 import { createToiletRecord, deleteToiletRecord, listToiletRecords } from "../api";
+import { ConfirmButton } from "./ConfirmButton";
 
 type Props = {
   catId: string;
@@ -61,7 +62,6 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("この記録を削除しますか？")) return;
     try {
       await deleteToiletRecord(catId, id);
       await refresh();
@@ -144,9 +144,14 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
               {r.type === "urination" ? "💧 排尿" : "💩 排便"}
               {r.type === "defecation" &&
                 ` (${STOOL_OPTIONS.find((o) => o.value === r.condition)?.label})`}{" "}
-              <button type="button" onClick={() => handleDelete(r.id)}>
-                削除
-              </button>
+              <ConfirmButton
+                popoverId={`del-detail-${r.id}`}
+                triggerLabel="削除"
+                triggerAriaLabel="記録を削除"
+                message="この記録を削除しますか？"
+                confirmLabel="削除する"
+                onConfirm={() => handleDelete(r.id)}
+              />
             </li>
           ))}
         </ul>

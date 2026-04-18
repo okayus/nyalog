@@ -328,14 +328,92 @@
     align-items: center;
   }
 
-  h2 button.disclosure {
-    background: transparent;
-    color: inherit;
-    border: none;
-    padding: 0;
-    min-block-size: auto;
-    font: inherit;
+  .cat-list > li:has(:popover-open) {
+    background: color-mix(in oklch, var(--color-danger) 10%, var(--color-surface));
+    border-color: var(--color-danger);
+  }
+
+  .cat-manager {
+    interpolate-size: allow-keywords;
+  }
+
+  .cat-manager > summary {
+    list-style: none;
     cursor: pointer;
+  }
+
+  .cat-manager > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .cat-manager > summary > h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .cat-manager > summary > h2::before {
+    content: "▸";
+    font-size: 0.8em;
+    color: var(--color-text-muted);
+    transition: rotate 200ms ease;
+  }
+
+  .cat-manager[open] > summary > h2::before {
+    rotate: 90deg;
+  }
+
+  .cat-manager::details-content {
+    block-size: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      block-size 240ms ease,
+      opacity 240ms ease,
+      content-visibility 240ms ease allow-discrete;
+  }
+
+  .cat-manager[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+
+  .confirm-popover {
+    inline-size: min(90vw, 22rem);
+    padding: var(--space-4);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .confirm-popover::backdrop {
+    background: color-mix(in oklch, var(--color-bg) 50%, transparent);
+    backdrop-filter: blur(2px);
+  }
+
+  .confirm-popover > p {
+    margin-block: 0 var(--space-3);
+    text-wrap: pretty;
+  }
+
+  .confirm-popover-actions {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .confirm-popover-actions > button {
+    flex: 1;
+  }
+
+  .confirm-popover-actions > button:last-child {
+    background: var(--color-danger);
+    border-color: var(--color-danger);
+  }
+
+  .confirm-popover-actions > button:last-child:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--color-danger) 85%, black);
+    border-color: color-mix(in oklch, var(--color-danger) 85%, black);
   }
 }
 
