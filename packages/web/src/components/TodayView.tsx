@@ -183,7 +183,7 @@ export function TodayView({ onOpenDetail }: Props) {
     <section>
       <h2>今日のトイレ記録</h2>
 
-      {error ? <p style={{ color: "red" }}>エラー: {error}</p> : null}
+      {error ? <p className="error-text">エラー: {error}</p> : null}
 
       {todayItems.length === 0 ? (
         <p>今日の記録はまだありません</p>

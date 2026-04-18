@@ -132,7 +132,7 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
         <button type="submit">記録</button>
       </form>
 
-      {error && <p style={{ color: "red" }}>エラー: {error}</p>}
+      {error && <p className="error-text">エラー: {error}</p>}
 
       {records.length === 0 ? (
         <p>記録がありません</p>

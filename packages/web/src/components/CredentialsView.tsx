@@ -75,7 +75,7 @@ export function CredentialsView({ onBack }: Props) {
         </button>
       </form>
 
-      {error && <p style={{ color: "crimson" }}>エラー: {error}</p>}
+      {error && <p className="error-text">エラー: {error}</p>}
 
       <ul>
         {credentials.map((c) => (

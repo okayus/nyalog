@@ -99,7 +99,7 @@ export function AuthView({ onAuthenticated }: Props) {
         </form>
       )}
 
-      {error && <p style={{ color: "crimson" }}>エラー: {error}</p>}
+      {error && <p className="error-text">エラー: {error}</p>}
     </section>
   );
 }
