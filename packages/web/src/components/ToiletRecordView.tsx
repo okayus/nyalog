@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
 import { createToiletRecord, deleteToiletRecord, listToiletRecords } from "../api";
+import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
 
 type Props = {
@@ -55,7 +56,8 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
           condition,
         });
       }
-      await refresh();
+      const list = await listToiletRecords(catId);
+      withViewTransition(() => setRecords(list));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -64,7 +66,8 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
   async function handleDelete(id: string) {
     try {
       await deleteToiletRecord(catId, id);
-      await refresh();
+      const list = await listToiletRecords(catId);
+      withViewTransition(() => setRecords(list));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -139,7 +142,11 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
       ) : (
         <ul>
           {records.map((r) => (
-            <li key={r.id}>
+            <li
+              key={r.id}
+              className="record-item"
+              style={{ viewTransitionName: `record-detail-${r.id}` }}
+            >
               {new Date(r.timestamp).toLocaleString()}{" "}
               {r.type === "urination" ? "💧 排尿" : "💩 排便"}
               {r.type === "defecation" &&
