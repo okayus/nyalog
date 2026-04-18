@@ -2,6 +2,7 @@ import type { DisplayName, UserId } from "./domain/auth";
 
 type Bindings = {
   DB: D1Database;
+  ASSETS: Fetcher;
   SESSION_SECRET: string;
   RP_ID: string;
   ORIGIN: string;
