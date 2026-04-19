@@ -16,6 +16,7 @@ app.use(
     xFrameOptions: "DENY",
     contentSecurityPolicy: {
       frameAncestors: ["'none'"],
+      frameSrc: ["https://calendar.google.com", "https://accounts.google.com"],
     },
     crossOriginEmbedderPolicy: false,
   }),

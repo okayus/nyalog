@@ -378,6 +378,25 @@
     opacity: 1;
   }
 
+  .vet-calendar {
+    margin-block: var(--space-6) var(--space-4);
+  }
+
+  .vet-calendar-frame {
+    inline-size: 100%;
+    aspect-ratio: 4 / 3;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color-scheme: light;
+  }
+
+  @container app (min-inline-size: 30rem) {
+    .vet-calendar-frame {
+      aspect-ratio: 3 / 2;
+    }
+  }
+
   .confirm-popover {
     inline-size: min(90vw, 22rem);
     padding: var(--space-4);
