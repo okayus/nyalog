@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { type AuthUser, ApiError, authApi } from "./api";
+import { type AuthUser, authApi } from "./api";
 import { AuthView } from "./components/AuthView";
 import { CredentialsView } from "./components/CredentialsView";
 import { TodayView } from "./components/TodayView";
@@ -22,27 +22,20 @@ export function App() {
   const [view, setView] = useState<View>({ kind: "today" });
 
   useEffect(() => {
-    authApi
-      .me()
-      .then((user) => setAuth({ status: "authenticated", user }))
-      .catch((e: unknown) => {
-        if (e instanceof ApiError && e.status === 401) {
-          setAuth({ status: "unauthenticated" });
-        } else {
-          setAuth({ status: "unauthenticated" });
-        }
-      });
+    authApi.me().then((result) => {
+      result.match(
+        (user) => setAuth({ status: "authenticated", user }),
+        () => setAuth({ status: "unauthenticated" }),
+      );
+    });
   }, []);
 
   async function handleLogout() {
-    try {
-      await authApi.logout();
-    } finally {
-      withViewTransition(() => {
-        setAuth({ status: "unauthenticated" });
-        setView({ kind: "today" });
-      });
-    }
+    await authApi.logout();
+    withViewTransition(() => {
+      setAuth({ status: "unauthenticated" });
+      setView({ kind: "today" });
+    });
   }
 
   if (auth.status === "loading") {

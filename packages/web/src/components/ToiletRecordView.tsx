@@ -32,11 +32,12 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    try {
-      setRecords(await listToiletRecords(catId));
-    } catch (e) {
-      setError((e as Error).message);
+    const result = await listToiletRecords(catId);
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    setRecords(result.value);
   }
 
   useEffect(() => {
@@ -46,32 +47,39 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    try {
-      const iso = new Date(timestamp).toISOString();
-      if (type === "urination") {
-        await createToiletRecord(catId, { type: "urination", timestamp: iso });
-      } else {
-        await createToiletRecord(catId, {
-          type: "defecation",
-          timestamp: iso,
-          condition,
-        });
-      }
-      const list = await listToiletRecords(catId);
-      withViewTransition(() => setRecords(list));
-    } catch (err) {
-      setError((err as Error).message);
+    const iso = new Date(timestamp).toISOString();
+    const createResult =
+      type === "urination"
+        ? await createToiletRecord(catId, { type: "urination", timestamp: iso })
+        : await createToiletRecord(catId, {
+            type: "defecation",
+            timestamp: iso,
+            condition,
+          });
+    if (createResult.isErr()) {
+      setError(createResult.error.message);
+      return;
     }
+    const listResult = await listToiletRecords(catId);
+    if (listResult.isErr()) {
+      setError(listResult.error.message);
+      return;
+    }
+    withViewTransition(() => setRecords(listResult.value));
   }
 
   async function handleDelete(id: string) {
-    try {
-      await deleteToiletRecord(catId, id);
-      const list = await listToiletRecords(catId);
-      withViewTransition(() => setRecords(list));
-    } catch (err) {
-      setError((err as Error).message);
+    const deleteResult = await deleteToiletRecord(catId, id);
+    if (deleteResult.isErr()) {
+      setError(deleteResult.error.message);
+      return;
     }
+    const listResult = await listToiletRecords(catId);
+    if (listResult.isErr()) {
+      setError(listResult.error.message);
+      return;
+    }
+    withViewTransition(() => setRecords(listResult.value));
   }
 
   return (

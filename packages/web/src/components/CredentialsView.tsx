@@ -12,11 +12,12 @@ export function CredentialsView({ onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    try {
-      setCredentials(await authApi.listCredentials());
-    } catch (e) {
-      setError((e as Error).message);
+    const result = await authApi.listCredentials();
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    setCredentials(result.value);
   }
 
   useEffect(() => {
@@ -27,28 +28,28 @@ export function CredentialsView({ onBack }: Props) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    try {
-      await authApi.addCredential(deviceName.trim() || null);
-      setDeviceName("");
-      await refresh();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
+    const result = await authApi.addCredential(deviceName.trim() || null);
+    if (result.isErr()) {
+      setError(result.error.message);
       setBusy(false);
+      return;
     }
+    setDeviceName("");
+    await refresh();
+    setBusy(false);
   }
 
   async function handleDelete(id: string) {
     setBusy(true);
     setError(null);
-    try {
-      await authApi.deleteCredential(id);
-      await refresh();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
+    const result = await authApi.deleteCredential(id);
+    if (result.isErr()) {
+      setError(result.error.message);
       setBusy(false);
+      return;
     }
+    await refresh();
+    setBusy(false);
   }
 
   const canDelete = credentials.length > 1;

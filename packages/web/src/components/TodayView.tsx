@@ -64,55 +64,65 @@ export function TodayView({ onOpenDetail }: Props) {
 
   useEffect(() => {
     (async () => {
-      try {
-        const loaded = await listCats();
-        setCats(loaded);
-        const entries = await Promise.all(
-          loaded.map(async (c) => [c.id, await listToiletRecords(c.id)] as const),
-        );
-        setRecordsByCat(Object.fromEntries(entries));
-      } catch (e) {
-        setError((e as Error).message);
+      const catsResult = await listCats();
+      if (catsResult.isErr()) {
+        setError(catsResult.error.message);
+        return;
       }
+      const loaded = catsResult.value;
+      setCats(loaded);
+      const recordResults = await Promise.all(
+        loaded.map(async (c) => ({ id: c.id, result: await listToiletRecords(c.id) })),
+      );
+      const map: Record<string, ToiletRecord[]> = {};
+      for (const { id, result } of recordResults) {
+        if (result.isErr()) {
+          setError(result.error.message);
+          return;
+        }
+        map[id] = result.value;
+      }
+      setRecordsByCat(map);
     })();
   }, []);
 
   async function handleQuick(catId: string, type: "urination" | "defecation") {
     setError(null);
-    try {
-      const iso = new Date().toISOString();
-      const created =
-        type === "urination"
-          ? await createToiletRecord(catId, { type: "urination", timestamp: iso })
-          : await createToiletRecord(catId, {
-              type: "defecation",
-              timestamp: iso,
-              condition: "normal",
-            });
-      withViewTransition(() => {
-        setRecordsByCat((prev) => ({
-          ...prev,
-          [catId]: [created, ...(prev[catId] ?? [])],
-        }));
-      });
-    } catch (err) {
-      setError((err as Error).message);
+    const iso = new Date().toISOString();
+    const result =
+      type === "urination"
+        ? await createToiletRecord(catId, { type: "urination", timestamp: iso })
+        : await createToiletRecord(catId, {
+            type: "defecation",
+            timestamp: iso,
+            condition: "normal",
+          });
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    const created = result.value;
+    withViewTransition(() => {
+      setRecordsByCat((prev) => ({
+        ...prev,
+        [catId]: [created, ...(prev[catId] ?? [])],
+      }));
+    });
   }
 
   async function handleDeleteRecord(catId: string, id: string) {
     setError(null);
-    try {
-      await deleteToiletRecord(catId, id);
-      withViewTransition(() => {
-        setRecordsByCat((prev) => ({
-          ...prev,
-          [catId]: (prev[catId] ?? []).filter((r) => r.id !== id),
-        }));
-      });
-    } catch (err) {
-      setError((err as Error).message);
+    const result = await deleteToiletRecord(catId, id);
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    withViewTransition(() => {
+      setRecordsByCat((prev) => ({
+        ...prev,
+        [catId]: (prev[catId] ?? []).filter((r) => r.id !== id),
+      }));
+    });
   }
 
   function startEdit(r: ToiletRecord) {
@@ -132,67 +142,70 @@ export function TodayView({ onOpenDetail }: Props) {
     }
     const newIso = replaceHHMM(r.timestamp, editingValue);
     setError(null);
-    try {
-      const updated = await updateToiletRecord(catId, r.id, {
-        type: r.type,
-        timestamp: newIso,
-      });
-      withViewTransition(() => {
-        setRecordsByCat((prev) => ({
-          ...prev,
-          [catId]: (prev[catId] ?? []).map((x) => (x.id === r.id ? updated : x)),
-        }));
-        cancelEdit();
-      });
-    } catch (err) {
-      setError((err as Error).message);
+    const result = await updateToiletRecord(catId, r.id, {
+      type: r.type,
+      timestamp: newIso,
+    });
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    const updated = result.value;
+    withViewTransition(() => {
+      setRecordsByCat((prev) => ({
+        ...prev,
+        [catId]: (prev[catId] ?? []).map((x) => (x.id === r.id ? updated : x)),
+      }));
+      cancelEdit();
+    });
   }
 
   async function handleCreateCat(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    try {
-      const created = await createCat({
-        name,
-        birthday: birthday || null,
-        themeColor: newThemeColor,
-      });
-      setCats((prev) => [...prev, created]);
-      setRecordsByCat((prev) => ({ ...prev, [created.id]: [] }));
-      setName("");
-      setBirthday("");
-      setNewThemeColor(THEME_COLORS[0] as ThemeColor);
-    } catch (err) {
-      setError((err as Error).message);
+    const result = await createCat({
+      name,
+      birthday: birthday || null,
+      themeColor: newThemeColor,
+    });
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    const created = result.value;
+    setCats((prev) => [...prev, created]);
+    setRecordsByCat((prev) => ({ ...prev, [created.id]: [] }));
+    setName("");
+    setBirthday("");
+    setNewThemeColor(THEME_COLORS[0] as ThemeColor);
   }
 
   async function handleChangeTheme(catId: string, themeColor: ThemeColor) {
     setError(null);
-    try {
-      const updated = await updateCat(catId, { themeColor });
-      withViewTransition(() => {
-        setCats((prev) => prev.map((c) => (c.id === catId ? updated : c)));
-      });
-    } catch (err) {
-      setError((err as Error).message);
+    const result = await updateCat(catId, { themeColor });
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    const updated = result.value;
+    withViewTransition(() => {
+      setCats((prev) => prev.map((c) => (c.id === catId ? updated : c)));
+    });
   }
 
   async function handleDeleteCat(id: string) {
     setError(null);
-    try {
-      await deleteCat(id);
-      setCats((prev) => prev.filter((c) => c.id !== id));
-      setRecordsByCat((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-    } catch (err) {
-      setError((err as Error).message);
+    const result = await deleteCat(id);
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
     }
+    setCats((prev) => prev.filter((c) => c.id !== id));
+    setRecordsByCat((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   const startMs = startOfTodayMs();

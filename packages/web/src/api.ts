@@ -4,6 +4,7 @@ import {
   type PublicKeyCredentialCreationOptionsJSON,
   type PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
+import { err, ResultAsync, type Result } from "neverthrow";
 import type { Cat, ThemeColor } from "../worker/domain/cat";
 import type { ToiletRecord, StoolCondition } from "../worker/domain/toilet-record";
 
@@ -18,62 +19,70 @@ type UpdateToiletRecordInput =
   | { type: "urination"; timestamp?: string }
   | { type: "defecation"; timestamp?: string; condition?: StoolCondition };
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
+export type ApiError =
+  | { kind: "network"; message: string }
+  | { kind: "http"; status: number; message: string };
+
+function toNetworkError(e: unknown): ApiError {
+  return { kind: "network", message: e instanceof Error ? e.message : String(e) };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...init?.headers,
-    },
-  });
+async function request<T>(path: string, init?: RequestInit): Promise<Result<T, ApiError>> {
+  const fetchResult = await ResultAsync.fromPromise(
+    fetch(path, {
+      ...init,
+      headers: {
+        "content-type": "application/json",
+        ...init?.headers,
+      },
+    }),
+    toNetworkError,
+  );
+  if (fetchResult.isErr()) return err(fetchResult.error);
+  const res = fetchResult.value;
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
       error?: { message?: string };
     };
-    throw new ApiError(res.status, body.error?.message ?? `HTTP ${res.status}`);
+    return err({
+      kind: "http",
+      status: res.status,
+      message: body.error?.message ?? `HTTP ${res.status}`,
+    });
   }
-  return res.json() as Promise<T>;
+  return ResultAsync.fromPromise(res.json() as Promise<T>, toNetworkError);
 }
 
-export function listCats(): Promise<Cat[]> {
+export function listCats(): Promise<Result<Cat[], ApiError>> {
   return request<Cat[]>("/api/cats");
 }
 
-export function createCat(input: CreateCatInput): Promise<Cat> {
+export function createCat(input: CreateCatInput): Promise<Result<Cat, ApiError>> {
   return request<Cat>("/api/cats", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
 
-export function updateCat(id: string, input: UpdateCatInput): Promise<Cat> {
+export function updateCat(id: string, input: UpdateCatInput): Promise<Result<Cat, ApiError>> {
   return request<Cat>(`/api/cats/${id}`, {
     method: "PUT",
     body: JSON.stringify(input),
   });
 }
 
-export function deleteCat(id: string): Promise<Record<string, never>> {
+export function deleteCat(id: string): Promise<Result<Record<string, never>, ApiError>> {
   return request(`/api/cats/${id}`, { method: "DELETE" });
 }
 
-export function listToiletRecords(catId: string): Promise<ToiletRecord[]> {
+export function listToiletRecords(catId: string): Promise<Result<ToiletRecord[], ApiError>> {
   return request<ToiletRecord[]>(`/api/cats/${catId}/toilet-records`);
 }
 
 export function createToiletRecord(
   catId: string,
   input: CreateToiletRecordInput,
-): Promise<ToiletRecord> {
+): Promise<Result<ToiletRecord, ApiError>> {
   return request<ToiletRecord>(`/api/cats/${catId}/toilet-records`, {
     method: "POST",
     body: JSON.stringify(input),
@@ -84,14 +93,17 @@ export function updateToiletRecord(
   catId: string,
   id: string,
   input: UpdateToiletRecordInput,
-): Promise<ToiletRecord> {
+): Promise<Result<ToiletRecord, ApiError>> {
   return request<ToiletRecord>(`/api/cats/${catId}/toilet-records/${id}`, {
     method: "PUT",
     body: JSON.stringify(input),
   });
 }
 
-export function deleteToiletRecord(catId: string, id: string): Promise<Record<string, never>> {
+export function deleteToiletRecord(
+  catId: string,
+  id: string,
+): Promise<Result<Record<string, never>, ApiError>> {
   return request(`/api/cats/${catId}/toilet-records/${id}`, {
     method: "DELETE",
   });
@@ -110,7 +122,7 @@ export type CredentialSummary = {
 };
 
 export const authApi = {
-  async me(): Promise<AuthUser> {
+  me(): Promise<Result<AuthUser, ApiError>> {
     return request<AuthUser>("/api/auth/me");
   },
 
@@ -118,7 +130,7 @@ export const authApi = {
     displayName: string,
     initialRegistrationToken: string,
     deviceName: string | null,
-  ): Promise<AuthUser> {
+  ): Promise<Result<AuthUser, ApiError>> {
     const begin = await request<{
       options: PublicKeyCredentialCreationOptionsJSON;
       userId: string;
@@ -126,47 +138,62 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ displayName, initialRegistrationToken }),
     });
-    const attResp = await startRegistration({ optionsJSON: begin.options });
+    if (begin.isErr()) return err(begin.error);
+    const attResp = await ResultAsync.fromPromise(
+      startRegistration({ optionsJSON: begin.value.options }),
+      toNetworkError,
+    );
+    if (attResp.isErr()) return err(attResp.error);
     return request<AuthUser>("/api/auth/register/verify", {
       method: "POST",
-      body: JSON.stringify({ displayName, response: attResp, deviceName }),
+      body: JSON.stringify({ displayName, response: attResp.value, deviceName }),
     });
   },
 
-  async login(): Promise<AuthUser> {
+  async login(): Promise<Result<AuthUser, ApiError>> {
     const begin = await request<{ options: PublicKeyCredentialRequestOptionsJSON }>(
       "/api/auth/login/begin",
       { method: "POST" },
     );
-    const authResp = await startAuthentication({ optionsJSON: begin.options });
+    if (begin.isErr()) return err(begin.error);
+    const authResp = await ResultAsync.fromPromise(
+      startAuthentication({ optionsJSON: begin.value.options }),
+      toNetworkError,
+    );
+    if (authResp.isErr()) return err(authResp.error);
     return request<AuthUser>("/api/auth/login/verify", {
       method: "POST",
-      body: JSON.stringify({ response: authResp }),
+      body: JSON.stringify({ response: authResp.value }),
     });
   },
 
-  async logout(): Promise<void> {
-    await request<Record<string, never>>("/api/auth/logout", { method: "POST" });
+  async logout(): Promise<Result<Record<string, never>, ApiError>> {
+    return request<Record<string, never>>("/api/auth/logout", { method: "POST" });
   },
 
-  async listCredentials(): Promise<CredentialSummary[]> {
+  listCredentials(): Promise<Result<CredentialSummary[], ApiError>> {
     return request<CredentialSummary[]>("/api/auth/credentials");
   },
 
-  async addCredential(deviceName: string | null): Promise<{ id: string }> {
+  async addCredential(deviceName: string | null): Promise<Result<{ id: string }, ApiError>> {
     const begin = await request<{ options: PublicKeyCredentialCreationOptionsJSON }>(
       "/api/auth/credentials/add/begin",
       { method: "POST", body: JSON.stringify({ deviceName }) },
     );
-    const attResp = await startRegistration({ optionsJSON: begin.options });
+    if (begin.isErr()) return err(begin.error);
+    const attResp = await ResultAsync.fromPromise(
+      startRegistration({ optionsJSON: begin.value.options }),
+      toNetworkError,
+    );
+    if (attResp.isErr()) return err(attResp.error);
     return request<{ id: string }>("/api/auth/credentials/add/verify", {
       method: "POST",
-      body: JSON.stringify({ response: attResp, deviceName }),
+      body: JSON.stringify({ response: attResp.value, deviceName }),
     });
   },
 
-  async deleteCredential(id: string): Promise<void> {
-    await request<Record<string, never>>(`/api/auth/credentials/${encodeURIComponent(id)}`, {
+  async deleteCredential(id: string): Promise<Result<Record<string, never>, ApiError>> {
+    return request<Record<string, never>>(`/api/auth/credentials/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   },
