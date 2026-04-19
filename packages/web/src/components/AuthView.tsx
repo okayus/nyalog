@@ -16,31 +16,28 @@ export function AuthView({ onAuthenticated }: Props) {
   async function handleLogin() {
     setBusy(true);
     setError(null);
-    try {
-      onAuthenticated(await authApi.login());
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    const result = await authApi.login();
+    result.match(
+      (user) => onAuthenticated(user),
+      (e) => setError(e.message),
+    );
+    setBusy(false);
   }
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    try {
-      const user = await authApi.register(
-        displayName.trim(),
-        token.trim(),
-        deviceName.trim() || null,
-      );
-      onAuthenticated(user);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    const result = await authApi.register(
+      displayName.trim(),
+      token.trim(),
+      deviceName.trim() || null,
+    );
+    result.match(
+      (user) => onAuthenticated(user),
+      (err) => setError(err.message),
+    );
+    setBusy(false);
   }
 
   return (
