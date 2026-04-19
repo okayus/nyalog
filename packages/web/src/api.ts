@@ -4,10 +4,11 @@ import {
   type PublicKeyCredentialCreationOptionsJSON,
   type PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
-import type { Cat } from "../worker/domain/cat";
+import type { Cat, ThemeColor } from "../worker/domain/cat";
 import type { ToiletRecord, StoolCondition } from "../worker/domain/toilet-record";
 
-type CreateCatInput = { name: string; birthday?: string | null };
+type CreateCatInput = { name: string; birthday?: string | null; themeColor?: ThemeColor };
+type UpdateCatInput = { name?: string; birthday?: string | null; themeColor?: ThemeColor };
 
 type CreateToiletRecordInput =
   | { type: "urination"; timestamp: string }
@@ -50,6 +51,13 @@ export function listCats(): Promise<Cat[]> {
 export function createCat(input: CreateCatInput): Promise<Cat> {
   return request<Cat>("/api/cats", {
     method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateCat(id: string, input: UpdateCatInput): Promise<Cat> {
+  return request<Cat>(`/api/cats/${id}`, {
+    method: "PUT",
     body: JSON.stringify(input),
   });
 }

@@ -45,6 +45,7 @@ export const cats = sqliteTable("cats", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   birthday: text("birthday"),
+  themeColor: text("theme_color").notNull().default("gray"),
   createdBy: text("created_by").references(() => users.id),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

@@ -7,6 +7,7 @@ import { ConfirmButton } from "./ConfirmButton";
 type Props = {
   catId: string;
   catName: string;
+  themeColor: string;
   onBack: () => void;
 };
 
@@ -18,7 +19,7 @@ const STOOL_OPTIONS: { value: StoolCondition; label: string }[] = [
   { value: "bloody", label: "血便" },
 ];
 
-export function ToiletRecordView({ catId, catName, onBack }: Props) {
+export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) {
   const [records, setRecords] = useState<ToiletRecord[]>([]);
   const [type, setType] = useState<"urination" | "defecation">("urination");
   const [timestamp, setTimestamp] = useState(() => {
@@ -145,6 +146,7 @@ export function ToiletRecordView({ catId, catName, onBack }: Props) {
             <li
               key={r.id}
               className="record-item"
+              data-cat-theme={themeColor}
               style={{ viewTransitionName: `record-detail-${r.id}` }}
             >
               {new Date(r.timestamp).toLocaleString()}{" "}

@@ -397,6 +397,110 @@
     }
   }
 
+  [data-cat-theme] {
+    --cat-tint: oklch(0.96 0.035 var(--cat-hue));
+    --cat-border: oklch(0.82 0.09 var(--cat-hue));
+    --cat-accent: oklch(0.62 0.17 var(--cat-hue));
+  }
+
+  [data-cat-theme="pink"] {
+    --cat-hue: 10;
+  }
+  [data-cat-theme="blue"] {
+    --cat-hue: 250;
+  }
+  [data-cat-theme="mint"] {
+    --cat-hue: 160;
+  }
+  [data-cat-theme="peach"] {
+    --cat-hue: 45;
+  }
+  [data-cat-theme="lavender"] {
+    --cat-hue: 295;
+  }
+  [data-cat-theme="yellow"] {
+    --cat-hue: 95;
+  }
+  [data-cat-theme="gray"] {
+    --cat-tint: var(--color-surface);
+    --cat-border: var(--color-border);
+    --cat-accent: var(--color-primary);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-cat-theme]:not([data-cat-theme="gray"]) {
+      --cat-tint: oklch(0.28 0.04 var(--cat-hue));
+      --cat-border: oklch(0.45 0.1 var(--cat-hue));
+      --cat-accent: oklch(0.78 0.15 var(--cat-hue));
+    }
+  }
+
+  .record-item[data-cat-theme],
+  .quick-cell[data-cat-theme] {
+    background: var(--cat-tint);
+    border-color: var(--cat-border);
+  }
+
+  .cat-list > li[data-cat-theme] {
+    border-inline-start: 4px solid var(--cat-accent);
+  }
+
+  .cat-list > li > .theme-swatch-group {
+    grid-column: 1 / -1;
+    margin-block-start: var(--space-1);
+  }
+
+  .theme-swatch-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    padding: 0;
+    border: 0;
+    margin: 0;
+  }
+
+  .theme-swatch-group > legend {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-label);
+    margin-block-end: var(--space-1);
+    padding: 0;
+  }
+
+  .theme-swatch {
+    position: relative;
+    inline-size: 32px;
+    block-size: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--cat-border, var(--color-border));
+    background: var(--cat-tint, var(--color-surface));
+    cursor: pointer;
+    padding: 0;
+    min-block-size: unset;
+    transition:
+      transform 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .theme-swatch:hover {
+    transform: scale(1.08);
+  }
+
+  .theme-swatch[aria-pressed="true"] {
+    border-color: var(--cat-accent, var(--color-primary));
+    border-width: 3px;
+  }
+
+  .theme-swatch[aria-pressed="true"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    inline-size: 10px;
+    block-size: 10px;
+    border-radius: 50%;
+    background: var(--cat-accent, var(--color-primary));
+  }
+
   .confirm-popover {
     inline-size: min(90vw, 22rem);
     padding: var(--space-4);

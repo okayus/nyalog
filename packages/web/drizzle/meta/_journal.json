@@ -36,6 +36,13 @@
       "when": 1776153443640,
       "tag": "0004_strong_microchip",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1776583029874,
+      "tag": "0005_short_human_cannonball",
+      "breakpoints": true
     }
   ]
 }

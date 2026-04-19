@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Cat } from "../../worker/domain/cat";
+import { THEME_COLORS, type Cat, type ThemeColor } from "../../worker/domain/cat";
 import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
 import {
   createCat,
@@ -8,10 +8,12 @@ import {
   deleteToiletRecord,
   listCats,
   listToiletRecords,
+  updateCat,
   updateToiletRecord,
 } from "../api";
 import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
+import { ThemeSwatchGroup } from "./ThemeSwatchGroup";
 
 type Props = {
   onOpenDetail: (cat: Cat) => void;
@@ -55,6 +57,7 @@ export function TodayView({ onOpenDetail }: Props) {
   const [recordsByCat, setRecordsByCat] = useState<Record<string, ToiletRecord[]>>({});
   const [name, setName] = useState("");
   const [birthday, setBirthday] = useState("");
+  const [newThemeColor, setNewThemeColor] = useState<ThemeColor>(THEME_COLORS[0] as ThemeColor);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -150,11 +153,28 @@ export function TodayView({ onOpenDetail }: Props) {
     e.preventDefault();
     setError(null);
     try {
-      const created = await createCat({ name, birthday: birthday || null });
+      const created = await createCat({
+        name,
+        birthday: birthday || null,
+        themeColor: newThemeColor,
+      });
       setCats((prev) => [...prev, created]);
       setRecordsByCat((prev) => ({ ...prev, [created.id]: [] }));
       setName("");
       setBirthday("");
+      setNewThemeColor(THEME_COLORS[0] as ThemeColor);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleChangeTheme(catId: string, themeColor: ThemeColor) {
+    setError(null);
+    try {
+      const updated = await updateCat(catId, { themeColor });
+      withViewTransition(() => {
+        setCats((prev) => prev.map((c) => (c.id === catId ? updated : c)));
+      });
     } catch (err) {
       setError((err as Error).message);
     }
@@ -198,6 +218,7 @@ export function TodayView({ onOpenDetail }: Props) {
             <li
               key={record.id}
               className="record-item"
+              data-cat-theme={cat.themeColor}
               style={{ viewTransitionName: `record-${record.id}` }}
             >
               <strong>{cat.name}</strong>
@@ -247,7 +268,7 @@ export function TodayView({ onOpenDetail }: Props) {
       ) : (
         <div className="quick-grid">
           {cats.map((cat) => (
-            <div key={cat.id} className="quick-cell">
+            <div key={cat.id} className="quick-cell" data-cat-theme={cat.themeColor}>
               <div className="quick-cell-actions">
                 <button type="button" onClick={() => handleQuick(cat.id, "urination")}>
                   {cat.name} 💧 おしっこ
@@ -277,12 +298,17 @@ export function TodayView({ onOpenDetail }: Props) {
             誕生日
             <input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
           </label>
+          <ThemeSwatchGroup
+            legend="テーマカラー"
+            value={newThemeColor}
+            onChange={setNewThemeColor}
+          />
           <button type="submit">追加</button>
         </form>
         {cats.length > 0 ? (
           <ul className="cat-list">
             {cats.map((cat) => (
-              <li key={cat.id}>
+              <li key={cat.id} data-cat-theme={cat.themeColor}>
                 <strong>{cat.name}</strong>
                 {cat.birthday ? <span>({cat.birthday})</span> : null}
                 <ConfirmButton
@@ -292,6 +318,12 @@ export function TodayView({ onOpenDetail }: Props) {
                   message={`${cat.name} を削除しますか？ 紐づくトイレ記録も消えます。`}
                   confirmLabel="削除する"
                   onConfirm={() => handleDeleteCat(cat.id)}
+                />
+                <ThemeSwatchGroup
+                  legend={`${cat.name} のテーマカラー`}
+                  hideLegend
+                  value={cat.themeColor}
+                  onChange={(tc) => handleChangeTheme(cat.id, tc)}
                 />
               </li>
             ))}
