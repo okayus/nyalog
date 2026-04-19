@@ -9,7 +9,8 @@
     "deploy": "vp build && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply nyalog-db --local",
-    "db:migrate:prod": "wrangler d1 migrations apply nyalog-db --remote"
+    "db:migrate:prod": "wrangler d1 migrations apply nyalog-db --remote",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.3.0",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1",
     "@cloudflare/workers-types": "^4",
+    "@playwright/test": "^1.59.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.30",

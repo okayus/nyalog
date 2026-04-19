@@ -8,6 +8,8 @@ dist/
 .DS_Store
 .vite/
 .playwright-mcp/
+playwright-report/
+test-results/
 
 # Claude Code: skills はコミット対象、個人設定と下書きプランは除外
 .claude/settings.local.json
