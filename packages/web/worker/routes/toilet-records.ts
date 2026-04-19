@@ -6,6 +6,7 @@ import { CatId, type CatId as CatIdType } from "../domain/cat";
 import {
   type ToiletRecord,
   type ToiletRecordError,
+  ToiletRecordRowSchema,
   parseToiletRecordId,
   parseCreateToiletRecord,
   parseUpdateToiletRecord,
@@ -40,26 +41,7 @@ function errorResponse(error: ToiletRecordError) {
 }
 
 function toRecord(row: typeof toiletRecords.$inferSelect): ToiletRecord {
-  const base = {
-    id: row.id as ToiletRecord["id"],
-    catId: row.catId as CatIdType,
-    timestamp: row.timestamp as ToiletRecord["timestamp"],
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-  if (row.type === "defecation") {
-    // condition が null なら DB の不整合。アプリ書き込み経路では発生しない
-    return {
-      ...base,
-      type: "defecation",
-      condition: (row.condition ?? "normal") as ToiletRecord extends {
-        condition: infer C;
-      }
-        ? C
-        : never,
-    };
-  }
-  return { ...base, type: "urination" };
+  return ToiletRecordRowSchema.parse(row);
 }
 
 async function resolveCatId(

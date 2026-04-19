@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { sessions, users } from "../db/schema";
-import type { DisplayName, UserId } from "../domain/auth";
+import { DisplayName, UserId } from "../domain/auth";
 import type { Env } from "../types";
 
 const COOKIE_NAME = "nyalog_session";
@@ -84,8 +84,8 @@ export function sessionMiddleware() {
           createdAt: new Date().toISOString(),
         });
       }
-      c.set("userId", devId as UserId);
-      c.set("displayName", (existing[0]?.displayName ?? "dev") as DisplayName);
+      c.set("userId", UserId.parse(devId));
+      c.set("displayName", DisplayName.parse(existing[0]?.displayName ?? "dev"));
       await next();
       return;
     }
@@ -130,8 +130,8 @@ export function sessionMiddleware() {
       return c.json({ error: { type: "session_expired" } }, 401);
     }
 
-    c.set("userId", row.userId as UserId);
-    c.set("displayName", row.displayName as DisplayName);
+    c.set("userId", UserId.parse(row.userId));
+    c.set("displayName", DisplayName.parse(row.displayName));
 
     // Sliding expiration: extend if less than half remaining
     const remaining = new Date(row.expiresAt).getTime() - Date.now();

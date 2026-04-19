@@ -15,7 +15,7 @@ import type {
 import { credentials as credentialsTable, users } from "../db/schema";
 import {
   type AuthError,
-  type UserId,
+  UserId,
   authErrorResponse,
   parseAddCredentialBegin,
   parseAddCredentialVerify,
@@ -165,7 +165,7 @@ export const authRoutes = new Hono<Env>()
       lastUsedAt: now,
     });
 
-    await issueSession(c, ch.uid as UserId);
+    await issueSession(c, UserId.parse(ch.uid));
     return c.json({ id: ch.uid, displayName: parsed.value.displayName });
   })
   .post("/login/begin", async (c) => {
@@ -246,7 +246,7 @@ export const authRoutes = new Hono<Env>()
       })
       .where(eq(credentialsTable.id, row.id));
 
-    await issueSession(c, row.userId as UserId);
+    await issueSession(c, UserId.parse(row.userId));
 
     const userRows = await db.select().from(users).where(eq(users.id, row.userId));
     return c.json({ id: userRows[0].id, displayName: userRows[0].displayName });

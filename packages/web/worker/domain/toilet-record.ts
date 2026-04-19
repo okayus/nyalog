@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ok, err, type Result } from "neverthrow";
-import type { CatId } from "./cat";
+import { CatId } from "./cat";
 
 // --- Branded Types ---
 
@@ -73,6 +73,25 @@ export const UpdateToiletRecordSchema = z.discriminatedUnion("type", [
     timestamp: Timestamp.optional(),
     condition: StoolCondition.optional(),
   }),
+]);
+
+// --- DB Row Schema (境界での再パース用) ---
+// DB は urination 行でも condition カラムを null で持つが、
+// z.object は未定義キーを strip するので、urination スキーマ側で condition を
+// 宣言しなくても通る。defecation では StoolCondition が null を弾くため、
+// type = defecation なのに condition が null なら DB 不変条件違反として ZodError で落ちる。
+
+const toiletRecordRowBase = {
+  id: ToiletRecordId,
+  catId: CatId,
+  timestamp: Timestamp,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+};
+
+export const ToiletRecordRowSchema = z.discriminatedUnion("type", [
+  z.object({ ...toiletRecordRowBase, type: z.literal("urination") }),
+  z.object({ ...toiletRecordRowBase, type: z.literal("defecation"), condition: StoolCondition }),
 ]);
 
 // --- Pure Validation Functions ---

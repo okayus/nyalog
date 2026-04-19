@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { THEME_COLORS, type Cat, type ThemeColor } from "../../worker/domain/cat";
+import { DEFAULT_THEME_COLOR, type Cat, type ThemeColor } from "../../worker/domain/cat";
 import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
 import {
   createCat,
@@ -57,7 +57,7 @@ export function TodayView({ onOpenDetail }: Props) {
   const [recordsByCat, setRecordsByCat] = useState<Record<string, ToiletRecord[]>>({});
   const [name, setName] = useState("");
   const [birthday, setBirthday] = useState("");
-  const [newThemeColor, setNewThemeColor] = useState<ThemeColor>(THEME_COLORS[0] as ThemeColor);
+  const [newThemeColor, setNewThemeColor] = useState<ThemeColor>(DEFAULT_THEME_COLOR);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -177,7 +177,7 @@ export function TodayView({ onOpenDetail }: Props) {
     setRecordsByCat((prev) => ({ ...prev, [created.id]: [] }));
     setName("");
     setBirthday("");
-    setNewThemeColor(THEME_COLORS[0] as ThemeColor);
+    setNewThemeColor(DEFAULT_THEME_COLOR);
   }
 
   async function handleChangeTheme(catId: string, themeColor: ThemeColor) {
