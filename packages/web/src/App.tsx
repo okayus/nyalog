@@ -9,7 +9,7 @@ import { withViewTransition } from "./view-transition";
 
 type View =
   | { kind: "today" }
-  | { kind: "toilet"; catId: string; catName: string }
+  | { kind: "toilet"; catId: string; catName: string; themeColor: string }
   | { kind: "credentials" };
 
 type AuthState =
@@ -86,7 +86,12 @@ export function App() {
           <TodayView
             onOpenDetail={(cat) =>
               withViewTransition(() =>
-                setView({ kind: "toilet", catId: cat.id, catName: cat.name }),
+                setView({
+                  kind: "toilet",
+                  catId: cat.id,
+                  catName: cat.name,
+                  themeColor: cat.themeColor,
+                }),
               )
             }
           />
@@ -97,6 +102,7 @@ export function App() {
         <ToiletRecordView
           catId={view.catId}
           catName={view.catName}
+          themeColor={view.themeColor}
           onBack={() => withViewTransition(() => setView({ kind: "today" }))}
         />
       ) : null}

@@ -25,12 +25,25 @@ export const Birthday = z
   })
   .transform((v) => v as Birthday);
 
+export const THEME_COLORS = [
+  "gray",
+  "pink",
+  "blue",
+  "mint",
+  "peach",
+  "lavender",
+  "yellow",
+] as const;
+export type ThemeColor = (typeof THEME_COLORS)[number] & { readonly __brand: unique symbol };
+export const ThemeColor = z.enum(THEME_COLORS).transform((v) => v as ThemeColor);
+
 // --- Domain Type ---
 
 export type Cat = {
   id: CatId;
   name: CatName;
   birthday: Birthday | null;
+  themeColor: ThemeColor;
   createdAt: string;
   updatedAt: string;
 };
@@ -46,11 +59,13 @@ export type CatError =
 export const CreateCatSchema = z.object({
   name: CatName,
   birthday: Birthday.nullable().optional().default(null),
+  themeColor: ThemeColor.optional(),
 });
 
 export const UpdateCatSchema = z.object({
   name: CatName.optional(),
   birthday: Birthday.nullable().optional(),
+  themeColor: ThemeColor.optional(),
 });
 
 // --- Pure Validation Functions ---

@@ -1,0 +1,1 @@
+ALTER TABLE `cats` ADD `theme_color` text DEFAULT 'gray' NOT NULL;

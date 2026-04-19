@@ -50,7 +50,7 @@ export const catRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    const { name, birthday } = parsed.value;
+    const { name, birthday, themeColor } = parsed.value;
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const userId = c.get("userId");
@@ -60,6 +60,7 @@ export const catRoutes = new Hono<Env>()
       id,
       name,
       birthday,
+      themeColor,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -99,6 +100,9 @@ export const catRoutes = new Hono<Env>()
     }
     if (bodyResult.value.birthday !== undefined) {
       updates.birthday = bodyResult.value.birthday;
+    }
+    if (bodyResult.value.themeColor !== undefined) {
+      updates.themeColor = bodyResult.value.themeColor;
     }
 
     await db.update(cats).set(updates).where(eq(cats.id, idResult.value));
