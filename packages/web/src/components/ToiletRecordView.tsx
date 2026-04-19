@@ -85,7 +85,7 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
       <form onSubmit={handleCreate}>
         <fieldset>
           <legend>種類</legend>
-          <label>
+          <label aria-label="排尿">
             <input
               type="radio"
               name="type"
@@ -93,9 +93,9 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
               checked={type === "urination"}
               onChange={() => setType("urination")}
             />
-            排尿
+            💧
           </label>
-          <label>
+          <label aria-label="排便">
             <input
               type="radio"
               name="type"
@@ -103,7 +103,7 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
               checked={type === "defecation"}
               onChange={() => setType("defecation")}
             />
-            排便
+            💩
           </label>
         </fieldset>
 
@@ -149,13 +149,12 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
               data-cat-theme={themeColor}
               style={{ viewTransitionName: `record-detail-${r.id}` }}
             >
-              {new Date(r.timestamp).toLocaleString()}{" "}
-              {r.type === "urination" ? "💧 排尿" : "💩 排便"}
+              {new Date(r.timestamp).toLocaleString()} {r.type === "urination" ? "💧" : "💩"}
               {r.type === "defecation" &&
                 ` (${STOOL_OPTIONS.find((o) => o.value === r.condition)?.label})`}{" "}
               <ConfirmButton
                 popoverId={`del-detail-${r.id}`}
-                triggerLabel="削除"
+                triggerLabel="🗑️"
                 triggerAriaLabel="記録を削除"
                 message="この記録を削除しますか？"
                 confirmLabel="削除する"

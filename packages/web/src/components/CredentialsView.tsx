@@ -87,9 +87,10 @@ export function CredentialsView({ onBack }: Props) {
               type="button"
               onClick={() => handleDelete(c.id)}
               disabled={busy || !canDelete}
+              aria-label={canDelete ? "パスキーを削除" : "最後の1つは削除できません"}
               title={canDelete ? "パスキーを削除" : "最後の1つは削除できません"}
             >
-              削除
+              🗑️
             </button>
           </li>
         ))}

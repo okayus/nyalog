@@ -48,8 +48,8 @@ function replaceHHMM(iso: string, hhmm: string): string {
 }
 
 function typeLabel(r: ToiletRecord): string {
-  if (r.type === "urination") return "💧 排尿";
-  return `💩 排便 (${STOOL_LABEL[r.condition]})`;
+  if (r.type === "urination") return "💧";
+  return `💩 (${STOOL_LABEL[r.condition]})`;
 }
 
 export function TodayView({ onOpenDetail }: Props) {
@@ -245,11 +245,11 @@ export function TodayView({ onOpenDetail }: Props) {
                 <>
                   <time dateTime={record.timestamp}>{toHHMM(record.timestamp)}</time>
                   <button type="button" aria-label="時刻を編集" onClick={() => startEdit(record)}>
-                    編集
+                    ✏️
                   </button>
                   <ConfirmButton
                     popoverId={`del-rec-${record.id}`}
-                    triggerLabel="削除"
+                    triggerLabel="🗑️"
                     triggerAriaLabel="記録を削除"
                     message="この記録を削除しますか？"
                     confirmLabel="削除する"
@@ -270,11 +270,19 @@ export function TodayView({ onOpenDetail }: Props) {
           {cats.map((cat) => (
             <div key={cat.id} className="quick-cell" data-cat-theme={cat.themeColor}>
               <div className="quick-cell-actions">
-                <button type="button" onClick={() => handleQuick(cat.id, "urination")}>
-                  {cat.name} 💧 おしっこ
+                <button
+                  type="button"
+                  aria-label={`${cat.name} の排尿を記録`}
+                  onClick={() => handleQuick(cat.id, "urination")}
+                >
+                  {cat.name} 💧
                 </button>
-                <button type="button" onClick={() => handleQuick(cat.id, "defecation")}>
-                  {cat.name} 💩 うんち
+                <button
+                  type="button"
+                  aria-label={`${cat.name} の排便を記録`}
+                  onClick={() => handleQuick(cat.id, "defecation")}
+                >
+                  {cat.name} 💩
                 </button>
               </div>
               <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
@@ -313,7 +321,7 @@ export function TodayView({ onOpenDetail }: Props) {
                 {cat.birthday ? <span>({cat.birthday})</span> : null}
                 <ConfirmButton
                   popoverId={`del-cat-${cat.id}`}
-                  triggerLabel="削除"
+                  triggerLabel="🗑️"
                   triggerAriaLabel={`${cat.name} を削除`}
                   message={`${cat.name} を削除しますか？ 紐づくトイレ記録も消えます。`}
                   confirmLabel="削除する"
