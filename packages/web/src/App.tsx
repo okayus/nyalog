@@ -4,6 +4,7 @@ import { AuthView } from "./components/AuthView";
 import { CredentialsView } from "./components/CredentialsView";
 import { TodayView } from "./components/TodayView";
 import { ToiletRecordView } from "./components/ToiletRecordView";
+import { VetCalendar } from "./components/VetCalendar";
 import { withViewTransition } from "./view-transition";
 
 type View =
@@ -81,11 +82,16 @@ export function App() {
       </header>
 
       {view.kind === "today" ? (
-        <TodayView
-          onOpenDetail={(cat) =>
-            withViewTransition(() => setView({ kind: "toilet", catId: cat.id, catName: cat.name }))
-          }
-        />
+        <>
+          <TodayView
+            onOpenDetail={(cat) =>
+              withViewTransition(() =>
+                setView({ kind: "toilet", catId: cat.id, catName: cat.name }),
+              )
+            }
+          />
+          <VetCalendar />
+        </>
       ) : null}
       {view.kind === "toilet" ? (
         <ToiletRecordView
