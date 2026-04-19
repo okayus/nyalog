@@ -2,7 +2,14 @@ import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import { cats } from "../db/schema";
-import { type Cat, type CatError, parseCatId, parseCreateCat, parseUpdateCat } from "../domain/cat";
+import {
+  type Cat,
+  type CatError,
+  CatRowSchema,
+  parseCatId,
+  parseCreateCat,
+  parseUpdateCat,
+} from "../domain/cat";
 import type { Env } from "../types";
 
 function catErrorResponse(error: CatError) {
@@ -18,7 +25,7 @@ function catErrorResponse(error: CatError) {
 }
 
 function toCat(row: typeof cats.$inferSelect): Cat {
-  return row as unknown as Cat;
+  return CatRowSchema.parse(row);
 }
 
 export const catRoutes = new Hono<Env>()

@@ -1,4 +1,4 @@
-import { THEME_COLORS, type ThemeColor } from "../../worker/domain/cat";
+import { THEME_COLORS, ThemeColor } from "../../worker/domain/cat";
 
 const LABELS: Record<(typeof THEME_COLORS)[number], string> = {
   gray: "グレー",
@@ -22,7 +22,7 @@ export function ThemeSwatchGroup({ legend, hideLegend, value, onChange }: Props)
     <fieldset className="theme-swatch-group">
       <legend className={hideLegend ? "visually-hidden" : undefined}>{legend}</legend>
       {THEME_COLORS.map((color) => {
-        const themeColor = color as ThemeColor;
+        const themeColor = ThemeColor.parse(color);
         const isSelected = themeColor === value;
         return (
           <button

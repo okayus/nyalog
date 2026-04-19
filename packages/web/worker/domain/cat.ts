@@ -37,6 +37,8 @@ export const THEME_COLORS = [
 export type ThemeColor = (typeof THEME_COLORS)[number] & { readonly __brand: unique symbol };
 export const ThemeColor = z.enum(THEME_COLORS).transform((v) => v as ThemeColor);
 
+export const DEFAULT_THEME_COLOR: ThemeColor = ThemeColor.parse(THEME_COLORS[0]);
+
 // --- Domain Type ---
 
 export type Cat = {
@@ -47,6 +49,19 @@ export type Cat = {
   createdAt: string;
   updatedAt: string;
 };
+
+// --- DB Row Schema (境界での再パース用) ---
+// DB 読み取りは外部境界。Drizzle の型は文字列そのものを返すので、
+// Branded Type への昇格はここで Zod を通して行う。失敗は DB 不変条件違反＝バグ。
+
+export const CatRowSchema = z.object({
+  id: CatId,
+  name: CatName,
+  birthday: Birthday.nullable(),
+  themeColor: ThemeColor,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
 
 // --- Domain Error ---
 
