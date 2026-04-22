@@ -43,6 +43,13 @@
       "when": 1776583029874,
       "tag": "0005_short_human_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1776860899187,
+      "tag": "0006_red_spacker_dave",
+      "breakpoints": true
     }
   ]
 }

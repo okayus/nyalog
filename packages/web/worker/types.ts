@@ -1,4 +1,5 @@
 import type { DisplayName, UserId } from "./domain/auth";
+import type { SpaceId } from "./domain/space";
 
 type Bindings = {
   DB: D1Database;
@@ -15,6 +16,7 @@ type Bindings = {
 type Variables = {
   userId: UserId;
   displayName: DisplayName;
+  memberSpaceIds: SpaceId[];
 };
 
 export type Env = { Bindings: Bindings; Variables: Variables };

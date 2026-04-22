@@ -4,8 +4,9 @@ import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import type { Context } from "hono";
-import { sessions, users } from "../db/schema";
+import { sessions, spaceMembers, users } from "../db/schema";
 import { DisplayName, UserId } from "../domain/auth";
+import { SpaceId } from "../domain/space";
 import type { Env } from "../types";
 
 const COOKIE_NAME = "nyalog_session";
@@ -71,6 +72,17 @@ function isLocalOrigin(origin: string): boolean {
   }
 }
 
+async function loadMemberSpaceIds(
+  db: ReturnType<typeof drizzle>,
+  userId: UserId,
+): Promise<SpaceId[]> {
+  const rows = await db
+    .select({ spaceId: spaceMembers.spaceId })
+    .from(spaceMembers)
+    .where(eq(spaceMembers.userId, userId));
+  return rows.map((r) => SpaceId.parse(r.spaceId));
+}
+
 export function sessionMiddleware() {
   return createMiddleware<Env>(async (c, next) => {
     if (c.env.DEV_BYPASS_USER_ID && isLocalOrigin(c.env.ORIGIN)) {
@@ -84,8 +96,10 @@ export function sessionMiddleware() {
           createdAt: new Date().toISOString(),
         });
       }
-      c.set("userId", UserId.parse(devId));
+      const userId = UserId.parse(devId);
+      c.set("userId", userId);
       c.set("displayName", DisplayName.parse(existing[0]?.displayName ?? "dev"));
+      c.set("memberSpaceIds", await loadMemberSpaceIds(db, userId));
       await next();
       return;
     }
@@ -130,8 +144,10 @@ export function sessionMiddleware() {
       return c.json({ error: { type: "session_expired" } }, 401);
     }
 
-    c.set("userId", UserId.parse(row.userId));
+    const userId = UserId.parse(row.userId);
+    c.set("userId", userId);
     c.set("displayName", DisplayName.parse(row.displayName));
+    c.set("memberSpaceIds", await loadMemberSpaceIds(db, userId));
 
     // Sliding expiration: extend if less than half remaining
     const remaining = new Date(row.expiresAt).getTime() - Date.now();
