@@ -4,8 +4,6 @@
   "date": "2026-04-14",
   "abstract": "家族限定の小規模 Web アプリでも効くセキュリティ観点ガイドライン。認可・入力検証・シークレット管理・認証/Cookie・レスポンスヘッダ・エラー処理・依存ライブラリ・運用/バックアップの 8 セクション 23 ルール。各ルールは impact でソートされ、典型的な脆弱コードと正しい実装パターンを nyalog の TypeScript/Hono/React/Drizzle/Cloudflare Workers スタックで示す。",
   "references": [
-    "docs/vibe-coding-security.md",
-    "docs/20260414-152659_Webサービス公開前のチェックリスト.md",
     "https://owasp.org/www-project-top-ten/",
     "https://blog.tokumaru.org/2011/10/cookiedomain.html",
     "https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP"
