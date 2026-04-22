@@ -8,8 +8,8 @@
 
 実装上「認証済み = 全データ共有」になっている現状を `spaces` / `space_members` テーブルで形式化する。家族 4 人前提なので 1 スペース固定で UI は変えず、内部モデルだけ正規化する。4 PR で段階移行:
 
-- **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34), 進行中)**: `spaces` / `space_members` 追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。挙動変化なし
-- PR 2: 本番 bootstrap (手動 SQL: 1 スペース作成 + 全 users join + `cats.space_id` backfill)。ADR-004 phase 2 (`created_by` backfill) と同時実施
+- **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34), マージ済み)**: `spaces` / `space_members` 追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。挙動変化なし
+- **PR 2 ([#35](https://github.com/okayus/nyalog/pull/35), 進行中)**: 本番 bootstrap 実行済 (`spaces` 1 行 / `space_members` 3 行 owner / cats.space_id + cats.created_by + toilet_records.created_by すべて backfill 完了。ADR-004 phase 2 同時実施)。SQL は `packages/web/scripts/2026-04-22-space-bootstrap.sql` に固定
 - PR 3: routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入 + 新規 INSERT に `space_id` バインド + e2e 追加 + CLAUDE.md 反映
 - PR 4: `cats.space_id NOT NULL` 化
 
@@ -32,38 +32,21 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ## 進行中
 
-- **per-space membership 移行 PR 1 ([#34](https://github.com/okayus/nyalog/pull/34))** — ADR-005 の段階移行 1 本目。`spaces` / `space_members` テーブル追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。本 PR では routes には影響を与えず、後続 PR 2-4 で bootstrap → WHERE 導入 → NOT NULL 化と進める
+- **per-space membership 移行 PR 2 ([#35](https://github.com/okayus/nyalog/pull/35))** — 本番 D1 に bootstrap SQL を流して `spaces` / `space_members` を埋め、`cats.space_id` と `created_by` 系を backfill 完了。残り PR 3 で routes に WHERE を導入、PR 4 で `cats.space_id` を NOT NULL 化
 
 
 ## 次にやること (次セッションの出発点)
 
-### 1. 次フェーズの選択
+### 1. ADR-005 PR 3 / PR 4 を完走させる
 
-候補:
+- **PR 3**: `cats` / `toilet_records` routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` を導入。新規 INSERT に `space_id = c.var.memberSpaceIds[0]` をバインド。e2e に「他 user の id 直叩き → 404」を 1 本追加。CLAUDE.md と ADR-005 の認可記述を反映
+- **PR 4**: `cats.space_id` を `.notNull()` 化。SQLite テーブル再作成が走るので `db:generate` した SQL を必ずレビュー。FK の `ON DELETE CASCADE` もここで効くようにする (PR 1 で SQLite ALTER 制約のため未適用)
+- ADR-004 phase 2 (`created_by` の NOT NULL 化) は ADR-005 とは独立。やるなら PR 4 と並行で別 PR
+
+### 2. 次フェーズの候補（ADR-005 完了後）
 
 - **薬・動物病院の予定管理** — 機能追加、モダン CSS を実戦投入する初の題材
 - **ご飯・カロリー管理** — 同上、DB スキーマ設計から
-- **PR #11 phase 2** (下記 3 番) — 運用負債の解消
-
-### 2. PR #11 phase 2: `created_by` backfill + NOT NULL 化 (運用 TODO)
-
-PR #11 で `created_by` カラムを NULLABLE で追加済み。既存 1201 件は NULL のまま。残作業:
-
-1. 本番 `users` から代表 1 名の id を確認:
-   ```bash
-   cd packages/web
-   pnpm exec wrangler d1 execute nyalog-db --remote \
-     --command "SELECT id, display_name FROM users"
-   ```
-2. backfill UPDATE (NULL 行のみ):
-   ```bash
-   pnpm exec wrangler d1 execute nyalog-db --remote --command \
-     "UPDATE cats SET created_by = '<USER_ID>' WHERE created_by IS NULL; \
-      UPDATE toilet_records SET created_by = '<USER_ID>' WHERE created_by IS NULL;"
-   ```
-3. 別 PR で Drizzle スキーマを `.notNull()` に変更 → `pnpm db:generate` → drizzle-kit が生成する SQL をレビュー (SQLite の ALTER 制約上テーブル再作成になる可能性大) → マージで本番適用
-
-本番 DB への書き込みを伴うので必ず人間が手動で実行すること。
 
 ### 3. 運用 TODO (コード変更なし)
 
