@@ -50,6 +50,13 @@
       "when": 1776860899187,
       "tag": "0006_red_spacker_dave",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1776864508764,
+      "tag": "0007_breezy_abomination",
+      "breakpoints": true
     }
   ]
 }
