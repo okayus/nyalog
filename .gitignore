@@ -17,3 +17,4 @@ test-results/
 
 # vercel-labs/agent-skills のローカルキャッシュ（実体は .claude/skills/ に置く）
 .agents/
+today-view.png
