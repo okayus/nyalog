@@ -72,7 +72,9 @@ export const cats = sqliteTable(
     name: text("name").notNull(),
     birthday: text("birthday"),
     themeColor: text("theme_color").notNull().default("gray"),
-    spaceId: text("space_id").references(() => spaces.id, { onDelete: "cascade" }),
+    spaceId: text("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
     createdBy: text("created_by").references(() => users.id),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
