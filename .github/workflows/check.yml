@@ -16,30 +16,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      # docs-only PR では重いステップを丸ごとスキップする。
+      # required status check 名を分けないように、単一 job 内で条件分岐する。
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+
+      - if: steps.filter.outputs.code != 'true'
+        run: echo "docs-only change; skipping heavy checks"
+
+      - if: steps.filter.outputs.code == 'true'
+        uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - uses: actions/setup-node@v4
+      - if: steps.filter.outputs.code == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - if: steps.filter.outputs.code == 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: Format & lint (vp check)
+        if: steps.filter.outputs.code == 'true'
         run: pnpm --filter @nyalog/web exec vp check
 
       - name: Type check (frontend)
+        if: steps.filter.outputs.code == 'true'
         run: pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.json
 
       - name: Type check (worker)
+        if: steps.filter.outputs.code == 'true'
         run: pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.worker.json
 
       - name: Build
+        if: steps.filter.outputs.code == 'true'
         run: pnpm build
 
       - name: Prepare e2e env
+        if: steps.filter.outputs.code == 'true'
         run: |
           cat > packages/web/.dev.vars <<EOF
           SESSION_SECRET=ci-session-secret-not-for-production-$(openssl rand -hex 16)
@@ -48,15 +70,17 @@ jobs:
           EOF
 
       - name: Install Playwright browsers
+        if: steps.filter.outputs.code == 'true'
         run: pnpm --filter @nyalog/web exec playwright install --with-deps chromium
 
       - name: E2E (smoke)
+        if: steps.filter.outputs.code == 'true'
         run: pnpm --filter @nyalog/web test:e2e
         env:
           CI: "true"
 
       - name: Upload Playwright report
-        if: always()
+        if: always() && steps.filter.outputs.code == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
