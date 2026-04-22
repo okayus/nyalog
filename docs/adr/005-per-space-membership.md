@@ -74,3 +74,43 @@ routine-tasks プロジェクト ([docs/adr/0001-shared-space-authorization.md](
 
 - PR 2 の bootstrap SQL が想定外に複雑になったら（複数家族で別スペース欲しい等）本 ADR を修正
 - PR 3 完了後、`memberSpaceIds` 解決のためのクエリが N+1 やレイテンシ増の原因になったら JWT に embed する方向へ振る（現状は家族 4 人 × 1 スペースなので不要）
+
+## Addendum (2026-04-22): PR 4 で踏んだ D1 CASCADE 事故
+
+PR #37 (cats.space_id NOT NULL 化) の本番 migration 適用時に、`toilet_records` 全 1257 行が一瞬消失した。backup (`backups/2026-04-22-pre-cats-notnull.sql`) から全件復旧済み。
+
+### 直接原因
+
+drizzle-kit が生成した table rebuild migration は以下の流れ:
+
+```sql
+PRAGMA foreign_keys=OFF;
+CREATE TABLE __new_cats (...);
+INSERT INTO __new_cats SELECT * FROM cats;
+DROP TABLE cats;        -- ← ここで toilet_records.cat_id → cats.id ON DELETE CASCADE が発火
+ALTER TABLE __new_cats RENAME TO cats;
+PRAGMA foreign_keys=ON;
+```
+
+ローカル (miniflare SQLite) は `PRAGMA foreign_keys=OFF` を尊重するため cascade は発火しない。しかし **Cloudflare D1 はこの PRAGMA を無視する**（Drizzle / D1 の既知の非互換）。結果、`DROP TABLE cats` の暗黙 DELETE が `toilet_records.cat_id` の cascade を発火させ、全 child rows が連鎖削除された。
+
+`PRAGMA defer_foreign_keys=TRUE` は D1 でも有効だが、これは「commit 時まで FK 違反チェックを遅延する」であって cascade 発火を抑止しない。対策にはならない。
+
+e2e は historical データに依存せず動作確認するため、この事故を検知できなかった。ユニットテストも同様。
+
+### 再発防止
+
+親テーブル (cascade FK の指される側) に対する drizzle table rebuild を行う時、次のいずれかを採る:
+
+1. **Drizzle 生成後に migration SQL を手動編集**: rebuild 前に `ALTER TABLE child DROP CONSTRAINT` 相当（SQLite では child 側も table rebuild）で cascade FK を一旦外し、rebuild 後に戻す。煩雑だが確実
+2. **schema 側で CASCADE を付けない**: `toilet_records.cat_id` の `onDelete: "cascade"` を `"no action"` または `"restrict"` に変える。ただし cat 削除時の記録掃除は app 側で明示的に行う必要がある
+3. **親の rebuild を避ける方針**: NOT NULL 化など列制約の確定は設計段階に寄せて、運用後の rebuild は極力避ける。どうしてもやるなら事前に必ず `wrangler d1 export --remote` を取り、migration 後に child の件数検証を行う
+
+本プロジェクトは規模が小さく backup / 復旧が容易なため、当面は **3 の運用ディシプリン**（rebuild 前の backup + 後続の件数検証）で回す。schema に CASCADE を残すか外すかは別途検討。
+
+### 運用チェックリスト（drizzle で table rebuild を伴う migration を流す前）
+
+- [ ] `wrangler d1 export nyalog-db --remote --output=backups/<date>-<summary>.sql` で事前 backup
+- [ ] 該当テーブルを **親として参照する** FK に `ON DELETE CASCADE` が付いていないか schema.ts で確認。付いていれば先に child を rebuild して FK を一旦外す / 再付与する PR に分ける
+- [ ] migration 適用後、child テーブルの `COUNT(*)` を backup 時の値と照合
+- [ ] 不一致があれば即座に backup から復旧（`grep '^INSERT INTO "<child>"' backup.sql > restore.sql; wrangler d1 execute --remote --file restore.sql`）

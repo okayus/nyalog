@@ -11,7 +11,7 @@
 - **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34), マージ済み)**: `spaces` / `space_members` 追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。挙動変化なし
 - **PR 2 ([#35](https://github.com/okayus/nyalog/pull/35), マージ済み)**: 本番 bootstrap 実行済 (`spaces` 1 行 / `space_members` 3 行 owner / cats.space_id + cats.created_by + toilet_records.created_by すべて backfill 完了。ADR-004 phase 2 同時実施)。SQL は `packages/web/scripts/2026-04-22-space-bootstrap.sql` に固定
 - **PR 3 ([#36](https://github.com/okayus/nyalog/pull/36), マージ済み)**: routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入 + 新規 INSERT に `space_id` バインド + dev bypass で dev space ensure + cross-space e2e (3本) 追加 + CLAUDE.md 反映
-- **PR 4 ([#37](https://github.com/okayus/nyalog/pull/37), 進行中)**: `cats.space_id` を `.notNull()` 化。SQLite table rebuild (migration 0007) で新 FK 定義が反映され、PR #34 で未適用だった `ON DELETE cascade` もここで有効化
+- **PR 4 ([#37](https://github.com/okayus/nyalog/pull/37), マージ済み)**: `cats.space_id` を `.notNull()` 化。ADR-005 完走。ただし本番 migration 適用時に D1 が `PRAGMA foreign_keys=OFF` を無視したため `DROP TABLE cats` が `toilet_records.cat_id` の cascade を発火させ 1257 行が消失、backup から全件復旧済 ([ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故))
 
 招待機能 (`/api/spaces/:id/invites`) は家族追加サイクル完了済みのため保留。
 
@@ -32,27 +32,22 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ## 進行中
 
-- **per-space membership 移行 PR 4 ([#37](https://github.com/okayus/nyalog/pull/37))** — `cats.space_id` を `.notNull()` 化して認可軸のスキーマ不変条件を確定。SQLite は table rebuild (CREATE `__new_cats` → INSERT SELECT → DROP → RENAME) で適用。PR #34 の `ALTER ADD COLUMN` 制約で未適用だった `ON DELETE cascade` もここで有効化。マージで ADR-005 完走
+- なし（ADR-005 は PR #34-#37 で完走。PR #37 の D1 CASCADE 事故は ADR-005 Addendum に記録）
 
 
 ## 次にやること (次セッションの出発点)
 
-### 1. ADR-005 PR 3 / PR 4 を完走させる
-
-- **PR 3**: `cats` / `toilet_records` routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` を導入。新規 INSERT に `space_id = c.var.memberSpaceIds[0]` をバインド。e2e に「他 user の id 直叩き → 404」を 1 本追加。CLAUDE.md と ADR-005 の認可記述を反映
-- **PR 4**: `cats.space_id` を `.notNull()` 化。SQLite テーブル再作成が走るので `db:generate` した SQL を必ずレビュー。FK の `ON DELETE CASCADE` もここで効くようにする (PR 1 で SQLite ALTER 制約のため未適用)
-- ADR-004 phase 2 (`created_by` の NOT NULL 化) は ADR-005 とは独立。やるなら PR 4 と並行で別 PR
-
-### 2. 次フェーズの候補（ADR-005 完了後）
+### 1. 次フェーズの選択
 
 - **薬・動物病院の予定管理** — 機能追加、モダン CSS を実戦投入する初の題材
 - **ご飯・カロリー管理** — 同上、DB スキーマ設計から
+- **ADR-004 phase 2 の残り**: `cats.created_by` / `toilet_records.created_by` を NOT NULL 化。ただし **PR #37 と同じ D1 CASCADE 事故を踏まないよう**、事前に [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリストを必ず実施する (`cats` を rebuild すると `toilet_records.cat_id` CASCADE が再発する)
 
-### 3. 運用 TODO (コード変更なし)
+### 2. 運用 TODO (コード変更なし)
 
 - `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
 - Cloudflare WAF rate-limit を `/api/auth/*` に 1 ルール
-- D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く
+- D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く。PR #37 の事故で露見した通り、table rebuild migration の直前には必ず backup を取る運用を明文化
 - Cloudflare の予算アラートを設定
 
 ## 後回し (Backlog)

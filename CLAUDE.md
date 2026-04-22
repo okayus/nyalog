@@ -144,6 +144,17 @@ pnpm db:migrate:prod  # マイグレーション適用(本番)
 pnpm deploy           # Cloudflareへデプロイ
 ```
 
+### D1 migration の注意点
+
+**親テーブル (cascade FK の指される側) を drizzle で table rebuild する時は特に慎重に。** Cloudflare D1 は drizzle-kit が生成する `PRAGMA foreign_keys=OFF` を無視する。`DROP TABLE parent;` の暗黙 DELETE が child の `ON DELETE CASCADE` を発火させて child 全行が消える。PR #37 で踏んだ ([ADR-005 Addendum](./docs/adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故))。
+
+table rebuild を含む migration を本番 `--remote` 適用する前に必ず:
+
+1. `wrangler d1 export nyalog-db --remote --output=backups/<date>-<summary>.sql`
+2. schema で該当テーブルを親として指す `onDelete: "cascade"` FK の有無を確認
+3. migration 後に child の `COUNT(*)` を backup 時点と照合
+4. ズレたら `grep '^INSERT INTO "<child>"' backup.sql > restore.sql; wrangler d1 execute --remote --file restore.sql` で復旧
+
 ## ユーザーアクションが必要な操作
 
 **クレデンシャル（パスワード、APIキー、OAuthトークン等）の入力が必要な操作のみ**ユーザーに依頼する:
