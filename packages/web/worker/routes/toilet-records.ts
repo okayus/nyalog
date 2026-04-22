@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { cats, toiletRecords } from "../db/schema";
 import { CatId, type CatId as CatIdType } from "../domain/cat";
+import type { SpaceId } from "../domain/space";
 import {
   type ToiletRecord,
   type ToiletRecordError,
@@ -47,6 +48,7 @@ function toRecord(row: typeof toiletRecords.$inferSelect): ToiletRecord {
 async function resolveCatId(
   db: ReturnType<typeof drizzle>,
   rawCatId: string,
+  memberSpaceIds: SpaceId[],
 ): Promise<{ ok: true; catId: CatIdType } | { ok: false; error: ToiletRecordError }> {
   const parsed = CatId.safeParse(rawCatId);
   if (!parsed.success) {
@@ -59,7 +61,14 @@ async function resolveCatId(
       },
     };
   }
-  const rows = await db.select().from(cats).where(eq(cats.id, parsed.data));
+  // 所属スペース外の cat は「存在しない」として 404 を返す (存在秘匿)
+  if (memberSpaceIds.length === 0) {
+    return { ok: false, error: { type: "cat_not_found", catId: parsed.data } };
+  }
+  const rows = await db
+    .select({ id: cats.id })
+    .from(cats)
+    .where(and(eq(cats.id, parsed.data), inArray(cats.spaceId, memberSpaceIds)));
   if (rows.length === 0) {
     return { ok: false, error: { type: "cat_not_found", catId: parsed.data } };
   }
@@ -69,7 +78,7 @@ async function resolveCatId(
 export const toiletRoutes = new Hono<Env>()
   .get("/", async (c) => {
     const db = drizzle(c.env.DB);
-    const cat = await resolveCatId(db, c.req.param("catId") ?? "");
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
     if (!cat.ok) {
       const { body, status } = errorResponse(cat.error);
       return c.json(body, status);
@@ -84,7 +93,7 @@ export const toiletRoutes = new Hono<Env>()
   })
   .get("/:id", async (c) => {
     const db = drizzle(c.env.DB);
-    const cat = await resolveCatId(db, c.req.param("catId") ?? "");
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
     if (!cat.ok) {
       const { body, status } = errorResponse(cat.error);
       return c.json(body, status);
@@ -112,7 +121,7 @@ export const toiletRoutes = new Hono<Env>()
   })
   .post("/", async (c) => {
     const db = drizzle(c.env.DB);
-    const cat = await resolveCatId(db, c.req.param("catId") ?? "");
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
     if (!cat.ok) {
       const { body, status } = errorResponse(cat.error);
       return c.json(body, status);
@@ -145,7 +154,7 @@ export const toiletRoutes = new Hono<Env>()
   })
   .put("/:id", async (c) => {
     const db = drizzle(c.env.DB);
-    const cat = await resolveCatId(db, c.req.param("catId") ?? "");
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
     if (!cat.ok) {
       const { body, status } = errorResponse(cat.error);
       return c.json(body, status);
@@ -206,7 +215,7 @@ export const toiletRoutes = new Hono<Env>()
   })
   .delete("/:id", async (c) => {
     const db = drizzle(c.env.DB);
-    const cat = await resolveCatId(db, c.req.param("catId") ?? "");
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
     if (!cat.ok) {
       const { body, status } = errorResponse(cat.error);
       return c.json(body, status);
