@@ -28,11 +28,14 @@ pnpm dev                           # http://localhost:5173/
 
 ### 使い方
 
-`.dev.vars` に次の 1 行を追加:
+`.dev.vars` に次の 2 行を追加 (両方必要):
 
 ```bash
 DEV_BYPASS_USER_ID=00000000-0000-4000-8000-000000000000
+ORIGIN=http://localhost:5173
 ```
+
+`sessionMiddleware` は `DEV_BYPASS_USER_ID` がセットされていて **かつ** `ORIGIN` が localhost 系 URL (`localhost` / `127.0.0.1` / `::1`) のときだけ bypass する (PR #12 の安全ガード)。`wrangler.jsonc` の default `ORIGIN` は本番 URL なので、`.dev.vars` で明示的に上書きしないと bypass は黙殺され API が 401 を返す。
 
 UUID は何でもよい (上記はゼロ埋めの v4 形) が、同じマシン間で使い回すと D1 上の dev ユーザデータを共有できる。
 
