@@ -155,8 +155,11 @@ nyalog/
 │       │   └── main.tsx
 │       ├── worker/             # Hono バックエンド
 │       │   ├── index.ts        # API エントリポイント
-│       │   ├── access-auth.ts  # Cloudflare Access JWT 検証
-│       │   └── db/schema.ts    # Drizzle スキーマ
+│       │   ├── middleware/     # session / challenge-cookie (WebAuthn)
+│       │   ├── routes/         # auth / cats / toilet-records
+│       │   ├── domain/         # ドメインモデル (Zod + Result)
+│       │   ├── db/schema.ts    # Drizzle スキーマ
+│       │   └── types.ts        # Hono Env / Bindings
 │       ├── drizzle/            # マイグレーションファイル
 │       ├── drizzle.config.ts
 │       ├── wrangler.jsonc      # Workers 設定 (Assets + D1)
