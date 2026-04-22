@@ -4,10 +4,16 @@ import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
 import type { Context } from "hono";
-import { sessions, spaceMembers, users } from "../db/schema";
+import { sessions, spaceMembers, spaces, users } from "../db/schema";
 import { DisplayName, UserId } from "../domain/auth";
 import { SpaceId } from "../domain/space";
 import type { Env } from "../types";
+
+// dev bypass user is auto-joined to this fixed space so dev-mode requests
+// see a non-empty memberSpaceIds[]. Production uses the bootstrapped
+// "nyalog family" space (different UUID); this constant is dev-only.
+const DEV_SPACE_ID = "00000000-0000-4000-8000-000000000001";
+const DEV_SPACE_NAME = "dev";
 
 const COOKIE_NAME = "nyalog_session";
 const SESSION_DAYS = 30;
@@ -89,13 +95,24 @@ export function sessionMiddleware() {
       const db = drizzle(c.env.DB);
       const devId = c.env.DEV_BYPASS_USER_ID;
       const existing = await db.select().from(users).where(eq(users.id, devId));
+      const now = new Date().toISOString();
       if (existing.length === 0) {
         await db.insert(users).values({
           id: devId,
           displayName: "dev",
-          createdAt: new Date().toISOString(),
+          createdAt: now,
         });
       }
+      // ensure dev space + membership exist so memberSpaceIds is non-empty
+      // and dev-mode INSERTs have a space to bind to.
+      await db
+        .insert(spaces)
+        .values({ id: DEV_SPACE_ID, name: DEV_SPACE_NAME, createdAt: now })
+        .onConflictDoNothing();
+      await db
+        .insert(spaceMembers)
+        .values({ spaceId: DEV_SPACE_ID, userId: devId, role: "owner", createdAt: now })
+        .onConflictDoNothing();
       const userId = UserId.parse(devId);
       c.set("userId", userId);
       c.set("displayName", DisplayName.parse(existing[0]?.displayName ?? "dev"));

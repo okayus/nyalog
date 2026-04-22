@@ -9,8 +9,8 @@
 実装上「認証済み = 全データ共有」になっている現状を `spaces` / `space_members` テーブルで形式化する。家族 4 人前提なので 1 スペース固定で UI は変えず、内部モデルだけ正規化する。4 PR で段階移行:
 
 - **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34), マージ済み)**: `spaces` / `space_members` 追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。挙動変化なし
-- **PR 2 ([#35](https://github.com/okayus/nyalog/pull/35), 進行中)**: 本番 bootstrap 実行済 (`spaces` 1 行 / `space_members` 3 行 owner / cats.space_id + cats.created_by + toilet_records.created_by すべて backfill 完了。ADR-004 phase 2 同時実施)。SQL は `packages/web/scripts/2026-04-22-space-bootstrap.sql` に固定
-- PR 3: routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入 + 新規 INSERT に `space_id` バインド + e2e 追加 + CLAUDE.md 反映
+- **PR 2 ([#35](https://github.com/okayus/nyalog/pull/35), マージ済み)**: 本番 bootstrap 実行済 (`spaces` 1 行 / `space_members` 3 行 owner / cats.space_id + cats.created_by + toilet_records.created_by すべて backfill 完了。ADR-004 phase 2 同時実施)。SQL は `packages/web/scripts/2026-04-22-space-bootstrap.sql` に固定
+- **PR 3 ([#36](https://github.com/okayus/nyalog/pull/36), 進行中)**: routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入 + 新規 INSERT に `space_id` バインド + dev bypass で dev space ensure + cross-space e2e (3本) 追加 + CLAUDE.md 反映
 - PR 4: `cats.space_id NOT NULL` 化
 
 招待機能 (`/api/spaces/:id/invites`) は家族追加サイクル完了済みのため保留。
@@ -32,7 +32,7 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ## 進行中
 
-- **per-space membership 移行 PR 2 ([#35](https://github.com/okayus/nyalog/pull/35))** — 本番 D1 に bootstrap SQL を流して `spaces` / `space_members` を埋め、`cats.space_id` と `created_by` 系を backfill 完了。残り PR 3 で routes に WHERE を導入、PR 4 で `cats.space_id` を NOT NULL 化
+- **per-space membership 移行 PR 3 ([#36](https://github.com/okayus/nyalog/pull/36))** — `cats` / `toilet_records` routes の WHERE と INSERT に `c.var.memberSpaceIds` を通電。dev bypass 経路は dev space を auto-ensure。e2e に cross-space IDOR 直叩き 3 本追加。CLAUDE.md の認可方針を per-space membership に書き換え。残り PR 4 で `cats.space_id` を NOT NULL 化
 
 
 ## 次にやること (次セッションの出発点)

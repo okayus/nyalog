@@ -81,6 +81,16 @@ function createToiletRecord(input: unknown): Result<ToiletRecord, ValidationErro
 // 副作用は境界（リポジトリ, ハンドラ）に閉じ込める
 ```
 
+### 認可: per-space membership
+
+認可の単位は **スペース** ([ADR-005](./docs/adr/005-per-space-membership.md))。`sessionMiddleware` がリクエスト毎に `c.var.userId` と `c.var.memberSpaceIds: SpaceId[]` をセットする。
+
+- **タスク系のクエリ** (`cats` / `toilet_records`) は `WHERE space_id IN c.var.memberSpaceIds` で必ず絞る。`toilet_records` は `cats` 経由で間接的にスペースに属するため、cat lookup の段階で `inArray(cats.spaceId, memberSpaceIds)` を効かせる
+- **新規 INSERT** は `space_id = c.var.memberSpaceIds[0]` を bind（単一スペース所属の家族 UX 前提）。`memberSpaceIds.length === 0` なら 403
+- **所属外スペースの id 直叩き** は 404 で返す（403 にすると存在が漏れる）
+- **`credentials` / `sessions`** は引き続き `user_id = c.var.userId` 軸で絞る（パスキーは個人のもの）
+- **`created_by`** は audit 用属性であって認可軸ではない ([ADR-004](./docs/adr/004-family-shared-with-created-by.md))
+
 ### やらないこと
 
 - `throw` によるエラー伝播（Result型を使う）
@@ -107,7 +117,7 @@ function createToiletRecord(input: unknown): Result<ToiletRecord, ValidationErro
 - 守る範囲（意図的に狭く）:
   - **クリティカルパス 1 本**: ログイン → 猫作成 → 記録 → 編集 → 削除 → ログアウト
   - **永続化の事実**: リロード後にデータが残る（ユニットでは原理的に検知不能）
-  - **認可の横流れ**: 他ユーザーのリソースに触れない（WHERE 句漏れの回帰防止）
+  - **認可の横流れ**: 他スペースのリソースに触れない（`WHERE space_id IN c.var.memberSpaceIds` 漏れの回帰防止 / [ADR-005](./docs/adr/005-per-space-membership.md)）
   - **セキュリティヘッダ**: CSP / HSTS / X-Frame-Options の付与（ミドルウェア配線の回帰防止）
 - 入れない: ドメインの意味（ユニットに譲る）、見た目のアニメーション挙動（ブラウザ依存の偶有的複雑さ）、網羅的な入力バリデーション（ユニットと Zod で押さえる）
 
