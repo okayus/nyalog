@@ -20,9 +20,11 @@ test("critical path: create cat, quick record, edit time, delete", async ({ page
   await expect(recordItem).toContainText("💧");
 
   await recordItem.getByRole("button", { name: "時刻を編集" }).click();
-  await recordItem.getByLabel("時刻").fill("03:42");
+  // 固定時刻だと CI 実行時刻によっては未来扱いされる (Timestamp は future を拒否)。
+  // record 作成日の 00:00 は必ず過去なので安全。
+  await recordItem.getByLabel("時刻").fill("00:00");
   await recordItem.getByRole("button", { name: "保存" }).click();
-  await expect(recordItem.locator("time")).toHaveText("03:42");
+  await expect(recordItem.locator("time")).toHaveText("00:00");
 
   await recordItem.getByRole("button", { name: "記録を削除" }).click();
   await page.getByRole("button", { name: "削除する" }).click();
