@@ -4,9 +4,22 @@
 
 ## 現在のフェーズ
 
-**CSS 近代化フェーズ完了 — 次フェーズ検討中**
+**per-space メンバーシップへの認可モデル移行中** ([ADR-005](./adr/005-per-space-membership.md))
 
-PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nyalog の UI スタックを刷新完了:
+実装上「認証済み = 全データ共有」になっている現状を `spaces` / `space_members` テーブルで形式化する。家族 4 人前提なので 1 スペース固定で UI は変えず、内部モデルだけ正規化する。4 PR で段階移行:
+
+- **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34), 進行中)**: `spaces` / `space_members` 追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。挙動変化なし
+- PR 2: 本番 bootstrap (手動 SQL: 1 スペース作成 + 全 users join + `cats.space_id` backfill)。ADR-004 phase 2 (`created_by` backfill) と同時実施
+- PR 3: routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入 + 新規 INSERT に `space_id` バインド + e2e 追加 + CLAUDE.md 反映
+- PR 4: `cats.space_id NOT NULL` 化
+
+招待機能 (`/api/spaces/:id/invites`) は家族追加サイクル完了済みのため保留。
+
+## 直近完了フェーズ
+
+**CSS 近代化フェーズ完了**
+
+PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nyalog の UI スタックを刷新完了済み:
 
 - **PR-A** `@layer` + OKLCH トークン + ダークモード (#15)
 - **PR-B** logical properties / `dvh` / `:focus-visible` / `text-wrap` / `accent-color` (#16)
@@ -19,7 +32,8 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ## 進行中
 
-- **スモーク E2E (feat/e2e-smoke)** — Playwright + `DEV_BYPASS_USER_ID` 経路で P0 クリティカルパス 1 本 (猫作成 → クイック記録 → 時刻編集 → 削除) をローカル `vp dev` 相手に導入。CI (`check.yml`) にも step 追加。CLAUDE.md に「ユニット = 意味 / e2e = 配線と事実」の責務分離を明文化。WebAuthn 経路と境界テスト (永続化 / 認可横流れ / セキュリティヘッダ) は後続 PR で追加予定
+- **per-space membership 移行 PR 1 ([#34](https://github.com/okayus/nyalog/pull/34))** — ADR-005 の段階移行 1 本目。`spaces` / `space_members` テーブル追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。本 PR では routes には影響を与えず、後続 PR 2-4 で bootstrap → WHERE 導入 → NOT NULL 化と進める
+
 
 ## 次にやること (次セッションの出発点)
 

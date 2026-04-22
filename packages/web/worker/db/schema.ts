@@ -1,4 +1,4 @@
-import { sqliteTable, text, index, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, index, integer, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -41,15 +41,46 @@ export const sessions = sqliteTable(
   }),
 );
 
-export const cats = sqliteTable("cats", {
+export const spaces = sqliteTable("spaces", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  birthday: text("birthday"),
-  themeColor: text("theme_color").notNull().default("gray"),
-  createdBy: text("created_by").references(() => users.id),
   createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
 });
+
+export const spaceMembers = sqliteTable(
+  "space_members",
+  {
+    spaceId: text("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["owner", "member"] }).notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.spaceId, t.userId] }),
+    userIdIdx: index("space_members_user_id_idx").on(t.userId),
+  }),
+);
+
+export const cats = sqliteTable(
+  "cats",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    birthday: text("birthday"),
+    themeColor: text("theme_color").notNull().default("gray"),
+    spaceId: text("space_id").references(() => spaces.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").references(() => users.id),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({
+    spaceIdIdx: index("cats_space_id_idx").on(t.spaceId),
+  }),
+);
 
 export const toiletRecords = sqliteTable(
   "toilet_records",
