@@ -7,7 +7,10 @@ SESSION_SECRET=<random-hex-string>
 # Unset in production once onboarding is complete.
 INITIAL_REGISTRATION_TOKEN=<random-token-or-leave-unset>
 
-# DEV_BYPASS_USER_ID (dev only): if set, sessionMiddleware skips passkey auth and
-# injects this UUID as the logged-in user. Never set as a production secret.
-# See docs/local-dev.md for details.
+# DEV_BYPASS_USER_ID (dev only): if set AND ORIGIN is a localhost URL,
+# sessionMiddleware skips passkey auth and injects this UUID as the logged-in
+# user. Both must be set together; DEV_BYPASS_USER_ID alone is ignored for
+# safety because wrangler.jsonc defaults ORIGIN to the production URL.
+# Never set either in a production secret. See docs/local-dev.md for details.
 # DEV_BYPASS_USER_ID=00000000-0000-4000-8000-000000000000
+# ORIGIN=http://localhost:5173
