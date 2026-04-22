@@ -26,6 +26,7 @@ jobs:
               - '**'
               - '!**/*.md'
               - '!docs/**'
+              - '!.claude/**'
 
       - if: steps.filter.outputs.code != 'true'
         run: echo "docs-only change; skipping heavy checks"
