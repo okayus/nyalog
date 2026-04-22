@@ -101,8 +101,3 @@ rules/input-server-validation.md
 - 参考リンク
 
 全ルールをまとめて読みたいときは `AGENTS.md` を参照。
-
-## 参考ドキュメント
-
-- `docs/vibe-coding-security.md` — バイブコーディング時代の安全な開発指針
-- `docs/20260414-152659_Webサービス公開前のチェックリスト.md` — catnose 氏の公開前チェックリスト

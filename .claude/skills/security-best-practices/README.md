@@ -76,6 +76,4 @@ tags: tag1, tag2
 
 ## 参考資料
 
-- `docs/vibe-coding-security.md`（プロジェクト内）
-- `docs/20260414-152659_Webサービス公開前のチェックリスト.md`（プロジェクト内）
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
