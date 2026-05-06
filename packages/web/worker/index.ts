@@ -52,3 +52,7 @@ app.notFound(async (c) => {
 
 export type AppType = typeof app;
 export default app;
+
+// Cloudflare Workflows class export. wrangler.jsonc の `workflows[].class_name` と一致させる必要あり。
+// Worker default export と並列に置くのが Workflows の慣例。
+export { AnalyzeBloodTestWorkflow } from "./lib/analyzer/workflow";
