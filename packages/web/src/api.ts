@@ -5,6 +5,11 @@ import {
   type PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
 import { err, ResultAsync, type Result } from "neverthrow";
+import type {
+  BloodTestAnalysis,
+  BloodTestValue,
+  ValueFlag,
+} from "../worker/domain/blood-test-analysis";
 import type { Cat, ThemeColor } from "../worker/domain/cat";
 import type { MedicalRecord, MedicalRecordAttachment } from "../worker/domain/medical-record";
 import type { ToiletRecord, StoolCondition } from "../worker/domain/toilet-record";
@@ -210,6 +215,83 @@ export function medicalAttachmentUrl(
   attachmentId: string,
 ): string {
   return `/api/cats/${catId}/medical-records/${recordId}/attachments/${attachmentId}`;
+}
+
+// --- Blood Test Analysis API ---
+
+export type BloodTestValueInput = {
+  itemCode: string;
+  itemLabel: string;
+  unit: string | null;
+  valueText: string;
+  valueNumeric: number | null;
+  refLow: number | null;
+  refHigh: number | null;
+  refText: string | null;
+  flag: ValueFlag;
+  notes: string | null;
+};
+
+function analysisBase(catId: string, recordId: string, attachmentId: string): string {
+  return `/api/cats/${catId}/medical-records/${recordId}/attachments/${attachmentId}`;
+}
+
+export function getBloodTestAnalysis(
+  catId: string,
+  recordId: string,
+  attachmentId: string,
+): Promise<Result<{ analysis: BloodTestAnalysis; values: BloodTestValue[] }, ApiError>> {
+  return request<{ analysis: BloodTestAnalysis; values: BloodTestValue[] }>(
+    `${analysisBase(catId, recordId, attachmentId)}/analysis`,
+  );
+}
+
+export function triggerBloodTestAnalyze(
+  catId: string,
+  recordId: string,
+  attachmentId: string,
+): Promise<Result<{ analysis: BloodTestAnalysis }, ApiError>> {
+  return request<{ analysis: BloodTestAnalysis }>(
+    `${analysisBase(catId, recordId, attachmentId)}/analyze`,
+    { method: "POST" },
+  );
+}
+
+export function updateBloodTestValue(
+  catId: string,
+  recordId: string,
+  attachmentId: string,
+  valueId: string,
+  input: Partial<BloodTestValueInput>,
+): Promise<Result<{ value: BloodTestValue }, ApiError>> {
+  return request<{ value: BloodTestValue }>(
+    `${analysisBase(catId, recordId, attachmentId)}/analysis/values/${valueId}`,
+    { method: "PUT", body: JSON.stringify(input) },
+  );
+}
+
+export function addBloodTestValue(
+  catId: string,
+  recordId: string,
+  attachmentId: string,
+  input: BloodTestValueInput,
+): Promise<Result<{ value: BloodTestValue }, ApiError>> {
+  return request<{ value: BloodTestValue }>(
+    `${analysisBase(catId, recordId, attachmentId)}/analysis/values`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export function deleteBloodTestValue(
+  catId: string,
+  recordId: string,
+  attachmentId: string,
+  valueId: string,
+): Promise<Result<Record<string, never>, ApiError>> {
+  return request<Record<string, never>>(
+    `${analysisBase(catId, recordId, attachmentId)}/analysis/values/${valueId}`,
+    { method: "DELETE" },
+  );
 }
 
 // --- Auth API ---
