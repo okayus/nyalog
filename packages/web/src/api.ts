@@ -6,6 +6,7 @@ import {
 } from "@simplewebauthn/browser";
 import { err, ResultAsync, type Result } from "neverthrow";
 import type { Cat, ThemeColor } from "../worker/domain/cat";
+import type { MedicalRecord } from "../worker/domain/medical-record";
 import type { ToiletRecord, StoolCondition } from "../worker/domain/toilet-record";
 
 type CreateCatInput = { name: string; birthday?: string | null; themeColor?: ThemeColor };
@@ -105,6 +106,50 @@ export function deleteToiletRecord(
   id: string,
 ): Promise<Result<Record<string, never>, ApiError>> {
   return request(`/api/cats/${catId}/toilet-records/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Medical Records API ---
+
+type CreateMedicalRecordInput =
+  | { type: "blood_test"; recordedAt: string; title?: string | null; notes?: string | null }
+  | { type: "other"; recordedAt: string; title?: string | null; notes?: string | null };
+
+type UpdateMedicalRecordInput =
+  | { type: "blood_test"; recordedAt?: string; title?: string | null; notes?: string | null }
+  | { type: "other"; recordedAt?: string; title?: string | null; notes?: string | null };
+
+export function listMedicalRecords(catId: string): Promise<Result<MedicalRecord[], ApiError>> {
+  return request<MedicalRecord[]>(`/api/cats/${catId}/medical-records`);
+}
+
+export function createMedicalRecord(
+  catId: string,
+  input: CreateMedicalRecordInput,
+): Promise<Result<MedicalRecord, ApiError>> {
+  return request<MedicalRecord>(`/api/cats/${catId}/medical-records`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateMedicalRecord(
+  catId: string,
+  id: string,
+  input: UpdateMedicalRecordInput,
+): Promise<Result<MedicalRecord, ApiError>> {
+  return request<MedicalRecord>(`/api/cats/${catId}/medical-records/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteMedicalRecord(
+  catId: string,
+  id: string,
+): Promise<Result<Record<string, never>, ApiError>> {
+  return request(`/api/cats/${catId}/medical-records/${id}`, {
     method: "DELETE",
   });
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { type AuthUser, authApi } from "./api";
 import { AuthView } from "./components/AuthView";
 import { CredentialsView } from "./components/CredentialsView";
+import { MedicalRecordsView } from "./components/MedicalRecordsView";
 import { TodayView } from "./components/TodayView";
 import { ToiletRecordView } from "./components/ToiletRecordView";
 import { VetCalendar } from "./components/VetCalendar";
@@ -10,6 +11,7 @@ import { withViewTransition } from "./view-transition";
 type View =
   | { kind: "today" }
   | { kind: "toilet"; catId: string; catName: string; themeColor: string }
+  | { kind: "medical"; catId: string; catName: string; themeColor: string }
   | { kind: "credentials" };
 
 type AuthState =
@@ -87,12 +89,30 @@ export function App() {
                 }),
               )
             }
+            onOpenMedical={(cat) =>
+              withViewTransition(() =>
+                setView({
+                  kind: "medical",
+                  catId: cat.id,
+                  catName: cat.name,
+                  themeColor: cat.themeColor,
+                }),
+              )
+            }
           />
           <VetCalendar />
         </>
       ) : null}
       {view.kind === "toilet" ? (
         <ToiletRecordView
+          catId={view.catId}
+          catName={view.catName}
+          themeColor={view.themeColor}
+          onBack={() => withViewTransition(() => setView({ kind: "today" }))}
+        />
+      ) : null}
+      {view.kind === "medical" ? (
+        <MedicalRecordsView
           catId={view.catId}
           catName={view.catName}
           themeColor={view.themeColor}

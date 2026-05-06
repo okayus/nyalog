@@ -23,16 +23,16 @@ metadata:
 
 ## Rule Categories by Priority
 
-| Priority | Category | Impact | Prefix |
-|----------|----------|--------|--------|
-| 1 | 認可・データアクセス制御 | CRITICAL | `authz-` |
-| 2 | 入力バリデーション | CRITICAL | `input-` |
-| 3 | シークレット・鍵管理 | CRITICAL | `secret-` |
-| 4 | 認証・セッション | HIGH | `auth-` |
-| 5 | レスポンスヘッダ | HIGH | `header-` |
-| 6 | エラーハンドリング・ログ | MEDIUM-HIGH | `error-` |
-| 7 | 依存ライブラリ | MEDIUM | `deps-` |
-| 8 | 運用・バックアップ | MEDIUM | `ops-` |
+| Priority | Category                 | Impact      | Prefix    |
+| -------- | ------------------------ | ----------- | --------- |
+| 1        | 認可・データアクセス制御 | CRITICAL    | `authz-`  |
+| 2        | 入力バリデーション       | CRITICAL    | `input-`  |
+| 3        | シークレット・鍵管理     | CRITICAL    | `secret-` |
+| 4        | 認証・セッション         | HIGH        | `auth-`   |
+| 5        | レスポンスヘッダ         | HIGH        | `header-` |
+| 6        | エラーハンドリング・ログ | MEDIUM-HIGH | `error-`  |
+| 7        | 依存ライブラリ           | MEDIUM      | `deps-`   |
+| 8        | 運用・バックアップ       | MEDIUM      | `ops-`    |
 
 ## Quick Reference
 

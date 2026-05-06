@@ -50,10 +50,7 @@ export function sessionMiddleware() {
     }
     // ❸ DB でセッションの存在・有効期限を確認
     const db = drizzle(c.env.DB);
-    const rows = await db
-      .select()
-      .from(sessions)
-      .where(eq(sessions.id, payload.sid));
+    const rows = await db.select().from(sessions).where(eq(sessions.id, payload.sid));
     if (rows.length === 0 || new Date(rows[0].expiresAt).getTime() < Date.now()) {
       deleteCookie(c, COOKIE_NAME, { path: "/" });
       return c.json({ error: { type: "session_expired" } }, 401);
@@ -65,6 +62,7 @@ export function sessionMiddleware() {
 ```
 
 補足:
+
 - dev bypass（`DEV_BYPASS_USER_ID` など）は本番 env で絶対に有効にしない。wrangler の env 分岐を確認する
 - セッション失効後もトークンだけは手元に残るので、DB 側の削除と Cookie 削除を同時に行う
 

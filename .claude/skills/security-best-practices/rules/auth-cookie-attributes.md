@@ -38,6 +38,7 @@ setCookie(c, "__Host-nyalog_session", token, sessionCookieOptions);
 ```
 
 補足:
+
 - `SameSite=Lax` でも「GET リクエストで更新処理を行う」エンドポイントがあると CSRF を防げない。副作用のある操作は POST/PUT/DELETE に限定する
 - ログアウト時は `deleteCookie` で path を一致させて削除する（nyalog では `deleteCookie(c, COOKIE_NAME, { path: "/" })`）
 - サブドメインに Cookie を送る設計（Domain 属性指定）は、他サブドメインの脆弱性を踏むので避ける

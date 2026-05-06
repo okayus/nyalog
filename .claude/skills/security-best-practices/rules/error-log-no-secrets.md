@@ -38,6 +38,7 @@ function safeLog(event: string, ctx: { userId?: string; type?: string; status?: 
 ```
 
 補足:
+
 - `Authorization` / `Cookie` / `Set-Cookie` ヘッダは原則ログに出さない
 - D1 のクエリエラーには SQL 文が含まれることがある。ハンドラ側で「type: internal_error」に変換してからログに流す
 - ログに書いてしまった PII は、compliance 上の削除要求（GDPR / 個人情報保護法）にも影響する

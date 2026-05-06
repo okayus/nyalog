@@ -38,6 +38,7 @@ git add package.json pnpm-lock.yaml
 ```
 
 補足:
+
 - 公式っぽい名前でも、似たスコープ（`@faker-js/faker` vs `faker` 等）の乗っ取り事例がある
 - `pnpm audit` / `pnpm outdated` を CI で定期実行して脆弱性を早期発見する
 - 本当にそのライブラリが必要か、標準ライブラリ / Hono / React の既存機能で足りないかを先に検討する

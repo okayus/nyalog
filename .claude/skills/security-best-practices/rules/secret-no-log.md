@@ -16,7 +16,7 @@ app.use(async (c, next) => {
   console.log("request", {
     url: c.req.url,
     headers: Object.fromEntries(c.req.raw.headers.entries()), // ❌ Cookie・Authorization 丸見え
-    body: await c.req.text(),                                  // ❌ password / token 丸見え
+    body: await c.req.text(), // ❌ password / token 丸見え
   });
   await next();
 });
@@ -47,6 +47,7 @@ function logError(err: unknown, context: Record<string, string | number>) {
 ```
 
 補足:
+
 - React の error boundary が state をそのまま Sentry に送る設定になっていないか確認
 - `JSON.stringify(err)` は例外オブジェクトのプロパティを全部出すことがある。DB エラーなら SQL 文が含まれうる
 - 「とりあえずデバッグで出した console.log」が本番に残らないよう、lint ルールで禁止するのが楽
