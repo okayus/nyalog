@@ -17,7 +17,6 @@ import {
   parseMedicalRecordId,
   parseUpdateMedicalRecord,
 } from "../domain/medical-record";
-import { runAnalyzer } from "../lib/analyzer/run";
 import type { Env } from "../types";
 import { bloodTestAnalysisRoutes } from "./blood-test-analysis";
 
@@ -402,7 +401,8 @@ export const medicalRecordRoutes = new Hono<Env>()
       .where(eq(medicalRecordAttachments.id, attachmentId));
 
     // 血液検査画像 (jpeg/png/webp) は upload 直後に Vision 解析を kick off。
-    // response はすぐ返し、解析は ctx.waitUntil で裏で走る。失敗時は status='failed' で残る。
+    // response はすぐ返し、解析は Cloudflare Workflows で durable に走る。
+    // ctx.waitUntil の 30 秒制限を回避し、step 単位で retry / persist が効く。
     if (recordType === "blood_test" && AUTO_ANALYZE_CONTENT_TYPES.has(contentTypeResult.data)) {
       const analysisId = crypto.randomUUID();
       await db.insert(bloodTestAnalyses).values({
@@ -417,7 +417,7 @@ export const medicalRecordRoutes = new Hono<Env>()
         createdAt: now,
         updatedAt: now,
       });
-      c.executionCtx.waitUntil(runAnalyzer(c.env, analysisId, r2Key));
+      await c.env.ANALYZE_WORKFLOW.create({ params: { analysisId, r2Key } });
     }
 
     return c.json(toAttachment(insertedRows[0]), 201);

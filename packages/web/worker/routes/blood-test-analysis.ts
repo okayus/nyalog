@@ -17,7 +17,6 @@ import {
   BloodTestValueRowSchema,
 } from "../domain/blood-test-analysis";
 import { parseAttachmentId, parseMedicalRecordId } from "../domain/medical-record";
-import { runAnalyzer } from "../lib/analyzer/run";
 import type { Env } from "../types";
 import { resolveCatId } from "./medical-records";
 
@@ -182,7 +181,10 @@ export const bloodTestAnalysisRoutes = new Hono<Env>()
         .where(eq(bloodTestAnalyses.id, analysisId));
     }
 
-    c.executionCtx.waitUntil(runAnalyzer(c.env, analysisId, resolved.data.r2Key));
+    // Workflow を kick して durable execution に逃がす (PR fix の理由は #47 参照)。
+    await c.env.ANALYZE_WORKFLOW.create({
+      params: { analysisId, r2Key: resolved.data.r2Key },
+    });
 
     const rows = await db
       .select()

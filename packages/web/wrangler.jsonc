@@ -23,6 +23,17 @@
   "ai": {
     "binding": "AI",
   },
+  // 血液検査画像の Vision LLM 解析を durable execution に逃がす Workflow。
+  // ctx.waitUntil の 30 秒制限を回避するため、worker から
+  // c.env.ANALYZE_WORKFLOW.create({ params }) で kick する。
+  // class_name は worker/lib/analyzer/workflow.ts の export と一致させる。
+  "workflows": [
+    {
+      "name": "blood-test-analyzer",
+      "binding": "ANALYZE_WORKFLOW",
+      "class_name": "AnalyzeBloodTestWorkflow",
+    },
+  ],
   "d1_databases": [
     {
       "binding": "DB",
