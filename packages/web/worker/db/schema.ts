@@ -104,3 +104,43 @@ export const toiletRecords = sqliteTable(
     catIdTimestampIdx: index("toilet_records_cat_id_timestamp_idx").on(t.catId, t.timestamp),
   }),
 );
+
+export const medicalRecords = sqliteTable(
+  "medical_records",
+  {
+    id: text("id").primaryKey(),
+    catId: text("cat_id")
+      .notNull()
+      .references(() => cats.id, { onDelete: "cascade" }),
+    type: text("type", { enum: ["blood_test", "other"] }).notNull(),
+    recordedAt: text("recorded_at").notNull(),
+    title: text("title"),
+    notes: text("notes"),
+    createdBy: text("created_by").references(() => users.id),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({
+    catIdRecordedAtIdx: index("medical_records_cat_id_recorded_at_idx").on(t.catId, t.recordedAt),
+  }),
+);
+
+export const medicalRecordAttachments = sqliteTable(
+  "medical_record_attachments",
+  {
+    id: text("id").primaryKey(),
+    medicalRecordId: text("medical_record_id")
+      .notNull()
+      .references(() => medicalRecords.id, { onDelete: "cascade" }),
+    r2Key: text("r2_key").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    originalFilename: text("original_filename"),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => ({
+    medicalRecordIdIdx: index("medical_record_attachments_medical_record_id_idx").on(
+      t.medicalRecordId,
+    ),
+  }),
+);

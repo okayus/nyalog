@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { authRoutes } from "./routes/auth";
 import { catRoutes } from "./routes/cats";
+import { medicalRecordRoutes } from "./routes/medical-records";
 import { toiletRoutes } from "./routes/toilet-records";
 import { sessionMiddleware } from "./middleware/session";
 import type { Env } from "./types";
@@ -39,6 +40,7 @@ const protectedApi = new Hono<Env>();
 protectedApi.use("/*", sessionMiddleware());
 protectedApi.route("/cats", catRoutes);
 protectedApi.route("/cats/:catId/toilet-records", toiletRoutes);
+protectedApi.route("/cats/:catId/medical-records", medicalRecordRoutes);
 api.route("/", protectedApi);
 
 app.route("/api", api);

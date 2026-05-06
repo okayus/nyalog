@@ -4,6 +4,7 @@ import type { SpaceId } from "./domain/space";
 type Bindings = {
   DB: D1Database;
   ASSETS: Fetcher;
+  MEDICAL_BUCKET: R2Bucket;
   SESSION_SECRET: string;
   RP_ID: string;
   ORIGIN: string;
