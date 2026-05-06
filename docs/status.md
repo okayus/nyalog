@@ -4,7 +4,7 @@
 
 ## 現在のフェーズ
 
-なし (次フェーズの選択待ち)。新機能候補は「次にやること」を参照。
+**血液検査 Vision 解析 (中断、後回し)**。以下「進行中」を参照。次セッションでセキュリティ検査を先に走らせる方針。
 
 ## 直近完了フェーズ
 
@@ -45,18 +45,39 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ## 進行中
 
-- なし（ADR-005 は PR #34-#37 で完走。PR #37 の D1 CASCADE 事故は ADR-005 Addendum に記録）
+**血液検査 Vision 解析 (土台 3 PR 完走、本番動作確認で 2 つの残課題により中断・後回し)**
+
+医療記録に upload された血液検査画像を Vision LLM で構造化抽出して `blood_test_values` 行として保存する機能。設計はユーザー指示で「Workers AI Gemma を初期実装、差し替え可能 interface を切る」。土台は完成し本番に入っているが、最初の本番 upload で 2 つの想定外で values が DB に入っていない:
+
+- **PR 1 ([#45](https://github.com/okayus/nyalog/pull/45))** schema + domain + analyzer 雛形: `blood_test_analyses` (1:1 with attachment) + `blood_test_values` (N rows) テーブル。`worker/domain/blood-test-analysis.ts` (Branded ID + Zod + 純粋関数 `parseGemmaJsonResponse` / `normalizeFlag`) + 項目辞書 (`blood-test-items.ts`、CBC/生化学/電解質/ホルモン/胆汁酸/凝固) + `BloodTestAnalyzer` interface + `WorkersAIGemmaAnalyzer` (default `@cf/google/gemma-3-12b-it`) + `factory.ts` (env から実装選択) + 抽出 prompt。vitest 22 cases 導入
+- **PR 2 ([#46](https://github.com/okayus/nyalog/pull/46))** API + 非同期トリガー: 5 endpoint (`GET /analysis` / `POST /analyze` / `PUT|POST|DELETE /analysis/values[/:vid]`)、POST `/attachments` で `blood_test` + `image/{jpeg,png,webp}` の時に `ctx.waitUntil(runAnalyzer)` で発火、CI workflow に `CLOUDFLARE_API_TOKEN` env を渡して `vp dev` の Workers AI remote proxy session を成立させる修正も含む
+- **fix ([#47](https://github.com/okayus/nyalog/pull/47))** Cloudflare Workflows への移行: PR 2 を本番反映後、最初の upload で `ctx.waitUntil()` の **wall-clock 30 秒上限** で kill され `status='running'` のまま stuck。catch も走らない。`AnalyzeBloodTestWorkflow extends WorkflowEntrypoint` に書き換え、`step.do()` で `mark-running` → `fetch-and-analyze` (retries 2 + timeout 5min) → `persist-values` を分割、catch で `mark-failed` step。`POST /attachments` と `POST /analyze` の発火は `c.env.ANALYZE_WORKFLOW.create({ params })` に置換。stuck row 1 件は SQL で `'failed'` に手動 cleanup 済み。教訓は okayus-skills の [`cloudflare-workflows-for-long-tasks`](https://github.com/okayus/okayus-skills/tree/main/skills/cloudflare-workflows-for-long-tasks) skill (作成中、未コミット) に集約
+
+**本番動作確認で判明した 2 つの残課題**:
+
+1. **D1 bulk insert の placeholder 上限超過**: `persist-values` step で `db.insert(bloodTestValues).values([...])` が 1 SQL にまとめて発行され、`D1_ERROR: too many SQL variables at offset 545: SQLITE_ERROR` で throw。Workers AI Gemma は ~34 項目を抽出していて、34 行 × 16 列 ≒ 544 placeholders で D1 制限に当たった (詳細は #47 の error_message)。**修正**: insert を chunk 分割 (例 25 行ずつ = 400 placeholders) すれば通る、小 PR で対応可
+2. **Workers AI Gemma 3 12B vision の応答時間 7 分**: `started_at = 21:44:08 → finished_at = 21:51:25` で 7 分 17 秒。`waitUntil` 30 秒は問題外、Workflows 5 分 timeout でも retry 1 回踏む。UX として「アップロードから 7 分後に値が見える」は厳しい。差し替え interface を活かして Claude Vision (Sonnet 4.6、5-15s 期待) に切り替える検討が後ろに残る。Workflow 自体は「失敗が visible に残る」ことが実証できた (`error_message` 明確、Cloudflare Workflows Dashboard で各 step 観察可)
+
+**Workflow 移行で実証されたこと (前向き材料)**:
+- `ctx.waitUntil` の 30 秒制限 → 7 分処理が完走できる durable execution に移行成功
+- 失敗時 catch が走り `error_message` が DB に明確に残る (今回 D1 limit エラーが正確に文字列で取れた)
+- `step.do()` 単位で retry / persist が効く土台ができた
+- Workflow 関連の落とし穴 (`Workflow<Params>` は workers-types の global、bytes は step 間で渡せない、step.do の冪等性) は okayus-skills の skill 化で固定化
+
+**次に再開する時の手順**: D1 chunking fix → 同じ画像で再 upload 検証 → values が DB に入るのを確認 → UI (`BloodTestAnalysisPanel`、PR 3 として計画されていた行 inline 編集 + 異常値強調) → ADR-007 起こし → Gemma 応答時間問題の評価 (Claude Vision 比較は別検討)。
 
 ## 次にやること (次セッションの出発点)
 
-### 1. 次フェーズの選択
+### 1. セキュリティ検査 (ユーザー指示で最優先)
 
-- **血液検査結果の画像解析・データ化** (新候補、ユーザー要望) — PR 3 で保存できるようになった医療記録の画像 (血液検査結果) を Workers AI or Claude API のマルチモーダルモデルで解析し、構造化データとして保存。猫の経年推移グラフ (Hb / RBC / WBC / BUN / ALT 等) に繋ぐ。設計検討項目:
-  - 解析エンジン: Workers AI (`@cf/llava-hf/llava-1.5-7b-hf` などの vision 系、無料枠あり) vs Claude API (Sonnet 4.6 / Opus 4.7、精度高だが課金)
-  - 構造化スキーマ: `medical_records` に紐づく `blood_test_values` 系のテーブル。検査項目 × 値 × 単位 × 参考範囲。動物病院ごとにフォーマットが違うため、AI 出力 + 人手修正のフローを前提
-  - 解析タイミング: 添付アップロード時に同期 / 別エンドポイント (`POST /:id/attachments/:aid/analyze`) で非同期 / Cron で夜間バッチ のいずれか
-  - 修正 UI: AI 誤読を人間が編集できる行単位エディタ (検査項目を row として持つ)
-  - 既存添付との連携: PR 3 の `medical_record_attachments.r2_key` を入力に使う (新規 binding 不要、`MEDICAL_BUCKET` を流用)
+血液検査 Vision 解析を中断したのは「もっと前にセキュリティ検査を入れたい」というユーザー判断のため。`/security-review` skill 等を使って現状コードベースをレビューし、見つかった問題を fix PR で潰す。スコープは次セッション開始時にユーザーと相談 (リポジトリ全体 / 直近の血液検査 Vision PR 群 / 特定フォーカスのいずれか)。
+
+### 2. 血液検査 Vision 解析の再開 (上記「進行中」の残課題)
+
+セキュリティ検査が一区切りついたら戻る。再開手順は「進行中」末尾の通り。最初の手は **D1 bulk insert chunking の小 fix PR** (25 行/insert に分割)。これで本番動作確認の最後の山を越えるはず。
+
+### 3. その他の機能候補 (順序は流動)
+
 - **薬・動物病院の予定管理** — 機能追加、モダン CSS を実戦投入する初の題材
 - **ご飯・カロリー管理** — 同上、DB スキーマ設計から
 - **ADR-004 phase 2 の残り**: `cats.created_by` / `toilet_records.created_by` を NOT NULL 化。ただし **PR #37 と同じ D1 CASCADE 事故を踏まないよう**、事前に [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリストを必ず実施する (`cats` を rebuild すると `toilet_records.cat_id` CASCADE が再発する)
