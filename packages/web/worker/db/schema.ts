@@ -1,4 +1,4 @@
-import { sqliteTable, text, index, integer, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, index, integer, primaryKey, real } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -142,5 +142,61 @@ export const medicalRecordAttachments = sqliteTable(
     medicalRecordIdIdx: index("medical_record_attachments_medical_record_id_idx").on(
       t.medicalRecordId,
     ),
+  }),
+);
+
+// 血液検査画像の Vision LLM 解析結果。1 attachment : 1 analysis。
+// 再解析時は status / started_at / finished_at / raw_response を update し、
+// 関連 blood_test_values は delete-then-insert で全置換 (PR 3 の UI で再解析前に確認)。
+export const bloodTestAnalyses = sqliteTable(
+  "blood_test_analyses",
+  {
+    id: text("id").primaryKey(),
+    attachmentId: text("attachment_id")
+      .notNull()
+      .unique()
+      .references(() => medicalRecordAttachments.id, { onDelete: "cascade" }),
+    status: text("status", {
+      enum: ["pending", "running", "succeeded", "failed"],
+    }).notNull(),
+    modelName: text("model_name").notNull(),
+    startedAt: text("started_at"),
+    finishedAt: text("finished_at"),
+    errorMessage: text("error_message"),
+    rawResponse: text("raw_response"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({
+    attachmentIdIdx: index("blood_test_analyses_attachment_id_idx").on(t.attachmentId),
+  }),
+);
+
+export const bloodTestValues = sqliteTable(
+  "blood_test_values",
+  {
+    id: text("id").primaryKey(),
+    analysisId: text("analysis_id")
+      .notNull()
+      .references(() => bloodTestAnalyses.id, { onDelete: "cascade" }),
+    itemCode: text("item_code").notNull(),
+    itemLabel: text("item_label").notNull(),
+    unit: text("unit"),
+    valueText: text("value_text").notNull(),
+    valueNumeric: real("value_numeric"),
+    refLow: real("ref_low"),
+    refHigh: real("ref_high"),
+    refText: text("ref_text"),
+    flag: text("flag", {
+      enum: ["normal", "high", "low", "abnormal", "unknown"],
+    }).notNull(),
+    notes: text("notes"),
+    rowIndex: integer("row_index").notNull(),
+    reviewed: integer("reviewed", { mode: "boolean" }).notNull().default(false),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({
+    analysisIdIdx: index("blood_test_values_analysis_id_idx").on(t.analysisId),
   }),
 );

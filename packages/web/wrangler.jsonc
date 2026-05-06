@@ -13,6 +13,13 @@
     // Passkeys are bound to this value — changing it invalidates all registrations.
     "RP_ID": "nyalog.toshiaki-mukai-9981.workers.dev",
     "ORIGIN": "https://nyalog.toshiaki-mukai-9981.workers.dev",
+    // 血液検査画像の解析エンジン選択。"workers-ai-gemma" 固定。
+    // 将来 "claude-sonnet-4-6" 等を増やすときは worker/lib/analyzer/factory.ts に
+    // case を足してこの値を切替える。
+    "ANALYZER_MODEL": "workers-ai-gemma",
+  },
+  "ai": {
+    "binding": "AI",
   },
   "d1_databases": [
     {
