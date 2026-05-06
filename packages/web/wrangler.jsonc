@@ -22,4 +22,10 @@
       "migrations_dir": "drizzle",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEDICAL_BUCKET",
+      "bucket_name": "nyalog-medical",
+    },
+  ],
 }
