@@ -1,0 +1,5 @@
+# 家族専用 PWA。検索エンジン・AI クローラー含む全 bot の crawl を disallow。
+# 守らない bot は Cloudflare Workers の rate limit + Observability で対応する。
+
+User-agent: *
+Disallow: /
