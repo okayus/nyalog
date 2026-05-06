@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "organization": "nyalog",
-  "date": "2026-04-14",
-  "abstract": "家族限定の小規模 Web アプリでも効くセキュリティ観点ガイドライン。認可・入力検証・シークレット管理・認証/Cookie・レスポンスヘッダ・エラー処理・依存ライブラリ・運用/バックアップの 8 セクション 23 ルール。各ルールは impact でソートされ、典型的な脆弱コードと正しい実装パターンを nyalog の TypeScript/Hono/React/Drizzle/Cloudflare Workers スタックで示す。",
+  "date": "2026-05-06",
+  "abstract": "家族限定の小規模 Web アプリでも効くセキュリティ観点ガイドライン。認可・入力検証・シークレット管理・認証/Cookie・レスポンスヘッダ・エラー処理・依存ライブラリ・運用/バックアップの 8 セクション 24 ルール。各ルールは impact でソートされ、典型的な脆弱コードと正しい実装パターンを nyalog の TypeScript/Hono/React/Drizzle/Cloudflare Workers スタックで示す。",
   "references": [
     "https://owasp.org/www-project-top-ten/",
     "https://blog.tokumaru.org/2011/10/cookiedomain.html",

@@ -43,4 +43,4 @@
 ## 8. 運用・バックアップ (ops)
 
 **Impact:** MEDIUM
-**Description:** D1 の定期バックアップ、Cloudflare アカウント 2FA、予算アラート、ログ監視、トランザクション境界と冪等性で、データ喪失と運用事故を防ぐ。
+**Description:** D1 の定期バックアップ、Cloudflare アカウント 2FA、予算アラート、ログ監視、トランザクション境界と冪等性で、データ喪失と運用事故を防ぐ。bot スキャン耐性 (Workers Observability + 未認証経路 rate limit) も含む。

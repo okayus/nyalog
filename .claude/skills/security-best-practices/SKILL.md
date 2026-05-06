@@ -9,7 +9,7 @@ metadata:
 
 # nyalog Security Best Practices
 
-家族限定の Web アプリ nyalog を実装・レビュー・リファクタリングするときに参照するセキュリティガイド。23 ルールを Impact 順に並べ、Hono/React/Drizzle のコード例で具体的に示す。
+家族限定の Web アプリ nyalog を実装・レビュー・リファクタリングするときに参照するセキュリティガイド。24 ルールを Impact 順に並べ、Hono/React/Drizzle のコード例で具体的に示す。
 
 ## 適用する場面
 
@@ -82,6 +82,7 @@ metadata:
 
 - `ops-backup-and-alerts` — D1 バックアップ、2FA、予算アラート、ログ監視
 - `ops-transaction-idempotency` — 複数書き込みはトランザクションで囲み、冪等性を考慮
+- `ops-bot-scan-resistance` — Workers Observability 有効化 + 未認証経路 (auth begin/verify) に rate limit。CT Log 経由で公開直後から bot スキャンが来る前提で組む
 
 ## 使い方
 
