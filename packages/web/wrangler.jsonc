@@ -14,6 +14,10 @@
     "RP_ID": "nyalog.toshiaki-mukai-9981.workers.dev",
     "ORIGIN": "https://nyalog.toshiaki-mukai-9981.workers.dev",
   },
+  // ai binding と ANALYZER_MODEL は PR 2 (本番動作確認時) で追加する。
+  // PR 1 では型定義 (worker/types.ts) と雛形のみで、ランタイムで AI を呼ばない。
+  // 先に追加してしまうと vp dev / e2e が起動時に Workers AI の remote proxy session を
+  // 確立しに行き、CI に Cloudflare 認証がないと失敗する (Workers AI は local simulation 不可)。
   "d1_databases": [
     {
       "binding": "DB",

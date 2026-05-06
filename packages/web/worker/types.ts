@@ -5,9 +5,11 @@ type Bindings = {
   DB: D1Database;
   ASSETS: Fetcher;
   MEDICAL_BUCKET: R2Bucket;
+  AI: Ai;
   SESSION_SECRET: string;
   RP_ID: string;
   ORIGIN: string;
+  ANALYZER_MODEL: string;
   INITIAL_REGISTRATION_TOKEN?: string;
   // dev only: set in .dev.vars to bypass passkey auth and inject a fixed user.
   // 本番 Worker には絶対設定しないこと。
