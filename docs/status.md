@@ -4,7 +4,7 @@
 
 ## 現在のフェーズ
 
-**血液検査 Vision 解析 (中断、後回し)**。以下「進行中」を参照。次セッションでセキュリティ検査を先に走らせる方針。
+**セキュリティ検査・防御強化フェーズ (進行中)**。CT Log 経由で外部スキャン bot に確実に晒される前提で、コスト枯渇耐性と未認証経路の保護を優先。Vision 解析は中断中（以下「進行中」参照）。
 
 ## 直近完了フェーズ
 
@@ -68,9 +68,24 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ## 次にやること (次セッションの出発点)
 
-### 1. セキュリティ検査 (ユーザー指示で最優先)
+### 1. セキュリティ検査 (ユーザー指示で最優先、進行中)
 
-血液検査 Vision 解析を中断したのは「もっと前にセキュリティ検査を入れたい」というユーザー判断のため。`/security-review` skill 等を使って現状コードベースをレビューし、見つかった問題を fix PR で潰す。スコープは次セッション開始時にユーザーと相談 (リポジトリ全体 / 直近の血液検査 Vision PR 群 / 特定フォーカスのいずれか)。
+bot スキャン耐性 (CT Log 起因) を観点に現状を調査済み。重要な実態:
+
+- **エッジキャッシュの吸収**: `/.env` `/admin` `/wp-login.php` などの典型スキャンパスは Cloudflare CDN edge が SPA `index.html` を `cf-cache-status: HIT` で返し、Worker は起動していない。D1/CPU 消費なし
+- **未認証で叩ける経路は限定的**: `/api/*` は session middleware で D1 不参照のまま 401。`/api/auth/login/begin` だけが challenge 生成 (CPU + Worker invocation) を引き起こす経路
+- **ビルド成果物の漏洩なし**: `.assetsignore` で `dist/nyalog/.dev.vars` `wrangler.json` は除外、`assets.directory` も `dist/client` 限定
+- **セキュリティヘッダ**: HSTS / CSP frame-ancestors / X-Frame-Options DENY / X-Content-Type-Options 全部出ている
+
+**着手中の対応 (本ブランチ `chore/observability-and-rate-limit`)**:
+
+- Workers Observability 有効化 (`enabled: true`, `head_sampling_rate: 1`) — bot スキャン実数や 401 連打を検知できるように
+- `/api/auth/{login,register}/{begin,verify}` に Workers Rate Limiting バインド (`AUTH_RATE_LIMITER`, IP あたり 30 req / 60s) — CPU と Worker invocation を bot から守る
+
+**残 TODO**:
+
+- Cloudflare Dashboard で Workers の月次予算アラート (Notifications) を設定 — UI 操作のみ
+- `/security-review` skill による広域レビュー (本対応とは別 PR)
 
 ### 2. 血液検査 Vision 解析の再開 (上記「進行中」の残課題)
 
@@ -85,9 +100,8 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 ### 2. 運用 TODO (コード変更なし)
 
 - `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
-- Cloudflare WAF rate-limit を `/api/auth/*` に 1 ルール
 - D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く。PR #37 の事故で露見した通り、table rebuild migration の直前には必ず backup を取る運用を明文化
-- Cloudflare の予算アラートを設定
+- Cloudflare の予算アラートを設定 (Dashboard → Notifications)。本セッションのセキュリティ強化 PR と並行で残置
 
 ## 後回し (Backlog)
 

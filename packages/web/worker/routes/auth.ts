@@ -25,6 +25,7 @@ import {
   parseVerifyRegistration,
 } from "../domain/auth";
 import { consumeChallenge, issueChallenge } from "../middleware/challenge-cookie";
+import { authRateLimit } from "../middleware/rate-limit";
 import { issueSession, revokeSession, sessionMiddleware } from "../middleware/session";
 import type { Env } from "../types";
 
@@ -56,7 +57,7 @@ function userIdToHandle(userId: string): Uint8Array<ArrayBuffer> {
 }
 
 export const authRoutes = new Hono<Env>()
-  .post("/register/begin", async (c) => {
+  .post("/register/begin", authRateLimit, async (c) => {
     const token = c.env.INITIAL_REGISTRATION_TOKEN;
     if (!token) {
       const { body, status } = errJson({
@@ -97,7 +98,7 @@ export const authRoutes = new Hono<Env>()
     await issueChallenge(c, options.challenge, "registration", userId);
     return c.json({ options, userId });
   })
-  .post("/register/verify", async (c) => {
+  .post("/register/verify", authRateLimit, async (c) => {
     const token = c.env.INITIAL_REGISTRATION_TOKEN;
     if (!token) {
       const { body, status } = errJson({
@@ -168,7 +169,7 @@ export const authRoutes = new Hono<Env>()
     await issueSession(c, UserId.parse(ch.uid));
     return c.json({ id: ch.uid, displayName: parsed.value.displayName });
   })
-  .post("/login/begin", async (c) => {
+  .post("/login/begin", authRateLimit, async (c) => {
     const options = await generateAuthenticationOptions({
       rpID: c.env.RP_ID,
       userVerification: "preferred",
@@ -177,7 +178,7 @@ export const authRoutes = new Hono<Env>()
     await issueChallenge(c, options.challenge, "authentication");
     return c.json({ options });
   })
-  .post("/login/verify", async (c) => {
+  .post("/login/verify", authRateLimit, async (c) => {
     const parsed = parseVerifyLogin(await c.req.json());
     if (parsed.isErr()) {
       const { body, status } = errJson(parsed.error);
