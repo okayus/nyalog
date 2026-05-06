@@ -31,6 +31,7 @@ pnpm wrangler secret put SESSION_SECRET
 ```
 
 補足:
+
 - ローテーションを前提に設計する。「漏れたらどう無効化するか」を先に決めておく
 - 外部 API キーも同様。OpenAI の API キーは `sk-proj-` プロジェクト鍵で用途を分ける等
 - AI エージェントが生成したコードに古い鍵が残っていないか grep で確認する

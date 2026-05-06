@@ -47,7 +47,9 @@ app.post("/", async (c) => {
   const result = await createToiletRecord(c);
   if (result.isErr()) {
     if (result.error.type === "internal_error") {
-      console.error("createToiletRecord failed", { /* 安全な context のみ */ });
+      console.error("createToiletRecord failed", {
+        /* 安全な context のみ */
+      });
     }
     const { body, status } = errorResponse(result.error);
     return c.json(body, status);
@@ -57,6 +59,7 @@ app.post("/", async (c) => {
 ```
 
 補足:
+
 - フレームワークの「開発モード」と「本番モード」を切り替えるだけでエラー表示が変わるものが多い。wrangler の env で分岐する
 - スタックトレースは Cloudflare のログや Sentry に送り、クライアントには送らない
 

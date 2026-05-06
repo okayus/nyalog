@@ -46,10 +46,7 @@ const CreateToiletRecord = z.discriminatedUnion("type", [
 app.post("/", async (c) => {
   const parsed = CreateToiletRecord.safeParse(await c.req.json());
   if (!parsed.success) {
-    return c.json(
-      { error: { type: "validation_error", issues: parsed.error.issues } },
-      400,
-    );
+    return c.json({ error: { type: "validation_error", issues: parsed.error.issues } }, 400);
   }
   // 以降、parsed.data は型付きで安全に扱える
 });

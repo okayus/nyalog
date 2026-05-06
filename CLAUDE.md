@@ -102,7 +102,7 @@ function createToiletRecord(input: unknown): Result<ToiletRecord, ValidationErro
 
 **ユニットテストと e2e は別レイヤーの別責務**。混ぜない。
 
-### ユニットテスト — ドメインの *意味* を表現する
+### ユニットテスト — ドメインの _意味_ を表現する
 
 - 対象: 純粋関数、Discriminated Union のパターンマッチ、Zod スキーマ、Result を返すドメイン関数
 - 問い: 「この値は何を意味するか」「この関数の契約は何か」
@@ -110,7 +110,7 @@ function createToiletRecord(input: unknown): Result<ToiletRecord, ValidationErro
 - IO・HTTP・DB は一切持ち込まない。副作用は境界の外側なので、ここで検証しても意味を表さない
 - 型で既に保証されていること（`CatId` に string を渡すとコンパイルエラー、等）はテストにしない。型がテストの代替
 
-### e2e テスト — 配線と *存在の事実* を表現する
+### e2e テスト — 配線と _存在の事実_ を表現する
 
 - 対象: `vp dev` 相手に実ブラウザで通すユーザーシナリオ 1〜数本と、型で保証できない境界
 - 問い: 「型で保証できないものが、実際に繋がって動いているか」

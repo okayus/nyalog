@@ -22,17 +22,17 @@
 
 ### 技術スタック
 
-| レイヤー | 技術 |
-|---|---|
-| インフラ・ホスティング | Cloudflare Workers / Pages |
-| データベース | Cloudflare D1 |
-| ORM | Drizzle ORM |
-| バックエンドフレームワーク | Hono (RPC) |
-| バリデーション | Zod |
-| エラーハンドリング | neverthrow |
-| フロントエンド | React |
-| ビルドツール | Vite+ (`vp`) |
-| パッケージマネージャ | pnpm |
+| レイヤー                   | 技術                       |
+| -------------------------- | -------------------------- |
+| インフラ・ホスティング     | Cloudflare Workers / Pages |
+| データベース               | Cloudflare D1              |
+| ORM                        | Drizzle ORM                |
+| バックエンドフレームワーク | Hono (RPC)                 |
+| バリデーション             | Zod                        |
+| エラーハンドリング         | neverthrow                 |
+| フロントエンド             | React                      |
+| ビルドツール               | Vite+ (`vp`)               |
+| パッケージマネージャ       | pnpm                       |
 
 ### 認証
 

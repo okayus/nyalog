@@ -17,6 +17,7 @@ import { ThemeSwatchGroup } from "./ThemeSwatchGroup";
 
 type Props = {
   onOpenDetail: (cat: Cat) => void;
+  onOpenMedical: (cat: Cat) => void;
 };
 
 const STOOL_LABEL: Record<StoolCondition, string> = {
@@ -52,7 +53,7 @@ function typeLabel(r: ToiletRecord): string {
   return `💩 (${STOOL_LABEL[r.condition]})`;
 }
 
-export function TodayView({ onOpenDetail }: Props) {
+export function TodayView({ onOpenDetail, onOpenMedical }: Props) {
   const [cats, setCats] = useState<Cat[]>([]);
   const [recordsByCat, setRecordsByCat] = useState<Record<string, ToiletRecord[]>>({});
   const [name, setName] = useState("");
@@ -301,6 +302,9 @@ export function TodayView({ onOpenDetail }: Props) {
               <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
                 詳細記録 →
               </button>
+              <button type="button" className="link-button" onClick={() => onOpenMedical(cat)}>
+                医療記録 →
+              </button>
             </div>
           ))}
         </div>
@@ -336,7 +340,7 @@ export function TodayView({ onOpenDetail }: Props) {
                   popoverId={`del-cat-${cat.id}`}
                   triggerLabel="🗑️"
                   triggerAriaLabel={`${cat.name} を削除`}
-                  message={`${cat.name} を削除しますか？ 紐づくトイレ記録も消えます。`}
+                  message={`${cat.name} を削除しますか？ 紐づくトイレ記録と医療記録も消えます。`}
                   confirmLabel="削除する"
                   onConfirm={() => handleDeleteCat(cat.id)}
                 />

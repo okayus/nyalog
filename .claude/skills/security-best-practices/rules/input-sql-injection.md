@@ -17,9 +17,7 @@ import { sql } from "drizzle-orm";
 app.get("/search", async (c) => {
   const q = c.req.query("q") ?? "";
   // ❌ ${q} がそのまま SQL 文に埋め込まれる書き方をしない
-  const rows = await db.run(
-    sql.raw(`SELECT * FROM cats WHERE name LIKE '%${q}%'`),
-  );
+  const rows = await db.run(sql.raw(`SELECT * FROM cats WHERE name LIKE '%${q}%'`));
   return c.json(rows);
 });
 ```
@@ -34,7 +32,7 @@ app.get("/search", async (c) => {
   const rows = await db
     .select()
     .from(cats)
-    .where(like(cats.name, `%${q}%`));  // 値はプレースホルダで渡される
+    .where(like(cats.name, `%${q}%`)); // 値はプレースホルダで渡される
   return c.json(rows);
 });
 

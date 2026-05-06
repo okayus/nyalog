@@ -30,6 +30,7 @@ protectedApi.get("/cats", async (c) => {
 ```
 
 補足:
+
 - Cloudflare の cache rule で Authorization/Cookie を含むリクエストをバイパスする設定も合わせて確認する
 - SWR などクライアントキャッシュは問題ないが、複数ユーザーで共有される可能性のある KV / Cache API には原則置かない
 

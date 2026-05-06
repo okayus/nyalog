@@ -27,6 +27,7 @@ app.use("*", async (c, next) => {
 ```
 
 補足:
+
 - 自分自身は埋め込みを許すなら `'self'`、特定ドメインのみ許すなら `https://example.com` を列挙
 - CSP は他のディレクティブ（`default-src`, `script-src` など）と一緒に設定することが多い。XSS 対策も兼ねるならセットで検討する
 - `frame-ancestors` は `<meta>` では効かない。HTTP ヘッダで設定する

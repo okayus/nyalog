@@ -31,9 +31,7 @@ await db
   .set(updates)
   .where(and(eq(toiletRecords.id, id), eq(toiletRecords.catId, catId)));
 
-await db
-  .delete(toiletRecords)
-  .where(and(eq(toiletRecords.id, id), eq(toiletRecords.catId, catId)));
+await db.delete(toiletRecords).where(and(eq(toiletRecords.id, id), eq(toiletRecords.catId, catId)));
 ```
 
 補足: 所有者条件を入れておけば、仮に attacker が他人の id を推測して直接 API を叩いても更新は 0 件で終わる。「select して in-memory でチェック → update」のパターンは、WHERE を二重に書くのが面倒でも必ず守る。

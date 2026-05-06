@@ -47,12 +47,12 @@ routine-tasks プロジェクト ([docs/adr/0001-shared-space-authorization.md](
 
 ## 移行計画（4 PR、本番運用中のための段階移行）
 
-| PR | スコープ | 本番影響 |
-|---|---|---|
-| **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34))** | `spaces` / `space_members` テーブル追加、`cats.space_id` を NULLABLE で追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加 | 挙動変化なし |
-| PR 2 | 本番 bootstrap (手動 SQL): 1 スペース作成 + 全 `users` を join + `cats.space_id` backfill。ADR-004 phase 2 (`created_by` backfill) と同時実施 | DB 書き込みのみ、コード変更なし |
-| PR 3 | `cats` / `toilet_records` routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入。新規 INSERT に `space_id` 指定。e2e に「他 user の id 直叩き → 404」追加。CLAUDE.md と本 ADR の認可記述を反映 | 認可が形式化される（実機能は不変） |
-| PR 4 | `cats.space_id NOT NULL` 化（SQLite テーブル再作成、cats FK の ON DELETE CASCADE もここで効くようにする） | スキーマ確定 |
+| PR                                                         | スコープ                                                                                                                                                                                                  | 本番影響                           |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34))** | `spaces` / `space_members` テーブル追加、`cats.space_id` を NULLABLE で追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加                                                                           | 挙動変化なし                       |
+| PR 2                                                       | 本番 bootstrap (手動 SQL): 1 スペース作成 + 全 `users` を join + `cats.space_id` backfill。ADR-004 phase 2 (`created_by` backfill) と同時実施                                                             | DB 書き込みのみ、コード変更なし    |
+| PR 3                                                       | `cats` / `toilet_records` routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入。新規 INSERT に `space_id` 指定。e2e に「他 user の id 直叩き → 404」追加。CLAUDE.md と本 ADR の認可記述を反映 | 認可が形式化される（実機能は不変） |
+| PR 4                                                       | `cats.space_id NOT NULL` 化（SQLite テーブル再作成、cats FK の ON DELETE CASCADE もここで効くようにする）                                                                                                 | スキーマ確定                       |
 
 招待機能（`/api/spaces/:id/invites` と owner-only エンドポイント）は家族追加サイクル完了済みのため保留。必要時に別 PR で追加。
 
