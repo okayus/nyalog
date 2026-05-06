@@ -79,6 +79,12 @@ jobs:
         run: pnpm --filter @nyalog/web test:e2e
         env:
           CI: "true"
+          # Workers AI には local simulation が無く、vp dev は起動時に remote proxy session を
+          # 立てに行く。CI runner には wrangler の OAuth login 状態が無いので、
+          # deploy.yml と同じ API token + account id を渡して認証を通す。
+          # e2e は AI を実呼びしないが、起動時のセッション確立にこの認証が要る。
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Upload Playwright report
         if: always() && steps.filter.outputs.code == 'true'

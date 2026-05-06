@@ -13,11 +13,16 @@
     // Passkeys are bound to this value — changing it invalidates all registrations.
     "RP_ID": "nyalog.toshiaki-mukai-9981.workers.dev",
     "ORIGIN": "https://nyalog.toshiaki-mukai-9981.workers.dev",
+    // 血液検査画像の解析エンジン選択。worker/lib/analyzer/factory.ts の switch case と対応。
+    // 将来 Claude Vision 等を増やす時はここを書き換える。
+    "ANALYZER_MODEL": "workers-ai-gemma",
   },
-  // ai binding と ANALYZER_MODEL は PR 2 (本番動作確認時) で追加する。
-  // PR 1 では型定義 (worker/types.ts) と雛形のみで、ランタイムで AI を呼ばない。
-  // 先に追加してしまうと vp dev / e2e が起動時に Workers AI の remote proxy session を
-  // 確立しに行き、CI に Cloudflare 認証がないと失敗する (Workers AI は local simulation 不可)。
+  // Workers AI には local simulation が無く、vp dev は起動時に remote proxy session を立てる。
+  // CI で起動するには .github/workflows/check.yml の e2e step に CLOUDFLARE_API_TOKEN +
+  // CLOUDFLARE_ACCOUNT_ID env を渡す必要がある (本 PR の CI workflow 変更で対応済み)。
+  "ai": {
+    "binding": "AI",
+  },
   "d1_databases": [
     {
       "binding": "DB",

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { cats, medicalRecordAttachments, medicalRecords } from "../db/schema";
+import { bloodTestAnalyses, cats, medicalRecordAttachments, medicalRecords } from "../db/schema";
 import { CatId, type CatId as CatIdType } from "../domain/cat";
 import type { SpaceId } from "../domain/space";
 import {
@@ -17,7 +17,13 @@ import {
   parseMedicalRecordId,
   parseUpdateMedicalRecord,
 } from "../domain/medical-record";
+import { runAnalyzer } from "../lib/analyzer/run";
 import type { Env } from "../types";
+import { bloodTestAnalysisRoutes } from "./blood-test-analysis";
+
+// 血液検査画像の自動解析対象 MIME。HEIC/HEIF は Workers AI が確実に読めるか不明、
+// PDF も第一弾は除外 (ADR / Plan 通り)。
+const AUTO_ANALYZE_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function errorResponse(error: MedicalRecordError) {
   switch (error.type) {
@@ -69,7 +75,7 @@ function toAttachment(row: typeof medicalRecordAttachments.$inferSelect): Medica
   return MedicalRecordAttachmentRowSchema.parse(row);
 }
 
-async function resolveCatId(
+export async function resolveCatId(
   db: ReturnType<typeof drizzle>,
   rawCatId: string,
   memberSpaceIds: SpaceId[],
@@ -320,15 +326,16 @@ export const medicalRecordRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    // record の存在 + cat に紐づく確認
+    // record の存在 + cat に紐づく確認 + type 取得 (auto-analyze 判定用)
     const recordRows = await db
-      .select({ id: medicalRecords.id })
+      .select({ id: medicalRecords.id, type: medicalRecords.type })
       .from(medicalRecords)
       .where(and(eq(medicalRecords.id, idResult.value), eq(medicalRecords.catId, cat.catId)));
     if (recordRows.length === 0) {
       const { body, status } = errorResponse({ type: "not_found", id: idResult.value });
       return c.json(body, status);
     }
+    const recordType = recordRows[0].type;
 
     // multipart 解析。FormDataEntryValue は `string | File | null` だが、
     // worker tsconfig では `File` の instanceof 検査が効かない (TS2358) ので
@@ -393,6 +400,26 @@ export const medicalRecordRoutes = new Hono<Env>()
       .select()
       .from(medicalRecordAttachments)
       .where(eq(medicalRecordAttachments.id, attachmentId));
+
+    // 血液検査画像 (jpeg/png/webp) は upload 直後に Vision 解析を kick off。
+    // response はすぐ返し、解析は ctx.waitUntil で裏で走る。失敗時は status='failed' で残る。
+    if (recordType === "blood_test" && AUTO_ANALYZE_CONTENT_TYPES.has(contentTypeResult.data)) {
+      const analysisId = crypto.randomUUID();
+      await db.insert(bloodTestAnalyses).values({
+        id: analysisId,
+        attachmentId,
+        status: "pending",
+        modelName: c.env.ANALYZER_MODEL ?? "workers-ai-gemma",
+        startedAt: null,
+        finishedAt: null,
+        errorMessage: null,
+        rawResponse: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      c.executionCtx.waitUntil(runAnalyzer(c.env, analysisId, r2Key));
+    }
+
     return c.json(toAttachment(insertedRows[0]), 201);
   })
   .get("/:id/attachments/:attachmentId", async (c) => {
@@ -521,4 +548,6 @@ export const medicalRecordRoutes = new Hono<Env>()
       .where(eq(medicalRecordAttachments.id, aidResult.value));
 
     return c.json({});
-  });
+  })
+  // attachment 配下の解析サブルート: GET /analysis, POST /analyze, PUT/POST/DELETE /analysis/values/...
+  .route("/:id/attachments/:attachmentId", bloodTestAnalysisRoutes);
