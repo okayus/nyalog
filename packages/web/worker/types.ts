@@ -12,6 +12,7 @@ export type Bindings = {
   MEDICAL_BUCKET: R2Bucket;
   AI: Ai;
   ANALYZE_WORKFLOW: Workflow<AnalyzeWorkflowParams>;
+  AUTH_RATE_LIMITER: RateLimit;
   SESSION_SECRET: string;
   RP_ID: string;
   ORIGIN: string;
