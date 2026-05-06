@@ -4,15 +4,20 @@
 
 ## 現在のフェーズ
 
-**医療記録機能 (画像/PDF 添付付き)** ([ADR-006](./adr/006-medical-records-r2.md))
-
-血液検査結果など、猫毎の医療記録を画像/PDF 添付付きで保存する新機能。R2 + Worker proxy 配信で機微情報の認可を担保 (Cloudflare Images Paid は不採用)。3 PR で段階移行:
-
-- **PR 1 ([#40](https://github.com/okayus/nyalog/pull/40), マージ済み)**: R2 binding (`MEDICAL_BUCKET` → `nyalog-medical`) + `medical_records` / `medical_record_attachments` スキーマ + domain (Branded ID + Discriminated Union + Zod) + 空骨格 (501 stub)。本 PR の deploy で `CLOUDFLARE_API_TOKEN` の `Workers R2 Storage` → `D1` 権限が連鎖して欠けていることが発覚し 3 回失敗。教訓は okayus-skills の [`cloudflare-api-token-permissions`](https://github.com/okayus/okayus-skills/pull/3) skill に記録済み
-- **PR 2 ([#41](https://github.com/okayus/nyalog/pull/41), マージ済み)**: 医療記録 CRUD API + UI (テキスト系のみ、画像なし)。`type: "blood_test" | "other"` の Discriminated Union、所属外 cat の id 直叩きは 404 で存在秘匿
-- **PR 3 ([#42](https://github.com/okayus/nyalog/pull/42))**: 画像/PDF 添付 (multipart upload + 認可付き Worker proxy 配信 + 削除時 R2 掃除) + ADR-006 + status.md。受け入れ MIME: jpeg/png/webp/heic/heif/pdf、1 ファイル 10 MB 上限。HEIC は `<img>` 表示が不確実なのでダウンロードリンクへフォールバック
+なし (次フェーズの選択待ち)。新機能候補は「次にやること」を参照。
 
 ## 直近完了フェーズ
+
+**医療記録機能 (画像/PDF 添付付き) 完了** ([ADR-006](./adr/006-medical-records-r2.md))
+
+血液検査結果など、猫毎の医療記録を画像/PDF 添付付きで保存する新機能。R2 + Worker proxy 配信で機微情報の認可を担保 (Cloudflare Images Paid は不採用)。3 PR + 1 fix PR で完走:
+
+- **PR 1 ([#40](https://github.com/okayus/nyalog/pull/40))**: R2 binding (`MEDICAL_BUCKET` → `nyalog-medical`) + `medical_records` / `medical_record_attachments` スキーマ + domain (Branded ID + Discriminated Union + Zod) + 空骨格 (501 stub)。本 PR の deploy で `CLOUDFLARE_API_TOKEN` の `Workers R2 Storage` → `D1` 権限が連鎖して欠けていることが発覚し 3 回失敗。教訓は okayus-skills の [`cloudflare-api-token-permissions`](https://github.com/okayus/okayus-skills/pull/3) skill に記録済み
+- **PR 2 ([#41](https://github.com/okayus/nyalog/pull/41))**: 医療記録 CRUD API + UI (テキスト系のみ、画像なし)。`type: "blood_test" | "other"` の Discriminated Union、所属外 cat の id 直叩きは 404 で存在秘匿
+- **PR 3 ([#42](https://github.com/okayus/nyalog/pull/42))**: 画像/PDF 添付 (multipart upload + 認可付き Worker proxy 配信 + 削除時 R2 掃除) + ADR-006。受け入れ MIME: jpeg/png/webp/heic/heif/pdf、1 ファイル 10 MB 上限。HEIC は `<img>` 表示が不確実なのでダウンロードリンクへフォールバック
+- **fix ([#43](https://github.com/okayus/nyalog/pull/43))**: 添付 UI の CSS スタイル。`.attachment img` を `max-inline-size: 8rem` でサムネイル化、`.attachment-add` を破線ボーダーのボタン風に
+
+医療記録の e2e は意図的に未実装 (PR スコープ管理で見送り)。次に医療記録周辺を触る PR で、クリティカルパス 1 本 (記録作成 → 画像 1 枚 upload → 表示 → 削除 → R2/DB 両方から消える) を足す。
 
 **per-space メンバーシップへの認可モデル移行 完了** ([ADR-005](./adr/005-per-space-membership.md))
 
@@ -46,6 +51,12 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ### 1. 次フェーズの選択
 
+- **血液検査結果の画像解析・データ化** (新候補、ユーザー要望) — PR 3 で保存できるようになった医療記録の画像 (血液検査結果) を Workers AI or Claude API のマルチモーダルモデルで解析し、構造化データとして保存。猫の経年推移グラフ (Hb / RBC / WBC / BUN / ALT 等) に繋ぐ。設計検討項目:
+  - 解析エンジン: Workers AI (`@cf/llava-hf/llava-1.5-7b-hf` などの vision 系、無料枠あり) vs Claude API (Sonnet 4.6 / Opus 4.7、精度高だが課金)
+  - 構造化スキーマ: `medical_records` に紐づく `blood_test_values` 系のテーブル。検査項目 × 値 × 単位 × 参考範囲。動物病院ごとにフォーマットが違うため、AI 出力 + 人手修正のフローを前提
+  - 解析タイミング: 添付アップロード時に同期 / 別エンドポイント (`POST /:id/attachments/:aid/analyze`) で非同期 / Cron で夜間バッチ のいずれか
+  - 修正 UI: AI 誤読を人間が編集できる行単位エディタ (検査項目を row として持つ)
+  - 既存添付との連携: PR 3 の `medical_record_attachments.r2_key` を入力に使う (新規 binding 不要、`MEDICAL_BUCKET` を流用)
 - **薬・動物病院の予定管理** — 機能追加、モダン CSS を実戦投入する初の題材
 - **ご飯・カロリー管理** — 同上、DB スキーマ設計から
 - **ADR-004 phase 2 の残り**: `cats.created_by` / `toilet_records.created_by` を NOT NULL 化。ただし **PR #37 と同じ D1 CASCADE 事故を踏まないよう**、事前に [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリストを必ず実施する (`cats` を rebuild すると `toilet_records.cat_id` CASCADE が再発する)
