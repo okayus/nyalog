@@ -4,18 +4,26 @@
 
 ## 現在のフェーズ
 
-**per-space メンバーシップへの認可モデル移行中** ([ADR-005](./adr/005-per-space-membership.md))
+**医療記録機能 (画像/PDF 添付付き)** ([ADR-006](./adr/006-medical-records-r2.md))
 
-実装上「認証済み = 全データ共有」になっている現状を `spaces` / `space_members` テーブルで形式化する。家族 4 人前提なので 1 スペース固定で UI は変えず、内部モデルだけ正規化する。4 PR で段階移行:
+血液検査結果など、猫毎の医療記録を画像/PDF 添付付きで保存する新機能。R2 + Worker proxy 配信で機微情報の認可を担保 (Cloudflare Images Paid は不採用)。3 PR で段階移行:
 
-- **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34), マージ済み)**: `spaces` / `space_members` 追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。挙動変化なし
-- **PR 2 ([#35](https://github.com/okayus/nyalog/pull/35), マージ済み)**: 本番 bootstrap 実行済 (`spaces` 1 行 / `space_members` 3 行 owner / cats.space_id + cats.created_by + toilet_records.created_by すべて backfill 完了。ADR-004 phase 2 同時実施)。SQL は `packages/web/scripts/2026-04-22-space-bootstrap.sql` に固定
-- **PR 3 ([#36](https://github.com/okayus/nyalog/pull/36), マージ済み)**: routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入 + 新規 INSERT に `space_id` バインド + dev bypass で dev space ensure + cross-space e2e (3本) 追加 + CLAUDE.md 反映
-- **PR 4 ([#37](https://github.com/okayus/nyalog/pull/37), マージ済み)**: `cats.space_id` を `.notNull()` 化。ADR-005 完走。ただし本番 migration 適用時に D1 が `PRAGMA foreign_keys=OFF` を無視したため `DROP TABLE cats` が `toilet_records.cat_id` の cascade を発火させ 1257 行が消失、backup から全件復旧済 ([ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故))
-
-招待機能 (`/api/spaces/:id/invites`) は家族追加サイクル完了済みのため保留。
+- **PR 1 ([#40](https://github.com/okayus/nyalog/pull/40), マージ済み)**: R2 binding (`MEDICAL_BUCKET` → `nyalog-medical`) + `medical_records` / `medical_record_attachments` スキーマ + domain (Branded ID + Discriminated Union + Zod) + 空骨格 (501 stub)。本 PR の deploy で `CLOUDFLARE_API_TOKEN` の `Workers R2 Storage` → `D1` 権限が連鎖して欠けていることが発覚し 3 回失敗。教訓は okayus-skills の [`cloudflare-api-token-permissions`](https://github.com/okayus/okayus-skills/pull/3) skill に記録済み
+- **PR 2 ([#41](https://github.com/okayus/nyalog/pull/41), マージ済み)**: 医療記録 CRUD API + UI (テキスト系のみ、画像なし)。`type: "blood_test" | "other"` の Discriminated Union、所属外 cat の id 直叩きは 404 で存在秘匿
+- **PR 3 ([#42](https://github.com/okayus/nyalog/pull/42))**: 画像/PDF 添付 (multipart upload + 認可付き Worker proxy 配信 + 削除時 R2 掃除) + ADR-006 + status.md。受け入れ MIME: jpeg/png/webp/heic/heif/pdf、1 ファイル 10 MB 上限。HEIC は `<img>` 表示が不確実なのでダウンロードリンクへフォールバック
 
 ## 直近完了フェーズ
+
+**per-space メンバーシップへの認可モデル移行 完了** ([ADR-005](./adr/005-per-space-membership.md))
+
+実装上「認証済み = 全データ共有」になっていた状態を `spaces` / `space_members` テーブルで形式化した。家族 4 人前提なので 1 スペース固定で UI は変えず、内部モデルだけ正規化。4 PR で段階移行完了:
+
+- **PR 1 ([#34](https://github.com/okayus/nyalog/pull/34))**: `spaces` / `space_members` 追加、`cats.space_id` を NULLABLE 追加、`sessionMiddleware` に `memberSpaceIds` 解決を追加。挙動変化なし
+- **PR 2 ([#35](https://github.com/okayus/nyalog/pull/35))**: 本番 bootstrap 実行 (`spaces` 1 行 / `space_members` 3 行 owner / cats.space_id + cats.created_by + toilet_records.created_by すべて backfill 完了。ADR-004 phase 2 同時実施)。SQL は `packages/web/scripts/2026-04-22-space-bootstrap.sql` に固定
+- **PR 3 ([#36](https://github.com/okayus/nyalog/pull/36))**: routes の WHERE に `inArray(spaceId, c.var.memberSpaceIds)` 導入 + 新規 INSERT に `space_id` バインド + dev bypass で dev space ensure + cross-space e2e (3本) 追加
+- **PR 4 ([#37](https://github.com/okayus/nyalog/pull/37))**: `cats.space_id` を `.notNull()` 化。ADR-005 完走。本番 migration 適用時に D1 が `PRAGMA foreign_keys=OFF` を無視したため `DROP TABLE cats` が `toilet_records.cat_id` の cascade を発火させ 1257 行が消失、backup から全件復旧済 ([ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故))
+
+招待機能 (`/api/spaces/:id/invites`) は家族追加サイクル完了済みのため保留。
 
 **CSS 近代化フェーズ完了**
 

@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import type { MedicalRecord } from "../../worker/domain/medical-record";
+import type { MedicalRecord, MedicalRecordAttachment } from "../../worker/domain/medical-record";
 import {
   createMedicalRecord,
+  deleteMedicalAttachment,
   deleteMedicalRecord,
+  listMedicalAttachments,
   listMedicalRecords,
+  medicalAttachmentUrl,
   updateMedicalRecord,
+  uploadMedicalAttachment,
 } from "../api";
 import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
@@ -20,6 +24,12 @@ const TYPE_OPTIONS: { value: MedicalRecord["type"]; label: string; emoji: string
   { value: "blood_test", label: "血液検査", emoji: "🩸" },
   { value: "other", label: "その他", emoji: "📋" },
 ];
+
+// `<img>` で確実に表示できる MIME は限定する。HEIC/HEIF は Chrome/Firefox での
+// 表示が不確実なのでダウンロードリンクに倒す。PDF も同様。
+const INLINE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const ACCEPT_MIMES = "image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf";
 
 function typeLabel(t: MedicalRecord["type"]): string {
   return TYPE_OPTIONS.find((o) => o.value === t)?.label ?? t;
@@ -45,6 +55,9 @@ function isoToDateTimeLocal(iso: string): string {
 
 export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props) {
   const [records, setRecords] = useState<MedicalRecord[]>([]);
+  const [attachmentsByRecord, setAttachmentsByRecord] = useState<
+    Record<string, MedicalRecordAttachment[]>
+  >({});
   const [type, setType] = useState<MedicalRecord["type"]>("blood_test");
   const [recordedAt, setRecordedAt] = useState(nowDateTimeLocal);
   const [title, setTitle] = useState("");
@@ -55,6 +68,7 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
   const [editRecordedAt, setEditRecordedAt] = useState("");
   const [editTitle, setEditTitle] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -64,6 +78,19 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
         return;
       }
       setRecords(result.value);
+      // 各 record の attachments を並列で取得 (家族規模なので N+1 を許容)
+      const pairs = await Promise.all(
+        result.value.map(async (r) => [r.id, await listMedicalAttachments(catId, r.id)] as const),
+      );
+      const map: Record<string, MedicalRecordAttachment[]> = {};
+      for (const [rid, res] of pairs) {
+        if (res.isErr()) {
+          setError(res.error.message);
+          return;
+        }
+        map[rid] = res.value;
+      }
+      setAttachmentsByRecord(map);
     })();
   }, [catId]);
 
@@ -86,6 +113,7 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
       setRecords((prev) =>
         [created, ...prev].sort((a, b) => (a.recordedAt < b.recordedAt ? 1 : -1)),
       );
+      setAttachmentsByRecord((prev) => ({ ...prev, [created.id]: [] }));
       setTitle("");
       setNotes("");
     });
@@ -138,6 +166,48 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
     }
     withViewTransition(() => {
       setRecords((prev) => prev.filter((r) => r.id !== id));
+      setAttachmentsByRecord((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    });
+  }
+
+  async function handleUpload(recordId: string, file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    setUploadingId(recordId);
+    try {
+      const result = await uploadMedicalAttachment(catId, recordId, file);
+      if (result.isErr()) {
+        setError(result.error.message);
+        return;
+      }
+      const created = result.value;
+      withViewTransition(() => {
+        setAttachmentsByRecord((prev) => ({
+          ...prev,
+          [recordId]: [created, ...(prev[recordId] ?? [])],
+        }));
+      });
+    } finally {
+      setUploadingId(null);
+    }
+  }
+
+  async function handleDeleteAttachment(recordId: string, attachmentId: string) {
+    setError(null);
+    const result = await deleteMedicalAttachment(catId, recordId, attachmentId);
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
+    }
+    withViewTransition(() => {
+      setAttachmentsByRecord((prev) => ({
+        ...prev,
+        [recordId]: (prev[recordId] ?? []).filter((a) => a.id !== attachmentId),
+      }));
     });
   }
 
@@ -261,6 +331,59 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
                     {r.title ? `: ${r.title}` : ""}
                   </div>
                   {r.notes && <p>{r.notes}</p>}
+
+                  <div className="attachments">
+                    {(attachmentsByRecord[r.id] ?? []).map((a) => {
+                      const url = medicalAttachmentUrl(catId, r.id, a.id);
+                      const isInlineImage = INLINE_IMAGE_TYPES.has(a.contentType);
+                      return (
+                        <div key={a.id} className="attachment">
+                          {isInlineImage ? (
+                            <a href={url} target="_blank" rel="noreferrer">
+                              <img
+                                src={url}
+                                alt={a.originalFilename ?? "添付画像"}
+                                loading="lazy"
+                              />
+                            </a>
+                          ) : (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              download={a.originalFilename ?? undefined}
+                            >
+                              📎 {a.originalFilename ?? a.contentType}
+                            </a>
+                          )}
+                          <ConfirmButton
+                            popoverId={`del-att-${a.id}`}
+                            triggerLabel="🗑️"
+                            triggerAriaLabel="添付を削除"
+                            message="この添付を削除しますか？"
+                            confirmLabel="削除する"
+                            onConfirm={() => handleDeleteAttachment(r.id, a.id)}
+                          />
+                        </div>
+                      );
+                    })}
+                    <label className="attachment-add">
+                      <input
+                        type="file"
+                        accept={ACCEPT_MIMES}
+                        hidden
+                        disabled={uploadingId === r.id}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          // 同じファイルを連続選択できるよう input をリセット
+                          e.target.value = "";
+                          void handleUpload(r.id, f);
+                        }}
+                      />
+                      {uploadingId === r.id ? "📎 アップロード中…" : "📎 追加"}
+                    </label>
+                  </div>
+
                   <button type="button" aria-label="記録を編集" onClick={() => startEdit(r)}>
                     ✏️
                   </button>
@@ -268,7 +391,7 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
                     popoverId={`del-medical-${r.id}`}
                     triggerLabel="🗑️"
                     triggerAriaLabel="記録を削除"
-                    message="この医療記録を削除しますか？"
+                    message="この医療記録と関連する添付ファイルを削除しますか？"
                     confirmLabel="削除する"
                     onConfirm={() => handleDelete(r.id)}
                   />

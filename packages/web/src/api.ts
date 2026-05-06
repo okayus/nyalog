@@ -6,7 +6,7 @@ import {
 } from "@simplewebauthn/browser";
 import { err, ResultAsync, type Result } from "neverthrow";
 import type { Cat, ThemeColor } from "../worker/domain/cat";
-import type { MedicalRecord } from "../worker/domain/medical-record";
+import type { MedicalRecord, MedicalRecordAttachment } from "../worker/domain/medical-record";
 import type { ToiletRecord, StoolCondition } from "../worker/domain/toilet-record";
 
 type CreateCatInput = { name: string; birthday?: string | null; themeColor?: ThemeColor };
@@ -152,6 +152,64 @@ export function deleteMedicalRecord(
   return request(`/api/cats/${catId}/medical-records/${id}`, {
     method: "DELETE",
   });
+}
+
+// --- Medical Attachments API ---
+
+export function listMedicalAttachments(
+  catId: string,
+  recordId: string,
+): Promise<Result<MedicalRecordAttachment[], ApiError>> {
+  return request<MedicalRecordAttachment[]>(
+    `/api/cats/${catId}/medical-records/${recordId}/attachments`,
+  );
+}
+
+export async function uploadMedicalAttachment(
+  catId: string,
+  recordId: string,
+  file: File,
+): Promise<Result<MedicalRecordAttachment, ApiError>> {
+  const formData = new FormData();
+  formData.append("file", file);
+  // multipart/form-data の Content-Type は fetch が boundary 付きで自動設定するため、
+  // request<T> ラッパ (application/json を強制) は使わず生 fetch を使う。
+  const fetchResult = await ResultAsync.fromPromise(
+    fetch(`/api/cats/${catId}/medical-records/${recordId}/attachments`, {
+      method: "POST",
+      body: formData,
+    }),
+    toNetworkError,
+  );
+  if (fetchResult.isErr()) return err(fetchResult.error);
+  const res = fetchResult.value;
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    return err({
+      kind: "http",
+      status: res.status,
+      message: body.error?.message ?? `HTTP ${res.status}`,
+    });
+  }
+  return ResultAsync.fromPromise(res.json() as Promise<MedicalRecordAttachment>, toNetworkError);
+}
+
+export function deleteMedicalAttachment(
+  catId: string,
+  recordId: string,
+  attachmentId: string,
+): Promise<Result<Record<string, never>, ApiError>> {
+  return request(`/api/cats/${catId}/medical-records/${recordId}/attachments/${attachmentId}`, {
+    method: "DELETE",
+  });
+}
+
+export function medicalAttachmentUrl(
+  catId: string,
+  recordId: string,
+  attachmentId: string,
+): string {
+  return `/api/cats/${catId}/medical-records/${recordId}/attachments/${attachmentId}`;
 }
 
 // --- Auth API ---

@@ -1,15 +1,20 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { cats, medicalRecords } from "../db/schema";
+import { cats, medicalRecordAttachments, medicalRecords } from "../db/schema";
 import { CatId, type CatId as CatIdType } from "../domain/cat";
 import type { SpaceId } from "../domain/space";
 import {
+  AttachmentContentType,
+  MAX_ATTACHMENT_SIZE_BYTES,
   type MedicalRecord,
+  type MedicalRecordAttachment,
+  MedicalRecordAttachmentRowSchema,
   type MedicalRecordError,
   MedicalRecordRowSchema,
-  parseMedicalRecordId,
+  parseAttachmentId,
   parseCreateMedicalRecord,
+  parseMedicalRecordId,
   parseUpdateMedicalRecord,
 } from "../domain/medical-record";
 import type { Env } from "../types";
@@ -60,11 +65,17 @@ function toRecord(row: typeof medicalRecords.$inferSelect): MedicalRecord {
   return MedicalRecordRowSchema.parse(row);
 }
 
+function toAttachment(row: typeof medicalRecordAttachments.$inferSelect): MedicalRecordAttachment {
+  return MedicalRecordAttachmentRowSchema.parse(row);
+}
+
 async function resolveCatId(
   db: ReturnType<typeof drizzle>,
   rawCatId: string,
   memberSpaceIds: SpaceId[],
-): Promise<{ ok: true; catId: CatIdType } | { ok: false; error: MedicalRecordError }> {
+): Promise<
+  { ok: true; catId: CatIdType; spaceId: SpaceId } | { ok: false; error: MedicalRecordError }
+> {
   const parsed = CatId.safeParse(rawCatId);
   if (!parsed.success) {
     return {
@@ -81,17 +92,14 @@ async function resolveCatId(
     return { ok: false, error: { type: "cat_not_found", catId: parsed.data } };
   }
   const rows = await db
-    .select({ id: cats.id })
+    .select({ id: cats.id, spaceId: cats.spaceId })
     .from(cats)
     .where(and(eq(cats.id, parsed.data), inArray(cats.spaceId, memberSpaceIds)));
   if (rows.length === 0) {
     return { ok: false, error: { type: "cat_not_found", catId: parsed.data } };
   }
-  return { ok: true, catId: parsed.data };
+  return { ok: true, catId: parsed.data, spaceId: rows[0].spaceId as SpaceId };
 }
-
-// PR 2 stub: attachments 系は PR 3 で実装する。
-const attachmentsNotImplemented = { error: { type: "not_implemented" as const } };
 
 export const medicalRecordRoutes = new Hono<Env>()
   .get("/", async (c) => {
@@ -255,10 +263,262 @@ export const medicalRecordRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    // attachments は DB レベルの cascade で消える。R2 オブジェクトの掃除は PR 3 で追加する。
+    // 関連 attachments の R2 key を取得
+    const attRows = await db
+      .select({ r2Key: medicalRecordAttachments.r2Key })
+      .from(medicalRecordAttachments)
+      .where(eq(medicalRecordAttachments.medicalRecordId, idResult.value));
+
+    // R2 から全て削除 (best-effort、DB cascade と独立させる)
+    await Promise.all(attRows.map((a) => c.env.MEDICAL_BUCKET.delete(a.r2Key)));
+
+    // DB delete (attachments は cascade で消える)
     await db.delete(medicalRecords).where(eq(medicalRecords.id, idResult.value));
     return c.json({});
   })
-  .post("/:id/attachments", (c) => c.json(attachmentsNotImplemented, 501))
-  .get("/:id/attachments/:attachmentId", (c) => c.json(attachmentsNotImplemented, 501))
-  .delete("/:id/attachments/:attachmentId", (c) => c.json(attachmentsNotImplemented, 501));
+  .get("/:id/attachments", async (c) => {
+    const db = drizzle(c.env.DB);
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
+    if (!cat.ok) {
+      const { body, status } = errorResponse(cat.error);
+      return c.json(body, status);
+    }
+
+    const idResult = parseMedicalRecordId(c.req.param("id"));
+    if (idResult.isErr()) {
+      const { body, status } = errorResponse(idResult.error);
+      return c.json(body, status);
+    }
+
+    const recordRows = await db
+      .select({ id: medicalRecords.id })
+      .from(medicalRecords)
+      .where(and(eq(medicalRecords.id, idResult.value), eq(medicalRecords.catId, cat.catId)));
+    if (recordRows.length === 0) {
+      const { body, status } = errorResponse({ type: "not_found", id: idResult.value });
+      return c.json(body, status);
+    }
+
+    const attRows = await db
+      .select()
+      .from(medicalRecordAttachments)
+      .where(eq(medicalRecordAttachments.medicalRecordId, idResult.value))
+      .orderBy(desc(medicalRecordAttachments.createdAt));
+    return c.json(attRows.map(toAttachment));
+  })
+  .post("/:id/attachments", async (c) => {
+    const db = drizzle(c.env.DB);
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
+    if (!cat.ok) {
+      const { body, status } = errorResponse(cat.error);
+      return c.json(body, status);
+    }
+
+    const idResult = parseMedicalRecordId(c.req.param("id"));
+    if (idResult.isErr()) {
+      const { body, status } = errorResponse(idResult.error);
+      return c.json(body, status);
+    }
+
+    // record の存在 + cat に紐づく確認
+    const recordRows = await db
+      .select({ id: medicalRecords.id })
+      .from(medicalRecords)
+      .where(and(eq(medicalRecords.id, idResult.value), eq(medicalRecords.catId, cat.catId)));
+    if (recordRows.length === 0) {
+      const { body, status } = errorResponse({ type: "not_found", id: idResult.value });
+      return c.json(body, status);
+    }
+
+    // multipart 解析。FormDataEntryValue は `string | File | null` だが、
+    // worker tsconfig では `File` の instanceof 検査が効かない (TS2358) ので
+    // null と string を弾いて File に narrow する。
+    const formData = await c.req.formData();
+    const file = formData.get("file");
+    if (file === null || typeof file === "string") {
+      return c.json(
+        {
+          error: {
+            type: "validation_error",
+            message: "field 'file' must be a file",
+            issues: [],
+          },
+        },
+        400,
+      );
+    }
+
+    // size 検証
+    if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      const { body, status } = errorResponse({
+        type: "attachment_too_large",
+        sizeBytes: file.size,
+        maxBytes: MAX_ATTACHMENT_SIZE_BYTES,
+      });
+      return c.json(body, status);
+    }
+
+    // content-type 検証 (白リスト)
+    const contentTypeResult = AttachmentContentType.safeParse(file.type);
+    if (!contentTypeResult.success) {
+      const { body, status } = errorResponse({
+        type: "attachment_type_not_allowed",
+        contentType: file.type,
+      });
+      return c.json(body, status);
+    }
+
+    // R2 key 生成 (medical/<spaceId>/<catId>/<recordId>/<attachmentId>)
+    const attachmentId = crypto.randomUUID();
+    const r2Key = `medical/${cat.spaceId}/${cat.catId}/${idResult.value}/${attachmentId}`;
+
+    // R2 put
+    await c.env.MEDICAL_BUCKET.put(r2Key, await file.arrayBuffer(), {
+      httpMetadata: { contentType: contentTypeResult.data },
+    });
+
+    // DB insert
+    const now = new Date().toISOString();
+    await db.insert(medicalRecordAttachments).values({
+      id: attachmentId,
+      medicalRecordId: idResult.value,
+      r2Key,
+      contentType: contentTypeResult.data,
+      sizeBytes: file.size,
+      originalFilename: file.name || null,
+      createdAt: now,
+    });
+
+    const insertedRows = await db
+      .select()
+      .from(medicalRecordAttachments)
+      .where(eq(medicalRecordAttachments.id, attachmentId));
+    return c.json(toAttachment(insertedRows[0]), 201);
+  })
+  .get("/:id/attachments/:attachmentId", async (c) => {
+    const db = drizzle(c.env.DB);
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
+    if (!cat.ok) {
+      const { body, status } = errorResponse(cat.error);
+      return c.json(body, status);
+    }
+
+    const idResult = parseMedicalRecordId(c.req.param("id"));
+    if (idResult.isErr()) {
+      const { body, status } = errorResponse(idResult.error);
+      return c.json(body, status);
+    }
+
+    const aidResult = parseAttachmentId(c.req.param("attachmentId") ?? "");
+    if (aidResult.isErr()) {
+      const { body, status } = errorResponse(aidResult.error);
+      return c.json(body, status);
+    }
+
+    // record + cat の整合確認
+    const recordRows = await db
+      .select({ id: medicalRecords.id })
+      .from(medicalRecords)
+      .where(and(eq(medicalRecords.id, idResult.value), eq(medicalRecords.catId, cat.catId)));
+    if (recordRows.length === 0) {
+      const { body, status } = errorResponse({ type: "not_found", id: idResult.value });
+      return c.json(body, status);
+    }
+
+    // attachment + record の紐付き確認
+    const attRows = await db
+      .select()
+      .from(medicalRecordAttachments)
+      .where(
+        and(
+          eq(medicalRecordAttachments.id, aidResult.value),
+          eq(medicalRecordAttachments.medicalRecordId, idResult.value),
+        ),
+      );
+    if (attRows.length === 0) {
+      const { body, status } = errorResponse({
+        type: "attachment_not_found",
+        id: aidResult.value,
+      });
+      return c.json(body, status);
+    }
+
+    const attachment = toAttachment(attRows[0]);
+
+    // R2 get → 認可付き proxy 配信
+    const obj = await c.env.MEDICAL_BUCKET.get(attachment.r2Key);
+    if (obj === null) {
+      // DB に row はあるが R2 に object がない (= 不整合)。404 を返す。
+      const { body, status } = errorResponse({
+        type: "attachment_not_found",
+        id: aidResult.value,
+      });
+      return c.json(body, status);
+    }
+
+    return new Response(obj.body, {
+      headers: {
+        "Content-Type": attachment.contentType,
+        "Content-Length": String(attachment.sizeBytes),
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
+  })
+  .delete("/:id/attachments/:attachmentId", async (c) => {
+    const db = drizzle(c.env.DB);
+    const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
+    if (!cat.ok) {
+      const { body, status } = errorResponse(cat.error);
+      return c.json(body, status);
+    }
+
+    const idResult = parseMedicalRecordId(c.req.param("id"));
+    if (idResult.isErr()) {
+      const { body, status } = errorResponse(idResult.error);
+      return c.json(body, status);
+    }
+
+    const aidResult = parseAttachmentId(c.req.param("attachmentId") ?? "");
+    if (aidResult.isErr()) {
+      const { body, status } = errorResponse(aidResult.error);
+      return c.json(body, status);
+    }
+
+    const recordRows = await db
+      .select({ id: medicalRecords.id })
+      .from(medicalRecords)
+      .where(and(eq(medicalRecords.id, idResult.value), eq(medicalRecords.catId, cat.catId)));
+    if (recordRows.length === 0) {
+      const { body, status } = errorResponse({ type: "not_found", id: idResult.value });
+      return c.json(body, status);
+    }
+
+    const attRows = await db
+      .select()
+      .from(medicalRecordAttachments)
+      .where(
+        and(
+          eq(medicalRecordAttachments.id, aidResult.value),
+          eq(medicalRecordAttachments.medicalRecordId, idResult.value),
+        ),
+      );
+    if (attRows.length === 0) {
+      const { body, status } = errorResponse({
+        type: "attachment_not_found",
+        id: aidResult.value,
+      });
+      return c.json(body, status);
+    }
+
+    const attachment = toAttachment(attRows[0]);
+
+    // R2 delete (best-effort、DB delete と独立)
+    await c.env.MEDICAL_BUCKET.delete(attachment.r2Key);
+
+    // DB delete
+    await db
+      .delete(medicalRecordAttachments)
+      .where(eq(medicalRecordAttachments.id, aidResult.value));
+
+    return c.json({});
+  });
