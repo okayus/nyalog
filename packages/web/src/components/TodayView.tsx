@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_THEME_COLOR, type Cat, type ThemeColor } from "../../worker/domain/cat";
 import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
+import type { WeightRecord } from "../../worker/domain/weight-record";
 import {
   createCat,
   createToiletRecord,
@@ -8,6 +9,7 @@ import {
   deleteToiletRecord,
   listCats,
   listToiletRecords,
+  listWeightRecords,
   updateCat,
   updateToiletRecord,
 } from "../api";
@@ -18,7 +20,32 @@ import { ThemeSwatchGroup } from "./ThemeSwatchGroup";
 type Props = {
   onOpenDetail: (cat: Cat) => void;
   onOpenMedical: (cat: Cat) => void;
+  onOpenWeight: (cat: Cat) => void;
 };
+
+type WeightSummary = {
+  latest: WeightRecord | null;
+  diffGrams: number | null;
+};
+
+function summarizeWeights(records: WeightRecord[]): WeightSummary {
+  if (records.length === 0) return { latest: null, diffGrams: null };
+  const sorted = [...records].sort((a, b) => (a.measuredAt < b.measuredAt ? 1 : -1));
+  const latest = sorted[0];
+  const previous = sorted[1];
+  const diffGrams = previous ? latest.weightGrams - previous.weightGrams : null;
+  return { latest, diffGrams };
+}
+
+function formatKg(grams: number): string {
+  return `${(grams / 1000).toFixed(1)} kg`;
+}
+
+function formatDiff(grams: number): string {
+  const kg = grams / 1000;
+  if (Math.abs(kg) < 0.05) return "±0.0 kg";
+  return `${kg >= 0 ? "+" : ""}${kg.toFixed(1)} kg`;
+}
 
 const STOOL_LABEL: Record<StoolCondition, string> = {
   normal: "普通",
@@ -53,9 +80,10 @@ function typeLabel(r: ToiletRecord): string {
   return `💩 (${STOOL_LABEL[r.condition]})`;
 }
 
-export function TodayView({ onOpenDetail, onOpenMedical }: Props) {
+export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight }: Props) {
   const [cats, setCats] = useState<Cat[]>([]);
   const [recordsByCat, setRecordsByCat] = useState<Record<string, ToiletRecord[]>>({});
+  const [weightsByCat, setWeightsByCat] = useState<Record<string, WeightSummary>>({});
   const [name, setName] = useState("");
   const [birthday, setBirthday] = useState("");
   const [newThemeColor, setNewThemeColor] = useState<ThemeColor>(DEFAULT_THEME_COLOR);
@@ -72,18 +100,28 @@ export function TodayView({ onOpenDetail, onOpenMedical }: Props) {
       }
       const loaded = catsResult.value;
       setCats(loaded);
-      const recordResults = await Promise.all(
-        loaded.map(async (c) => ({ id: c.id, result: await listToiletRecords(c.id) })),
-      );
-      const map: Record<string, ToiletRecord[]> = {};
+      const [recordResults, weightResults] = await Promise.all([
+        Promise.all(loaded.map(async (c) => ({ id: c.id, result: await listToiletRecords(c.id) }))),
+        Promise.all(loaded.map(async (c) => ({ id: c.id, result: await listWeightRecords(c.id) }))),
+      ]);
+      const recordMap: Record<string, ToiletRecord[]> = {};
       for (const { id, result } of recordResults) {
         if (result.isErr()) {
           setError(result.error.message);
           return;
         }
-        map[id] = result.value;
+        recordMap[id] = result.value;
       }
-      setRecordsByCat(map);
+      const weightMap: Record<string, WeightSummary> = {};
+      for (const { id, result } of weightResults) {
+        if (result.isErr()) {
+          setError(result.error.message);
+          return;
+        }
+        weightMap[id] = summarizeWeights(result.value);
+      }
+      setRecordsByCat(recordMap);
+      setWeightsByCat(weightMap);
     })();
   }, []);
 
@@ -176,6 +214,7 @@ export function TodayView({ onOpenDetail, onOpenMedical }: Props) {
     const created = result.value;
     setCats((prev) => [...prev, created]);
     setRecordsByCat((prev) => ({ ...prev, [created.id]: [] }));
+    setWeightsByCat((prev) => ({ ...prev, [created.id]: { latest: null, diffGrams: null } }));
     setName("");
     setBirthday("");
     setNewThemeColor(DEFAULT_THEME_COLOR);
@@ -203,6 +242,11 @@ export function TodayView({ onOpenDetail, onOpenMedical }: Props) {
     }
     setCats((prev) => prev.filter((c) => c.id !== id));
     setRecordsByCat((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setWeightsByCat((prev) => {
       const next = { ...prev };
       delete next[id];
       return next;
@@ -281,32 +325,51 @@ export function TodayView({ onOpenDetail, onOpenMedical }: Props) {
         <p>先に猫を登録してください</p>
       ) : (
         <div className="quick-grid">
-          {cats.map((cat) => (
-            <div key={cat.id} className="quick-cell" data-cat-theme={cat.themeColor}>
-              <div className="quick-cell-actions">
-                <button
-                  type="button"
-                  aria-label={`${cat.name} の排尿を記録`}
-                  onClick={() => handleQuick(cat.id, "urination")}
-                >
-                  {cat.name} 💧
+          {cats.map((cat) => {
+            const summary = weightsByCat[cat.id];
+            return (
+              <div key={cat.id} className="quick-cell" data-cat-theme={cat.themeColor}>
+                <div className="weight-summary">
+                  {summary?.latest ? (
+                    <>
+                      <span aria-hidden="true">⚖️</span>
+                      <strong>{formatKg(summary.latest.weightGrams)}</strong>
+                      {summary.diffGrams !== null ? (
+                        <small className="weight-diff">({formatDiff(summary.diffGrams)})</small>
+                      ) : null}
+                    </>
+                  ) : (
+                    <small>⚖️ 体重 未記録</small>
+                  )}
+                </div>
+                <div className="quick-cell-actions">
+                  <button
+                    type="button"
+                    aria-label={`${cat.name} の排尿を記録`}
+                    onClick={() => handleQuick(cat.id, "urination")}
+                  >
+                    {cat.name} 💧
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${cat.name} の排便を記録`}
+                    onClick={() => handleQuick(cat.id, "defecation")}
+                  >
+                    {cat.name} 💩
+                  </button>
+                </div>
+                <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
+                  詳細記録 →
                 </button>
-                <button
-                  type="button"
-                  aria-label={`${cat.name} の排便を記録`}
-                  onClick={() => handleQuick(cat.id, "defecation")}
-                >
-                  {cat.name} 💩
+                <button type="button" className="link-button" onClick={() => onOpenMedical(cat)}>
+                  医療記録 →
+                </button>
+                <button type="button" className="link-button" onClick={() => onOpenWeight(cat)}>
+                  体重 →
                 </button>
               </div>
-              <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
-                詳細記録 →
-              </button>
-              <button type="button" className="link-button" onClick={() => onOpenMedical(cat)}>
-                医療記録 →
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

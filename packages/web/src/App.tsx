@@ -6,12 +6,14 @@ import { MedicalRecordsView } from "./components/MedicalRecordsView";
 import { TodayView } from "./components/TodayView";
 import { ToiletRecordView } from "./components/ToiletRecordView";
 import { VetCalendar } from "./components/VetCalendar";
+import { WeightRecordView } from "./components/WeightRecordView";
 import { withViewTransition } from "./view-transition";
 
 type View =
   | { kind: "today" }
   | { kind: "toilet"; catId: string; catName: string; themeColor: string }
   | { kind: "medical"; catId: string; catName: string; themeColor: string }
+  | { kind: "weight"; catId: string; catName: string; themeColor: string }
   | { kind: "credentials" };
 
 type AuthState =
@@ -99,6 +101,16 @@ export function App() {
                 }),
               )
             }
+            onOpenWeight={(cat) =>
+              withViewTransition(() =>
+                setView({
+                  kind: "weight",
+                  catId: cat.id,
+                  catName: cat.name,
+                  themeColor: cat.themeColor,
+                }),
+              )
+            }
           />
           <VetCalendar />
         </>
@@ -113,6 +125,14 @@ export function App() {
       ) : null}
       {view.kind === "medical" ? (
         <MedicalRecordsView
+          catId={view.catId}
+          catName={view.catName}
+          themeColor={view.themeColor}
+          onBack={() => withViewTransition(() => setView({ kind: "today" }))}
+        />
+      ) : null}
+      {view.kind === "weight" ? (
+        <WeightRecordView
           catId={view.catId}
           catName={view.catName}
           themeColor={view.themeColor}

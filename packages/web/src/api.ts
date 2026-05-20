@@ -13,6 +13,7 @@ import type {
 import type { Cat, ThemeColor } from "../worker/domain/cat";
 import type { MedicalRecord, MedicalRecordAttachment } from "../worker/domain/medical-record";
 import type { ToiletRecord, StoolCondition } from "../worker/domain/toilet-record";
+import type { WeightRecord } from "../worker/domain/weight-record";
 
 type CreateCatInput = { name: string; birthday?: string | null; themeColor?: ThemeColor };
 type UpdateCatInput = { name?: string; birthday?: string | null; themeColor?: ThemeColor };
@@ -111,6 +112,45 @@ export function deleteToiletRecord(
   id: string,
 ): Promise<Result<Record<string, never>, ApiError>> {
   return request(`/api/cats/${catId}/toilet-records/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Weight Records API ---
+
+type CreateWeightRecordInput = { weightGrams: number; measuredAt: string };
+type UpdateWeightRecordInput = { weightGrams?: number; measuredAt?: string };
+
+export function listWeightRecords(catId: string): Promise<Result<WeightRecord[], ApiError>> {
+  return request<WeightRecord[]>(`/api/cats/${catId}/weights`);
+}
+
+export function createWeightRecord(
+  catId: string,
+  input: CreateWeightRecordInput,
+): Promise<Result<WeightRecord, ApiError>> {
+  return request<WeightRecord>(`/api/cats/${catId}/weights`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateWeightRecord(
+  catId: string,
+  id: string,
+  input: UpdateWeightRecordInput,
+): Promise<Result<WeightRecord, ApiError>> {
+  return request<WeightRecord>(`/api/cats/${catId}/weights/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteWeightRecord(
+  catId: string,
+  id: string,
+): Promise<Result<Record<string, never>, ApiError>> {
+  return request(`/api/cats/${catId}/weights/${id}`, {
     method: "DELETE",
   });
 }

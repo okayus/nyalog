@@ -105,6 +105,24 @@ export const toiletRecords = sqliteTable(
   }),
 );
 
+export const weightRecords = sqliteTable(
+  "weight_records",
+  {
+    id: text("id").primaryKey(),
+    catId: text("cat_id")
+      .notNull()
+      .references(() => cats.id, { onDelete: "cascade" }),
+    weightGrams: integer("weight_grams").notNull(),
+    measuredAt: text("measured_at").notNull(),
+    createdBy: text("created_by").references(() => users.id),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({
+    catIdMeasuredAtIdx: index("weight_records_cat_id_measured_at_idx").on(t.catId, t.measuredAt),
+  }),
+);
+
 export const medicalRecords = sqliteTable(
   "medical_records",
   {
