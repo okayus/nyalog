@@ -4,6 +4,7 @@ import { authRoutes } from "./routes/auth";
 import { catRoutes } from "./routes/cats";
 import { medicalRecordRoutes } from "./routes/medical-records";
 import { toiletRoutes } from "./routes/toilet-records";
+import { weightRoutes } from "./routes/weight-records";
 import { sessionMiddleware } from "./middleware/session";
 import type { Env } from "./types";
 
@@ -41,6 +42,7 @@ protectedApi.use("/*", sessionMiddleware());
 protectedApi.route("/cats", catRoutes);
 protectedApi.route("/cats/:catId/toilet-records", toiletRoutes);
 protectedApi.route("/cats/:catId/medical-records", medicalRecordRoutes);
+protectedApi.route("/cats/:catId/weights", weightRoutes);
 api.route("/", protectedApi);
 
 app.route("/api", api);
