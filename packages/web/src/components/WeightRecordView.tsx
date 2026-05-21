@@ -33,7 +33,7 @@ function isoToLocalInput(iso: string): string {
 }
 
 function formatKg(grams: number): string {
-  return `${(grams / 1000).toFixed(1)} kg`;
+  return `${(grams / 1000).toFixed(2)} kg`;
 }
 
 function kgInputToGrams(value: string): number | null {

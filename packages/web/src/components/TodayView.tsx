@@ -38,13 +38,13 @@ function summarizeWeights(records: WeightRecord[]): WeightSummary {
 }
 
 function formatKg(grams: number): string {
-  return `${(grams / 1000).toFixed(1)} kg`;
+  return `${(grams / 1000).toFixed(2)} kg`;
 }
 
 function formatDiff(grams: number): string {
   const kg = grams / 1000;
-  if (Math.abs(kg) < 0.05) return "±0.0 kg";
-  return `${kg >= 0 ? "+" : ""}${kg.toFixed(1)} kg`;
+  if (Math.abs(kg) < 0.005) return "±0.00 kg";
+  return `${kg >= 0 ? "+" : ""}${kg.toFixed(2)} kg`;
 }
 
 const STOOL_LABEL: Record<StoolCondition, string> = {
