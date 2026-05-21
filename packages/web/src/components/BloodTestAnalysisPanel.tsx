@@ -4,6 +4,8 @@ import type {
   ValueFlag,
 } from "../../worker/domain/blood-test-analysis";
 import {
+  buildItemChartGeometry,
+  buildSparklineGeometry,
   computeDelta,
   findPreviousPoint,
   groupItemsByCategory,
@@ -11,6 +13,8 @@ import {
   type ItemSeries,
   type ItemSeriesPoint,
 } from "./blood-test-display";
+import { ItemDetailChart } from "./ItemDetailChart";
+import { Sparkline } from "./Sparkline";
 
 // blood_test attachment 1 枚分の解析結果パネル。MedicalRecordsView の attachment
 // ループから差し込まれる。Sparkline と per-item 詳細チャート popover は PR C で。
@@ -154,6 +158,7 @@ export function BloodTestAnalysisPanel({
                 <th scope="col">項目</th>
                 <th scope="col">値</th>
                 <th scope="col">前回比</th>
+                <th scope="col">推移</th>
               </tr>
             </thead>
             <tbody>
@@ -172,6 +177,9 @@ export function BloodTestAnalysisPanel({
                 const delta = computeDelta(prev, curr, item.refLow, item.refHigh);
                 const badge = FLAG_BADGE[item.flag];
                 const refDisplay = formatRef(item);
+                const sparklineGeom = buildSparklineGeometry(itemSeries);
+                const chartGeom = buildItemChartGeometry(itemSeries, item.refLow, item.refHigh);
+                const popoverId = `bt-popover-${item.id}`;
                 return (
                   <tr key={item.id} className="blood-test-row" data-flag={item.flag}>
                     <td>
@@ -192,6 +200,28 @@ export function BloodTestAnalysisPanel({
                     </td>
                     <td>
                       <DeltaCell delta={delta} />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="sparkline-trigger"
+                        popoverTarget={popoverId}
+                        aria-label={`${item.itemLabel} の推移チャートを開く`}
+                      >
+                        <Sparkline geom={sparklineGeom} />
+                      </button>
+                      <div id={popoverId} popover="auto" className="item-detail-popover">
+                        <ItemDetailChart geom={chartGeom} label={item.itemLabel} unit={item.unit} />
+                        <button
+                          type="button"
+                          popoverTarget={popoverId}
+                          popoverTargetAction="hide"
+                          className="item-detail-close"
+                          aria-label="閉じる"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -93,13 +93,13 @@ export type CategorizedItems = {
 
 // --- Defaults ---
 
-const CHART_DIMS: ChartDims = {
+export const CHART_DIMS: ChartDims = {
   width: 480,
   height: 220,
   padding: { top: 20, right: 20, bottom: 40, left: 64 },
 };
 
-const SPARKLINE_DIMS: SparklineDims = { width: 60, height: 20 };
+export const SPARKLINE_DIMS: SparklineDims = { width: 60, height: 20 };
 
 // --- Pure Functions ---
 
