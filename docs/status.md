@@ -55,7 +55,7 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 **本番動作確認で判明した 2 つの残課題**:
 
-1. **D1 bulk insert の placeholder 上限超過**: `persist-values` step で `db.insert(bloodTestValues).values([...])` が 1 SQL にまとめて発行され、`D1_ERROR: too many SQL variables at offset 545: SQLITE_ERROR` で throw。Workers AI Gemma は ~34 項目を抽出していて、34 行 × 16 列 ≒ 544 placeholders で D1 制限に当たった (詳細は #47 の error_message)。**修正**: insert を chunk 分割 (例 25 行ずつ = 400 placeholders) すれば通る、小 PR で対応可
+1. **D1 bulk insert の placeholder 上限超過**: `persist-values` step で `db.insert(bloodTestValues).values([...])` が 1 SQL にまとめて発行され、`D1_ERROR: too many SQL variables at offset 545: SQLITE_ERROR` で throw。Workers AI Gemma は ~34 項目を抽出していて、34 行 × 16 列 ≒ 544 placeholders で D1 制限 ([per-statement 100 bound parameters](https://developers.cloudflare.com/d1/platform/limits/)) に当たった (詳細は #47 の error_message)。**修正**: PR [#56](https://github.com/okayus/nyalog/pull/56) で 5 行ずつ (80 placeholders) の chunk 分割を実装。merge → deploy → 同じ画像で再 upload して values が DB に入ることを検証する段階
 2. **Workers AI Gemma 3 12B vision の応答時間 7 分**: `started_at = 21:44:08 → finished_at = 21:51:25` で 7 分 17 秒。`waitUntil` 30 秒は問題外、Workflows 5 分 timeout でも retry 1 回踏む。UX として「アップロードから 7 分後に値が見える」は厳しい。差し替え interface を活かして Claude Vision (Sonnet 4.6、5-15s 期待) に切り替える検討が後ろに残る。Workflow 自体は「失敗が visible に残る」ことが実証できた (`error_message` 明確、Cloudflare Workflows Dashboard で各 step 観察可)
 
 **Workflow 移行で実証されたこと (前向き材料)**:
