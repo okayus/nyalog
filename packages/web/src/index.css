@@ -46,6 +46,7 @@
     --color-primary-contrast: oklch(1 0 0);
     --color-disabled: oklch(0.7 0 0);
     --color-danger: oklch(0.55 0.2 25);
+    --color-success: oklch(0.5 0.15 145);
 
     --color-primary-hover: color-mix(in oklch, var(--color-primary) 85%, black);
     --color-primary-tint: color-mix(in oklch, var(--color-primary) 12%, var(--color-surface));
@@ -80,6 +81,7 @@
       --color-primary: oklch(0.7 0.18 263);
       --color-disabled: oklch(0.45 0 0);
       --color-danger: oklch(0.75 0.18 25);
+      --color-success: oklch(0.75 0.14 145);
     }
   }
 }
@@ -668,6 +670,136 @@
   .weight-chart-empty {
     fill: var(--color-text-muted);
     font-size: 14px;
+  }
+
+  /* --- 血液検査の解析結果パネル --- */
+
+  .blood-test-panel {
+    margin-block: var(--space-2) var(--space-4);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    /* attachment と関連付ける視覚キュー: ぶら下がっているように見せる */
+    margin-inline-start: var(--space-2);
+  }
+
+  .blood-test-meta {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+  }
+
+  .blood-test-status {
+    margin: 0;
+    padding-block: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .blood-test-category {
+    margin-block: var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    interpolate-size: allow-keywords;
+  }
+
+  .blood-test-category > summary {
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+    background: color-mix(in oklch, var(--color-primary) 5%, var(--color-surface));
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .blood-test-category > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .blood-test-category > summary::before {
+    content: "▶";
+    font-size: 0.75em;
+    color: var(--color-text-muted);
+    transition: transform 150ms ease;
+  }
+
+  .blood-test-category[open] > summary::before {
+    transform: rotate(90deg);
+  }
+
+  .blood-test-category .category-count {
+    margin-inline-start: auto;
+    color: var(--color-text-muted);
+    font-weight: 400;
+    font-size: var(--font-size-sm);
+  }
+
+  .blood-test-table {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+  }
+
+  .blood-test-table thead {
+    background: var(--color-bg);
+  }
+
+  .blood-test-table th,
+  .blood-test-table td {
+    padding: var(--space-2) var(--space-3);
+    text-align: start;
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .blood-test-table th {
+    font-weight: 500;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+  }
+
+  /* 異常値の行 tint。OKLCH を 14% 混ぜる (8% は視認性が低かったため上げた)。 */
+  .blood-test-row[data-flag="high"],
+  .blood-test-row[data-flag="low"],
+  .blood-test-row[data-flag="abnormal"] {
+    background: color-mix(in oklch, var(--color-danger) 14%, var(--color-surface));
+  }
+
+  .blood-test-row .item-name {
+    font-weight: 500;
+  }
+
+  .blood-test-row .flag-badge {
+    font-size: 0.8rem;
+  }
+
+  .blood-test-row .item-value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .blood-test-row .item-ref {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+  }
+
+  .blood-test-delta {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .blood-test-delta[data-toward="toward"] {
+    color: var(--color-success);
+  }
+
+  .blood-test-delta[data-toward="away"] {
+    color: var(--color-danger);
+  }
+
+  .blood-test-delta[data-toward="neutral"],
+  .blood-test-delta[data-toward="none"] {
+    color: var(--color-text-muted);
   }
 }
 
