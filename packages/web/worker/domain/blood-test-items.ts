@@ -58,3 +58,57 @@ export function lookupItemCode(label: string): string {
   const trimmed = label.trim();
   return BLOOD_TEST_ITEM_DICTIONARY[trimmed] ?? trimmed;
 }
+
+// 血液検査項目のカテゴリ分類。表示時のグルーピング軸 (PR B 以降の
+// BloodTestAnalysisPanel の <details> セクション順序) として使う。
+// 順序はそのまま canonical 表示順 (CBC → 生化学 → … → その他)。
+export const BLOOD_TEST_CATEGORIES = {
+  CBC: ["WBC", "Sta", "Seg", "Lym", "Mon", "Eos", "Bas", "RBC", "Hb", "HCT", "Plt"],
+  生化学: [
+    "TP",
+    "ALB",
+    "GLB",
+    "GOT",
+    "GPT",
+    "ALP",
+    "T-Bil",
+    "T-CHO",
+    "TG",
+    "LIP",
+    "BUN",
+    "CRE",
+    "IP",
+    "Ca",
+    "NH3",
+    "CRP",
+    "SAA",
+  ],
+  電解質: ["Na", "K", "Cl"],
+  ホルモン: ["T4", "TSH", "COR-pre", "COR-post"],
+  胆汁酸: ["TBA-fast", "TBA-pp"],
+  凝固: ["PT", "APTT", "Fbg"],
+} as const satisfies Record<string, readonly string[]>;
+
+export const BLOOD_TEST_CATEGORY_ORDER = [
+  "CBC",
+  "生化学",
+  "電解質",
+  "ホルモン",
+  "胆汁酸",
+  "凝固",
+  "その他",
+] as const;
+
+export type BloodTestCategory = (typeof BLOOD_TEST_CATEGORY_ORDER)[number];
+
+// 辞書未登録の item_code は "その他" に流す。
+// `lookupItemCode` の fallback (label 原文ママ保存) と組み合わせて、
+// 想定外のラベルが UI から消えないようにする。
+export function categoryOfItemCode(code: string): BloodTestCategory {
+  for (const [category, codes] of Object.entries(BLOOD_TEST_CATEGORIES)) {
+    if ((codes as readonly string[]).includes(code)) {
+      return category as BloodTestCategory;
+    }
+  }
+  return "その他";
+}
