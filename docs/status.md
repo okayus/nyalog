@@ -4,9 +4,24 @@
 
 ## 現在のフェーズ
 
-**セキュリティ検査・防御強化フェーズ (進行中)**。CT Log 経由で外部スキャン bot に確実に晒される前提で、コスト枯渇耐性と未認証経路の保護を優先。Vision 解析は中断中（以下「進行中」参照）。
+**セキュリティ検査・防御強化フェーズ (進行中)**。CT Log 経由で外部スキャン bot に確実に晒される前提で、コスト枯渇耐性と未認証経路の保護を優先。
 
 ## 直近完了フェーズ
+
+**血液検査 Vision 解析 + 表示 UI 完了** ([ADR-007](./adr/007-blood-test-vision-analysis.md))
+
+医療記録に upload された血液検査画像を Vision LLM (Workers AI Gemma 12B) で構造化抽出し、カテゴリ別テーブル + 前回比 + sparkline + per-item 詳細チャート popover で表示する機能。土台 3 PR + chunking fix 1 PR + 表示 3 PR + ADR 1 PR の計 8 PR で完走:
+
+- **PR 1 ([#45](https://github.com/okayus/nyalog/pull/45))** schema + domain + analyzer 雛形: `blood_test_analyses` (1:1 with attachment) + `blood_test_values` (N rows) テーブル。`worker/domain/blood-test-analysis.ts` (Branded ID + Zod + 純粋関数 `parseGemmaJsonResponse` / `normalizeFlag`) + 項目辞書 (`blood-test-items.ts`、CBC/生化学/電解質/ホルモン/胆汁酸/凝固) + `BloodTestAnalyzer` interface + `WorkersAIGemmaAnalyzer` (default `@cf/google/gemma-3-12b-it`) + `factory.ts` + 抽出 prompt
+- **PR 2 ([#46](https://github.com/okayus/nyalog/pull/46))** API + 非同期トリガー: 5 endpoint (`GET /analysis` / `POST /analyze` / `PUT|POST|DELETE /analysis/values[/:vid]`)、`POST /attachments` で `blood_test` + 解析可能 MIME の時に `ctx.waitUntil(runAnalyzer)` で発火
+- **fix ([#47](https://github.com/okayus/nyalog/pull/47))** Cloudflare Workflows への移行: PR 2 本番反映後の最初の upload で `ctx.waitUntil()` の **wall-clock 30 秒上限** で kill され status stuck。`AnalyzeBloodTestWorkflow extends WorkflowEntrypoint` に書き換え、`step.do()` で `mark-running` → `fetch-and-analyze` (retries 2 + timeout 5min) → `persist-values` を分割、catch で `mark-failed`。教訓は okayus-skills の [`cloudflare-workflows-for-long-tasks`](https://github.com/okayus/okayus-skills/tree/main/skills/cloudflare-workflows-for-long-tasks) skill に集約
+- **PR 3 ([#56](https://github.com/okayus/nyalog/pull/56))** D1 chunking fix: Gemma が 34 項目抽出 × 16 列 = 544 placeholders で D1 の per-statement 100 上限超過。`persist-values` の insert を 5 行ずつ chunk 分割。本番再 upload で 31 行 succeeded を確認 (97 秒、Gemma の応答時間ぶれが想定範囲に収束)
+- **PR 4 ([#57](https://github.com/okayus/nyalog/pull/57))** 表示ロジック純粋関数: `buildItemSeries` / `findPreviousPoint` / `computeDelta` (DU で `toward` / `away` / `neutral`) / `buildItemChartGeometry` (refBand 入り) / `buildSparklineGeometry` / `groupItemsByCategory` を `src/components/blood-test-display.ts` に集約、vitest 31 cases
+- **PR 5 ([#58](https://github.com/okayus/nyalog/pull/58))** `BloodTestAnalysisPanel`: カテゴリ別 `<details>` テーブル (CBC + 生化学のみ open)、flag emoji バッジ + 14% danger tint、前回比は `towardNormal` で色付け。`MedicalRecordsView` の attachment N+1 ループに追従して blood_test image attachment 全件の analysis を並列フェッチ
+- **PR 6 ([#59](https://github.com/okayus/nyalog/pull/59))** sparkline + popover: 推移列に 60×20px の inline SVG sparkline。クリックで native `[popover="auto"]` 開いて reference band + line chart + flag 色 dot の per-item 詳細チャート
+- **PR 7 ([#XX](https://github.com/okayus/nyalog/pull/XX))** ADR-007: 上記 3 つの主要設計判断 (Workflow / 差し替え可能 analyzer / client 側 presentation 集約) を記録
+
+[ADR-007](./adr/007-blood-test-vision-analysis.md) の移行トリガー (Gemma の応答時間が常態的に数分、抽出漏れ多発、trend 表示が遅い) に当てはまったら次の判断 (Claude Vision 切替 / inline 編集 UI / 集約 endpoint 新設) に入る。
 
 **医療記録機能 (画像/PDF 添付付き) 完了** ([ADR-006](./adr/006-medical-records-r2.md))
 
@@ -42,29 +57,6 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 - **PR-F** scroll-driven animations (`scroll()` / `view()` timeline) (#20)
 
 今後の新機能は このモダン CSS 前提 (トークン + logical + CQ + popover + VT + scroll-driven) で書く。
-
-## 進行中
-
-**血液検査 Vision 解析 (土台 3 PR 完走、本番動作確認で 2 つの残課題により中断・後回し)**
-
-医療記録に upload された血液検査画像を Vision LLM で構造化抽出して `blood_test_values` 行として保存する機能。設計はユーザー指示で「Workers AI Gemma を初期実装、差し替え可能 interface を切る」。土台は完成し本番に入っているが、最初の本番 upload で 2 つの想定外で values が DB に入っていない:
-
-- **PR 1 ([#45](https://github.com/okayus/nyalog/pull/45))** schema + domain + analyzer 雛形: `blood_test_analyses` (1:1 with attachment) + `blood_test_values` (N rows) テーブル。`worker/domain/blood-test-analysis.ts` (Branded ID + Zod + 純粋関数 `parseGemmaJsonResponse` / `normalizeFlag`) + 項目辞書 (`blood-test-items.ts`、CBC/生化学/電解質/ホルモン/胆汁酸/凝固) + `BloodTestAnalyzer` interface + `WorkersAIGemmaAnalyzer` (default `@cf/google/gemma-3-12b-it`) + `factory.ts` (env から実装選択) + 抽出 prompt。vitest 22 cases 導入
-- **PR 2 ([#46](https://github.com/okayus/nyalog/pull/46))** API + 非同期トリガー: 5 endpoint (`GET /analysis` / `POST /analyze` / `PUT|POST|DELETE /analysis/values[/:vid]`)、POST `/attachments` で `blood_test` + `image/{jpeg,png,webp}` の時に `ctx.waitUntil(runAnalyzer)` で発火、CI workflow に `CLOUDFLARE_API_TOKEN` env を渡して `vp dev` の Workers AI remote proxy session を成立させる修正も含む
-- **fix ([#47](https://github.com/okayus/nyalog/pull/47))** Cloudflare Workflows への移行: PR 2 を本番反映後、最初の upload で `ctx.waitUntil()` の **wall-clock 30 秒上限** で kill され `status='running'` のまま stuck。catch も走らない。`AnalyzeBloodTestWorkflow extends WorkflowEntrypoint` に書き換え、`step.do()` で `mark-running` → `fetch-and-analyze` (retries 2 + timeout 5min) → `persist-values` を分割、catch で `mark-failed` step。`POST /attachments` と `POST /analyze` の発火は `c.env.ANALYZE_WORKFLOW.create({ params })` に置換。stuck row 1 件は SQL で `'failed'` に手動 cleanup 済み。教訓は okayus-skills の [`cloudflare-workflows-for-long-tasks`](https://github.com/okayus/okayus-skills/tree/main/skills/cloudflare-workflows-for-long-tasks) skill (作成中、未コミット) に集約
-
-**本番動作確認で判明した 2 つの残課題**:
-
-1. **D1 bulk insert の placeholder 上限超過**: `persist-values` step で `db.insert(bloodTestValues).values([...])` が 1 SQL にまとめて発行され、`D1_ERROR: too many SQL variables at offset 545: SQLITE_ERROR` で throw。Workers AI Gemma は ~34 項目を抽出していて、34 行 × 16 列 ≒ 544 placeholders で D1 制限 ([per-statement 100 bound parameters](https://developers.cloudflare.com/d1/platform/limits/)) に当たった (詳細は #47 の error_message)。**修正**: PR [#56](https://github.com/okayus/nyalog/pull/56) で 5 行ずつ (80 placeholders) の chunk 分割を実装。merge → deploy → 同じ画像で再 upload して values が DB に入ることを検証する段階
-2. **Workers AI Gemma 3 12B vision の応答時間 7 分**: `started_at = 21:44:08 → finished_at = 21:51:25` で 7 分 17 秒。`waitUntil` 30 秒は問題外、Workflows 5 分 timeout でも retry 1 回踏む。UX として「アップロードから 7 分後に値が見える」は厳しい。差し替え interface を活かして Claude Vision (Sonnet 4.6、5-15s 期待) に切り替える検討が後ろに残る。Workflow 自体は「失敗が visible に残る」ことが実証できた (`error_message` 明確、Cloudflare Workflows Dashboard で各 step 観察可)
-
-**Workflow 移行で実証されたこと (前向き材料)**:
-- `ctx.waitUntil` の 30 秒制限 → 7 分処理が完走できる durable execution に移行成功
-- 失敗時 catch が走り `error_message` が DB に明確に残る (今回 D1 limit エラーが正確に文字列で取れた)
-- `step.do()` 単位で retry / persist が効く土台ができた
-- Workflow 関連の落とし穴 (`Workflow<Params>` は workers-types の global、bytes は step 間で渡せない、step.do の冪等性) は okayus-skills の skill 化で固定化
-
-**次に再開する時の手順**: D1 chunking fix → 同じ画像で再 upload 検証 → values が DB に入るのを確認 → UI (`BloodTestAnalysisPanel`、PR 3 として計画されていた行 inline 編集 + 異常値強調) → ADR-007 起こし → Gemma 応答時間問題の評価 (Claude Vision 比較は別検討)。
 
 ## 次にやること (次セッションの出発点)
 
@@ -107,17 +99,13 @@ PR #49 deploy 後、本番 `/api/auth/login/begin` に対して **35 req 順次 
 - `/security-review` skill による広域レビュー (本対応とは別 PR)
 - (任意) Cloudflare Dashboard の **Bot Fight Mode** (Free プラン可) を有効化、または **WAF Custom Rule** で `(http.user_agent contains "MetaExternalFetcher" or ... )` に Managed Challenge — robots.txt を無視する bot に対する追加層。家族 UX への影響は通常ブラウザでは無いが、誤検知リスクと比較して保留中
 
-### 2. 血液検査 Vision 解析の再開 (上記「進行中」の残課題)
-
-セキュリティ検査が一区切りついたら戻る。再開手順は「進行中」末尾の通り。最初の手は **D1 bulk insert chunking の小 fix PR** (25 行/insert に分割)。これで本番動作確認の最後の山を越えるはず。
-
-### 3. その他の機能候補 (順序は流動)
+### 2. その他の機能候補 (順序は流動)
 
 - **薬・動物病院の予定管理** — 機能追加、モダン CSS を実戦投入する初の題材
 - **ご飯・カロリー管理** — 同上、DB スキーマ設計から
 - **ADR-004 phase 2 の残り**: `cats.created_by` / `toilet_records.created_by` を NOT NULL 化。ただし **PR #37 と同じ D1 CASCADE 事故を踏まないよう**、事前に [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリストを必ず実施する (`cats` を rebuild すると `toilet_records.cat_id` CASCADE が再発する)
 
-### 2. 運用 TODO (コード変更なし)
+### 3. 運用 TODO (コード変更なし)
 
 - `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
 - D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く。PR #37 の事故で露見した通り、table rebuild migration の直前には必ず backup を取る運用を明文化
