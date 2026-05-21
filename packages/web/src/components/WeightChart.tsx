@@ -40,7 +40,7 @@ type Geometry =
 const DIMS: Dimensions = {
   width: 600,
   height: 240,
-  padding: { top: 20, right: 20, bottom: 40, left: 56 },
+  padding: { top: 20, right: 20, bottom: 40, left: 64 },
 };
 
 function formatMonthDay(iso: string): string {
@@ -51,7 +51,7 @@ function formatMonthDay(iso: string): string {
 }
 
 function formatKg(grams: number): string {
-  return `${(grams / 1000).toFixed(1)} kg`;
+  return `${(grams / 1000).toFixed(2)} kg`;
 }
 
 export function buildChartGeometry(data: WeightChartPoint[], dims: Dimensions = DIMS): Geometry {
