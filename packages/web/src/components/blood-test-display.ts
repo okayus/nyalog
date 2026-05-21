@@ -318,6 +318,20 @@ export function buildSparklineGeometry(
   return { kind: "line", polyline, lastPoint: last };
 }
 
+// 与えられた series (recordedAt 昇順) の中で、指定日時より前の最新点を返す。
+// 「同 series で今回 (this attachment) より前の測定」を取り出して前回比を計算するため。
+export function findPreviousPoint(
+  series: ItemSeriesPoint[],
+  thisRecordedAt: string,
+): ItemSeriesPoint | null {
+  let prev: ItemSeriesPoint | null = null;
+  for (const p of series) {
+    if (p.recordedAt < thisRecordedAt) prev = p;
+    else break;
+  }
+  return prev;
+}
+
 export function groupItemsByCategory(items: BloodTestValue[]): CategorizedItems[] {
   const buckets: Partial<Record<BloodTestCategory, BloodTestValue[]>> = {};
   for (const item of items) {

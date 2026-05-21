@@ -10,6 +10,7 @@ import {
   buildItemSeries,
   buildSparklineGeometry,
   computeDelta,
+  findPreviousPoint,
   groupItemsByCategory,
   type ItemSeriesPoint,
 } from "../blood-test-display";
@@ -268,6 +269,35 @@ describe("buildSparklineGeometry", () => {
     // all dots should land at the same y (no NaN)
     const ys = g.polyline.split(" ").map((p) => Number(p.split(",")[1]));
     expect(ys.every((y) => Number.isFinite(y))).toBe(true);
+  });
+});
+
+describe("findPreviousPoint", () => {
+  it("returns null when no earlier point exists", () => {
+    const series: ItemSeriesPoint[] = [
+      mkPoint({ recordedAt: "2026-02-01", valueNumeric: 14.0 }),
+      mkPoint({ recordedAt: "2026-03-01", valueNumeric: 15.0 }),
+    ];
+    expect(findPreviousPoint(series, "2026-01-01")).toBeNull();
+  });
+
+  it("returns the latest point strictly before the given timestamp", () => {
+    const series: ItemSeriesPoint[] = [
+      mkPoint({ recordedAt: "2026-01-01", valueNumeric: 13.0 }),
+      mkPoint({ recordedAt: "2026-02-01", valueNumeric: 14.0 }),
+      mkPoint({ recordedAt: "2026-03-01", valueNumeric: 15.0 }),
+    ];
+    const prev = findPreviousPoint(series, "2026-03-01");
+    expect(prev?.valueNumeric).toBe(14.0);
+  });
+
+  it("excludes exact-match timestamp (this measurement itself is not its own previous)", () => {
+    const series: ItemSeriesPoint[] = [
+      mkPoint({ recordedAt: "2026-01-01", valueNumeric: 13.0 }),
+      mkPoint({ recordedAt: "2026-02-01", valueNumeric: 14.0 }),
+    ];
+    const prev = findPreviousPoint(series, "2026-02-01");
+    expect(prev?.valueNumeric).toBe(13.0);
   });
 });
 
