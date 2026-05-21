@@ -19,7 +19,7 @@
 - **PR 4 ([#57](https://github.com/okayus/nyalog/pull/57))** 表示ロジック純粋関数: `buildItemSeries` / `findPreviousPoint` / `computeDelta` (DU で `toward` / `away` / `neutral`) / `buildItemChartGeometry` (refBand 入り) / `buildSparklineGeometry` / `groupItemsByCategory` を `src/components/blood-test-display.ts` に集約、vitest 31 cases
 - **PR 5 ([#58](https://github.com/okayus/nyalog/pull/58))** `BloodTestAnalysisPanel`: カテゴリ別 `<details>` テーブル (CBC + 生化学のみ open)、flag emoji バッジ + 14% danger tint、前回比は `towardNormal` で色付け。`MedicalRecordsView` の attachment N+1 ループに追従して blood_test image attachment 全件の analysis を並列フェッチ
 - **PR 6 ([#59](https://github.com/okayus/nyalog/pull/59))** sparkline + popover: 推移列に 60×20px の inline SVG sparkline。クリックで native `[popover="auto"]` 開いて reference band + line chart + flag 色 dot の per-item 詳細チャート
-- **PR 7 ([#XX](https://github.com/okayus/nyalog/pull/XX))** ADR-007: 上記 3 つの主要設計判断 (Workflow / 差し替え可能 analyzer / client 側 presentation 集約) を記録
+- **PR 7 ([#60](https://github.com/okayus/nyalog/pull/60))** ADR-007: 上記 3 つの主要設計判断 (Workflow / 差し替え可能 analyzer / client 側 presentation 集約) を記録
 
 [ADR-007](./adr/007-blood-test-vision-analysis.md) の移行トリガー (Gemma の応答時間が常態的に数分、抽出漏れ多発、trend 表示が遅い) に当てはまったら次の判断 (Claude Vision 切替 / inline 編集 UI / 集約 endpoint 新設) に入る。
 
