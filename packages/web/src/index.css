@@ -801,6 +801,160 @@
   .blood-test-delta[data-toward="none"] {
     color: var(--color-text-muted);
   }
+
+  /* --- 推移 (sparkline + per-item popover) --- */
+
+  .sparkline-trigger {
+    /* button のデフォルト見た目を打ち消して sparkline だけ見せる */
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 2px;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    min-block-size: auto;
+    line-height: 0;
+  }
+
+  .sparkline-trigger:hover {
+    background: color-mix(in oklch, var(--color-primary) 8%, var(--color-surface));
+    border-color: var(--color-border);
+  }
+
+  .sparkline {
+    display: block;
+    inline-size: 60px;
+    block-size: 20px;
+  }
+
+  .sparkline-line {
+    stroke: var(--color-text-muted);
+    stroke-width: 1.2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .sparkline-dot[data-flag="high"],
+  .sparkline-dot[data-flag="low"],
+  .sparkline-dot[data-flag="abnormal"] {
+    fill: var(--color-danger);
+  }
+
+  .sparkline-dot[data-flag="normal"] {
+    fill: var(--color-success);
+  }
+
+  .sparkline-dot[data-flag="unknown"] {
+    fill: var(--color-text-muted);
+  }
+
+  .sparkline-empty {
+    fill: var(--color-text-muted);
+    font-size: 12px;
+  }
+
+  .item-detail-popover {
+    inline-size: min(92vw, 36rem);
+    max-block-size: 88dvh;
+    padding: var(--space-4);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    position-area: center;
+    overflow: auto;
+  }
+
+  .item-detail-popover::backdrop {
+    background: color-mix(in oklch, var(--color-bg) 50%, transparent);
+    backdrop-filter: blur(2px);
+  }
+
+  .item-detail-close {
+    position: absolute;
+    inset-block-start: var(--space-2);
+    inset-inline-end: var(--space-2);
+    padding: var(--space-1) var(--space-2);
+    min-block-size: auto;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .item-detail-close:hover {
+    background: var(--color-bg);
+    border-color: var(--color-border);
+  }
+
+  .item-detail-chart-title {
+    margin-block: 0 var(--space-3);
+    font-size: 1.1rem;
+    padding-inline-end: var(--space-6);
+  }
+
+  .item-detail-chart-unit {
+    color: var(--color-text-muted);
+    font-weight: 400;
+    font-size: 0.9em;
+  }
+
+  .item-detail-chart > svg {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+  }
+
+  .item-detail-axis {
+    stroke: var(--color-border);
+    stroke-width: 1;
+  }
+
+  /* reference band は OKLCH の success (緑) を薄く塗る。線/点が透けて見える濃度。 */
+  .item-detail-ref-band {
+    fill: color-mix(in oklch, var(--color-success) 18%, transparent);
+  }
+
+  .item-detail-line {
+    stroke: var(--color-text);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .item-detail-dot {
+    stroke: var(--color-surface);
+    stroke-width: 1.5;
+  }
+
+  .item-detail-dot[data-flag="high"],
+  .item-detail-dot[data-flag="low"],
+  .item-detail-dot[data-flag="abnormal"] {
+    fill: var(--color-danger);
+  }
+
+  .item-detail-dot[data-flag="normal"] {
+    fill: var(--color-success);
+  }
+
+  .item-detail-dot[data-flag="unknown"] {
+    fill: var(--color-text-muted);
+  }
+
+  .item-detail-tick {
+    fill: var(--color-text-muted);
+    font-size: 12px;
+  }
+
+  .item-detail-value {
+    fill: var(--color-text);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .item-detail-chart-empty {
+    fill: var(--color-text-muted);
+    font-size: 14px;
+  }
 }
 
 @layer utilities {
