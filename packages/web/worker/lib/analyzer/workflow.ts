@@ -11,6 +11,8 @@ export type AnalyzeWorkflowParams = {
   r2Key: string;
 };
 
+const INSERT_CHUNK_SIZE = 5;
+
 // 血液検査画像の Vision LLM 解析を durable execution で走らせる Workflow。
 // ctx.waitUntil の 30 秒制限を回避し、step 単位で retry + 状態 persist を効かせる。
 //
@@ -71,26 +73,30 @@ export class AnalyzeBloodTestWorkflow extends WorkflowEntrypoint<Bindings, Analy
         // 再解析時の overwrite: 既存 values を全削除 → 新規 insert
         await db.delete(bloodTestValues).where(eq(bloodTestValues.analysisId, analysisId));
         if (analyzed.items.length > 0) {
-          await db.insert(bloodTestValues).values(
-            analyzed.items.map((item) => ({
-              id: crypto.randomUUID(),
-              analysisId,
-              itemCode: item.itemCode,
-              itemLabel: item.itemLabel,
-              unit: item.unit,
-              valueText: item.valueText,
-              valueNumeric: item.valueNumeric,
-              refLow: item.refLow,
-              refHigh: item.refHigh,
-              refText: item.refText,
-              flag: item.flag,
-              notes: item.notes,
-              rowIndex: item.rowIndex,
-              reviewed: false,
-              createdAt: finishedAt,
-              updatedAt: finishedAt,
-            })),
-          );
+          const rows = analyzed.items.map((item) => ({
+            id: crypto.randomUUID(),
+            analysisId,
+            itemCode: item.itemCode,
+            itemLabel: item.itemLabel,
+            unit: item.unit,
+            valueText: item.valueText,
+            valueNumeric: item.valueNumeric,
+            refLow: item.refLow,
+            refHigh: item.refHigh,
+            refText: item.refText,
+            flag: item.flag,
+            notes: item.notes,
+            rowIndex: item.rowIndex,
+            reviewed: false,
+            createdAt: finishedAt,
+            updatedAt: finishedAt,
+          }));
+          // D1 は 1 statement あたり 100 bound parameters が上限。bloodTestValues は
+          // 16 列なので 5 行ずつに分割すると 80 placeholders で安全マージン確保。
+          // https://developers.cloudflare.com/d1/platform/limits/
+          for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+            await db.insert(bloodTestValues).values(rows.slice(i, i + INSERT_CHUNK_SIZE));
+          }
         }
 
         await db
