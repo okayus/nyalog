@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { authRoutes } from "./routes/auth";
 import { catRoutes } from "./routes/cats";
+import { catTaskRoutes } from "./routes/cat-tasks";
 import { medicalRecordRoutes } from "./routes/medical-records";
 import { toiletRoutes } from "./routes/toilet-records";
 import { weightRoutes } from "./routes/weight-records";
@@ -43,6 +44,7 @@ protectedApi.route("/cats", catRoutes);
 protectedApi.route("/cats/:catId/toilet-records", toiletRoutes);
 protectedApi.route("/cats/:catId/medical-records", medicalRecordRoutes);
 protectedApi.route("/cats/:catId/weights", weightRoutes);
+protectedApi.route("/tasks", catTaskRoutes);
 api.route("/", protectedApi);
 
 app.route("/api", api);
