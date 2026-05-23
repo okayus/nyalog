@@ -1,4 +1,12 @@
-import { sqliteTable, text, index, integer, primaryKey, real } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  index,
+  integer,
+  primaryKey,
+  real,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
@@ -216,5 +224,75 @@ export const bloodTestValues = sqliteTable(
   },
   (t) => ({
     analysisIdIdx: index("blood_test_values_analysis_id_idx").on(t.analysisId),
+  }),
+);
+
+// 猫毎の定期タスク (薬・通院・グルーミング等)。space_id を直接持ち、対象猫は
+// cat_task_cats で多対多。recurrence_type に応じて recurrence_value の意味が変わる
+// (daily / once は NULL、interval_days / interval_months は >= 1)。
+export const catTasks = sqliteTable(
+  "cat_tasks",
+  {
+    id: text("id").primaryKey(),
+    spaceId: text("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    recurrenceType: text("recurrence_type", {
+      enum: ["daily", "interval_days", "interval_months", "once"],
+    }).notNull(),
+    recurrenceValue: integer("recurrence_value"),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date"),
+    notes: text("notes"),
+    createdBy: text("created_by").references(() => users.id),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => ({
+    spaceIdIdx: index("cat_tasks_space_id_idx").on(t.spaceId),
+  }),
+);
+
+export const catTaskCats = sqliteTable(
+  "cat_task_cats",
+  {
+    taskId: text("task_id")
+      .notNull()
+      .references(() => catTasks.id, { onDelete: "cascade" }),
+    catId: text("cat_id")
+      .notNull()
+      .references(() => cats.id, { onDelete: "cascade" }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.taskId, t.catId] }),
+    catIdIdx: index("cat_task_cats_cat_id_idx").on(t.catId),
+  }),
+);
+
+// (task_id, cat_id, due_date) UNIQUE で「同じ日に同じタスクを同じ猫で複数回完了」を弾く。
+// チェック取り消しは行削除で表現する (履歴を残さず undo を即時化)。
+export const catTaskCompletions = sqliteTable(
+  "cat_task_completions",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id")
+      .notNull()
+      .references(() => catTasks.id, { onDelete: "cascade" }),
+    catId: text("cat_id")
+      .notNull()
+      .references(() => cats.id, { onDelete: "cascade" }),
+    dueDate: text("due_date").notNull(),
+    completedAt: text("completed_at").notNull(),
+    completedBy: text("completed_by").references(() => users.id),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => ({
+    taskCatDueUniq: uniqueIndex("cat_task_completions_task_cat_due_uniq").on(
+      t.taskId,
+      t.catId,
+      t.dueDate,
+    ),
+    taskDueIdx: index("cat_task_completions_task_due_idx").on(t.taskId, t.dueDate),
   }),
 );
