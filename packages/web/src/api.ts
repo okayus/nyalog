@@ -11,9 +11,12 @@ import type {
   ValueFlag,
 } from "../worker/domain/blood-test-analysis";
 import type { Cat, ThemeColor } from "../worker/domain/cat";
+import type { CatTask, Recurrence, TaskCompletion } from "../worker/domain/cat-task";
 import type { MedicalRecord, MedicalRecordAttachment } from "../worker/domain/medical-record";
 import type { ToiletRecord, StoolCondition } from "../worker/domain/toilet-record";
 import type { WeightRecord } from "../worker/domain/weight-record";
+
+export type { CatTask, Recurrence, TaskCompletion };
 
 type CreateCatInput = { name: string; birthday?: string | null; themeColor?: ThemeColor };
 type UpdateCatInput = { name?: string; birthday?: string | null; themeColor?: ThemeColor };
@@ -151,6 +154,89 @@ export function deleteWeightRecord(
   id: string,
 ): Promise<Result<Record<string, never>, ApiError>> {
   return request(`/api/cats/${catId}/weights/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Cat Tasks API ---
+
+type CreateTaskInput = {
+  title: string;
+  recurrence: Recurrence;
+  startDate: string;
+  endDate?: string | null;
+  notes?: string | null;
+  catIds: string[];
+};
+
+type UpdateTaskInput = {
+  title?: string;
+  endDate?: string | null;
+  notes?: string | null;
+  catIds?: string[];
+};
+
+export type TodayTaskItem = {
+  task: {
+    id: string;
+    title: string;
+    recurrence: Recurrence;
+    notes: string | null;
+  };
+  cat: { id: string; name: string; themeColor: ThemeColor };
+  dueDate: string;
+  completion: {
+    id: string;
+    taskId: string;
+    catId: string;
+    dueDate: string;
+    completedAt: string;
+    completedBy: string | null;
+    createdAt: string;
+  } | null;
+};
+
+export function listTasks(): Promise<Result<CatTask[], ApiError>> {
+  return request<CatTask[]>("/api/tasks");
+}
+
+export function listTodayTasks(date: string): Promise<Result<TodayTaskItem[], ApiError>> {
+  return request<TodayTaskItem[]>(`/api/tasks/today?date=${encodeURIComponent(date)}`);
+}
+
+export function createTask(input: CreateTaskInput): Promise<Result<CatTask, ApiError>> {
+  return request<CatTask>("/api/tasks", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateTask(id: string, input: UpdateTaskInput): Promise<Result<CatTask, ApiError>> {
+  return request<CatTask>(`/api/tasks/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteTask(id: string): Promise<Result<Record<string, never>, ApiError>> {
+  return request(`/api/tasks/${id}`, { method: "DELETE" });
+}
+
+export function completeTask(
+  taskId: string,
+  input: { catId: string; dueDate: string; completedAt: string },
+): Promise<Result<TaskCompletion, ApiError>> {
+  return request<TaskCompletion>(`/api/tasks/${taskId}/completions`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function uncompleteTask(
+  taskId: string,
+  completionId: string,
+): Promise<Result<Record<string, never>, ApiError>> {
+  return request(`/api/tasks/${taskId}/completions/${completionId}`, {
     method: "DELETE",
   });
 }
