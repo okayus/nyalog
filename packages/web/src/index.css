@@ -955,6 +955,144 @@
     fill: var(--color-text-muted);
     font-size: 14px;
   }
+
+  /* --- Cat Tasks (今日のタスク + タスク管理) --- */
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-block-start: var(--space-6);
+  }
+
+  .section-header > h2 {
+    margin: 0;
+  }
+
+  .task-today-list,
+  .task-list {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .task-card {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    background: var(--color-surface);
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .task-card-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+  }
+
+  .task-card-header > small {
+    color: var(--color-text-muted);
+  }
+
+  .task-card-notes {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    white-space: pre-wrap;
+  }
+
+  .task-card-actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+  }
+
+  .task-cat-rows {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .task-cat-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-md);
+    min-block-size: var(--control-min);
+  }
+
+  .task-cat-row[data-cat-theme] {
+    background: var(--cat-tint, transparent);
+  }
+
+  .task-cat-row[data-completed="true"] > label > span {
+    text-decoration: line-through;
+    color: var(--color-text-muted);
+  }
+
+  .task-cat-row > label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1;
+    cursor: pointer;
+  }
+
+  .task-cat-row > label > input[type="checkbox"] {
+    inline-size: 20px;
+    block-size: 20px;
+  }
+
+  .task-cat-row > small {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .task-form {
+    display: grid;
+    gap: var(--space-3);
+    margin-block-end: var(--space-6);
+  }
+
+  .task-form > label,
+  .task-form > fieldset {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .task-form > fieldset {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+  }
+
+  .task-form > fieldset > legend {
+    color: var(--color-text-label);
+    padding-inline: var(--space-1);
+  }
+
+  .task-form > fieldset > label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding-block: var(--space-1);
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-md);
+    min-block-size: var(--control-min);
+  }
+
+  .task-form > fieldset > label[data-cat-theme] {
+    background: var(--cat-tint, transparent);
+  }
 }
 
 @layer utilities {

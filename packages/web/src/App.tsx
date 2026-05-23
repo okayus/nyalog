@@ -3,6 +3,7 @@ import { type AuthUser, authApi } from "./api";
 import { AuthView } from "./components/AuthView";
 import { CredentialsView } from "./components/CredentialsView";
 import { MedicalRecordsView } from "./components/MedicalRecordsView";
+import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
 import { ToiletRecordView } from "./components/ToiletRecordView";
 import { VetCalendar } from "./components/VetCalendar";
@@ -14,6 +15,7 @@ type View =
   | { kind: "toilet"; catId: string; catName: string; themeColor: string }
   | { kind: "medical"; catId: string; catName: string; themeColor: string }
   | { kind: "weight"; catId: string; catName: string; themeColor: string }
+  | { kind: "tasks" }
   | { kind: "credentials" };
 
 type AuthState =
@@ -111,9 +113,13 @@ export function App() {
                 }),
               )
             }
+            onOpenTasks={() => withViewTransition(() => setView({ kind: "tasks" }))}
           />
           <VetCalendar />
         </>
+      ) : null}
+      {view.kind === "tasks" ? (
+        <TasksView onBack={() => withViewTransition(() => setView({ kind: "today" }))} />
       ) : null}
       {view.kind === "toilet" ? (
         <ToiletRecordView
