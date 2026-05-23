@@ -8,6 +8,15 @@
 
 ## 直近完了フェーズ
 
+**猫タスク (定期 todo) 機能 完了** (PR [#61](https://github.com/okayus/nyalog/pull/61) + [#62](https://github.com/okayus/nyalog/pull/62))
+
+薬・通院・グルーミング等の定期タスクを猫毎にチェックリスト化する新機能。schema + domain + API の PR-1 と UI の PR-2 に分割:
+
+- **PR-1 ([#61](https://github.com/okayus/nyalog/pull/61))** schema + domain + API: 3 テーブル (`cat_tasks` / `cat_task_cats` 多対多 / `cat_task_completions` UNIQUE(task,cat,due_date))。`Recurrence` は discriminated union (`daily | interval_days | interval_months | once`)、純粋関数 `isDueOn` / `enumerateDueDates` で月末日/年跨ぎ/endDate 打ち切りを表現。`/api/tasks` で CRUD + `GET /today?date=` (task×cat フラット list + completion 状態) + `POST|DELETE /:id/completions[/...]`。49 vitest cases。Migration `0011_*.sql` は CREATE TABLE のみで rebuild なしのため D1 CASCADE 事故リスクなし
+- **PR-2 ([#62](https://github.com/okayus/nyalog/pull/62))** UI: `TodayView` に「今日のタスク」セクション (タスク毎にカード、対象猫毎にチェックボックス、完了は打ち消し線 + 完了時刻 + 画面残し)、`TasksView` 新規 (タイトル / 繰り返し radio + 必要時 N 入力 / 開始日 / 終了日 / 対象猫複数選択 / メモ / inline edit + delete)。`App.tsx` View union に `{ kind: "tasks" }` 追加、TodayView から「タスク管理 →」遷移。Playwright MCP で create → check → reload persist → uncheck → edit → delete の golden path 確認済、console 0 errors
+
+月カレンダー表示 / 通知 / 週次 (曜日指定) は意図的にスコープ外 (将来 PR)。e2e は未実装 (クリティカルパス外 + 認可は既存パターンの素直な複製)。
+
 **血液検査 Vision 解析 + 表示 UI 完了** ([ADR-007](./adr/007-blood-test-vision-analysis.md))
 
 医療記録に upload された血液検査画像を Vision LLM (Workers AI Gemma 12B) で構造化抽出し、カテゴリ別テーブル + 前回比 + sparkline + per-item 詳細チャート popover で表示する機能。土台 3 PR + chunking fix 1 PR + 表示 3 PR + ADR 1 PR の計 8 PR で完走:
@@ -101,8 +110,8 @@ PR #49 deploy 後、本番 `/api/auth/login/begin` に対して **35 req 順次 
 
 ### 2. その他の機能候補 (順序は流動)
 
-- **薬・動物病院の予定管理** — 機能追加、モダン CSS を実戦投入する初の題材
-- **ご飯・カロリー管理** — 同上、DB スキーマ設計から
+- **猫タスクの月カレンダー表示** — PR-2 で `enumerateDueDates` まで純粋関数で実装済なので、UI だけ追加すれば月単位の予定一覧が作れる。今やる順序の妥当性次第
+- **ご飯・カロリー管理** — DB スキーマ設計から
 - **ADR-004 phase 2 の残り**: `cats.created_by` / `toilet_records.created_by` を NOT NULL 化。ただし **PR #37 と同じ D1 CASCADE 事故を踏まないよう**、事前に [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリストを必ず実施する (`cats` を rebuild すると `toilet_records.cat_id` CASCADE が再発する)
 
 ### 3. 運用 TODO (コード変更なし)

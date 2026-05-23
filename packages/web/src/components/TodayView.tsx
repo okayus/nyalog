@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_THEME_COLOR, type Cat, type ThemeColor } from "../../worker/domain/cat";
+import type { Recurrence } from "../../worker/domain/cat-task";
 import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
 import type { WeightRecord } from "../../worker/domain/weight-record";
 import {
+  type TodayTaskItem,
+  completeTask,
   createCat,
   createToiletRecord,
   deleteCat,
   deleteToiletRecord,
   listCats,
+  listTodayTasks,
   listToiletRecords,
   listWeightRecords,
+  uncompleteTask,
   updateCat,
   updateToiletRecord,
 } from "../api";
@@ -21,6 +26,7 @@ type Props = {
   onOpenDetail: (cat: Cat) => void;
   onOpenMedical: (cat: Cat) => void;
   onOpenWeight: (cat: Cat) => void;
+  onOpenTasks: () => void;
 };
 
 type WeightSummary = {
@@ -80,10 +86,56 @@ function typeLabel(r: ToiletRecord): string {
   return `💩 (${STOOL_LABEL[r.condition]})`;
 }
 
-export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight }: Props) {
+function todayDateOnly(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function recurrenceLabel(r: Recurrence): string {
+  switch (r.type) {
+    case "daily":
+      return "毎日";
+    case "interval_days":
+      return `${r.days}日ごと`;
+    case "interval_months":
+      return `${r.months}か月ごと`;
+    case "once":
+      return "1回";
+  }
+}
+
+type GroupedTodayTask = {
+  taskId: string;
+  title: string;
+  recurrence: Recurrence;
+  notes: string | null;
+  items: TodayTaskItem[];
+};
+
+function groupByTask(items: TodayTaskItem[]): GroupedTodayTask[] {
+  const map = new Map<string, GroupedTodayTask>();
+  for (const item of items) {
+    const existing = map.get(item.task.id);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      map.set(item.task.id, {
+        taskId: item.task.id,
+        title: item.task.title,
+        recurrence: item.task.recurrence,
+        notes: item.task.notes,
+        items: [item],
+      });
+    }
+  }
+  return [...map.values()];
+}
+
+export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTasks }: Props) {
   const [cats, setCats] = useState<Cat[]>([]);
   const [recordsByCat, setRecordsByCat] = useState<Record<string, ToiletRecord[]>>({});
   const [weightsByCat, setWeightsByCat] = useState<Record<string, WeightSummary>>({});
+  const [todayTasks, setTodayTasks] = useState<TodayTaskItem[]>([]);
   const [name, setName] = useState("");
   const [birthday, setBirthday] = useState("");
   const [newThemeColor, setNewThemeColor] = useState<ThemeColor>(DEFAULT_THEME_COLOR);
@@ -100,9 +152,10 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight }: Props) 
       }
       const loaded = catsResult.value;
       setCats(loaded);
-      const [recordResults, weightResults] = await Promise.all([
+      const [recordResults, weightResults, tasksResult] = await Promise.all([
         Promise.all(loaded.map(async (c) => ({ id: c.id, result: await listToiletRecords(c.id) }))),
         Promise.all(loaded.map(async (c) => ({ id: c.id, result: await listWeightRecords(c.id) }))),
+        listTodayTasks(todayDateOnly()),
       ]);
       const recordMap: Record<string, ToiletRecord[]> = {};
       for (const { id, result } of recordResults) {
@@ -122,8 +175,66 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight }: Props) 
       }
       setRecordsByCat(recordMap);
       setWeightsByCat(weightMap);
+      if (tasksResult.isErr()) {
+        setError(tasksResult.error.message);
+        return;
+      }
+      setTodayTasks(tasksResult.value);
     })();
   }, []);
+
+  async function handleToggleTaskCheck(item: TodayTaskItem) {
+    setError(null);
+    if (item.completion === null) {
+      const completedAt = new Date().toISOString();
+      const result = await completeTask(item.task.id, {
+        catId: item.cat.id,
+        dueDate: item.dueDate,
+        completedAt,
+      });
+      if (result.isErr()) {
+        setError(result.error.message);
+        return;
+      }
+      const created = result.value;
+      withViewTransition(() => {
+        setTodayTasks((prev) =>
+          prev.map((it) =>
+            it.task.id === item.task.id && it.cat.id === item.cat.id
+              ? {
+                  ...it,
+                  completion: {
+                    id: created.id,
+                    taskId: created.taskId,
+                    catId: created.catId,
+                    dueDate: created.dueDate,
+                    completedAt: created.completedAt,
+                    completedBy: created.completedBy,
+                    createdAt: created.createdAt,
+                  },
+                }
+              : it,
+          ),
+        );
+      });
+      return;
+    }
+    const completionId = item.completion.id;
+    const result = await uncompleteTask(item.task.id, completionId);
+    if (result.isErr()) {
+      setError(result.error.message);
+      return;
+    }
+    withViewTransition(() => {
+      setTodayTasks((prev) =>
+        prev.map((it) =>
+          it.task.id === item.task.id && it.cat.id === item.cat.id
+            ? { ...it, completion: null }
+            : it,
+        ),
+      );
+    });
+  }
 
   async function handleQuick(catId: string, type: "urination" | "defecation") {
     setError(null);
@@ -262,11 +373,61 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight }: Props) 
     )
     .sort((a, b) => (a.record.timestamp < b.record.timestamp ? 1 : -1));
 
+  const groupedTodayTasks = groupByTask(todayTasks);
+
   return (
     <section>
-      <h2>今日のトイレ記録</h2>
+      <header className="section-header">
+        <h2>今日のタスク</h2>
+        <button type="button" className="link-button" onClick={onOpenTasks}>
+          タスク管理 →
+        </button>
+      </header>
 
       {error ? <p className="error-text">エラー: {error}</p> : null}
+
+      {groupedTodayTasks.length === 0 ? (
+        <p>今日のタスクはありません</p>
+      ) : (
+        <ul className="task-today-list">
+          {groupedTodayTasks.map((group) => (
+            <li key={group.taskId} className="task-card">
+              <div className="task-card-header">
+                <strong>{group.title}</strong>
+                <small>{recurrenceLabel(group.recurrence)}</small>
+              </div>
+              {group.notes ? <p className="task-card-notes">{group.notes}</p> : null}
+              <ul className="task-cat-rows">
+                {group.items.map((item) => {
+                  const completed = item.completion !== null;
+                  return (
+                    <li
+                      key={`${item.task.id}-${item.cat.id}`}
+                      className="task-cat-row"
+                      data-cat-theme={item.cat.themeColor}
+                      data-completed={completed ? "true" : "false"}
+                    >
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={completed}
+                          onChange={() => handleToggleTaskCheck(item)}
+                        />
+                        <span>{item.cat.name}</span>
+                      </label>
+                      {item.completion ? (
+                        <small>済 {toHHMM(item.completion.completedAt)}</small>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h2>今日のトイレ記録</h2>
 
       {todayItems.length === 0 ? (
         <p>今日の記録はまだありません</p>
