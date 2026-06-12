@@ -10,6 +10,8 @@
 
 **ホスト側リレー稼働開始** (2026-06-12)。GitHub App `nyalog-relay` + systemd timer (60s)。サンドボックス内エージェントは `claude/*` ブランチへ commit するだけで push / PR 化され、`Relay-Merge: yes` トレーラーで CI green 後の自動 merge まで委任できる（PR #65 で E2E 実証済み）。
 
+**workers.dev サブドメインを `shiraoka` に改名** (2026-06)。全パスキーが RP_ID 束縛で無効化されるため、家族の再登録 + 既存スペースへの再紐付けを実施する（手順: `packages/web/scripts/2026-06-subdomain-rename-rebind.sql`）。
+
 **デプロイは Workers Builds（キーレス）に完全移行** (2026-06-12)。初回ビルド green・非本番ブランチビルド OFF 確認後、`deploy.yml` と GitHub Actions Secrets（`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）を撤去。デプロイ credential は Cloudflare の外に存在しない。残タスク: 旧デプロイ用 API トークンの CF ダッシュボードでの失効、D1 週次バックアップ導入（後日）。
 
 ## 直近完了フェーズ
@@ -180,11 +182,11 @@ PR #49 deploy 後、本番 `/api/auth/login/begin` に対して **35 req 順次 
 
 ## 本番環境リファレンス (次セッション向け)
 
-- 本番 URL: `https://nyalog.toshiaki-mukai-9981.workers.dev`
+- 本番 URL: `https://nyalog.shiraoka.workers.dev`
 - Cloudflare Account ID: `b206ff3a1f57cd57469b20adaf8be123`
 - D1 `database_id`: `82db6367-0a73-46d3-baf3-c665adf1e10b` (`wrangler.jsonc` にも記載)
 - Worker 名: `nyalog`
-- RP_ID: `nyalog.toshiaki-mukai-9981.workers.dev`
+- RP_ID: `nyalog.shiraoka.workers.dev`
 - 現在投入済みの secret: `SESSION_SECRET` (HS256 JWT 用)
 - `INITIAL_REGISTRATION_TOKEN` は失効済み (家族追加時のみ再投入)
 - 手動デプロイ経路は今も生きている: `pnpm run deploy` (`packages/web` から)

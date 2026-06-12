@@ -40,8 +40,8 @@
     // RP_ID/ORIGIN は本番値が default。dev での bypass は .dev.vars の
     // DEV_BYPASS_USER_ID + ORIGIN=http://localhost:5173 で上書きする
     // (docs/local-dev.md)。
-    "RP_ID": "nyalog.toshiaki-mukai-9981.workers.dev",
-    "ORIGIN": "https://nyalog.toshiaki-mukai-9981.workers.dev",
+    "RP_ID": "nyalog.shiraoka.workers.dev",
+    "ORIGIN": "https://nyalog.shiraoka.workers.dev",
     // ai binding なしで動く唯一の analyzer。"workers-ai-gemma" 等の実モデルに
     // 変えると起動はするが解析実行時に構成不整合で失敗する (factory.ts)。
     "ANALYZER_MODEL": "mock",
