@@ -10,6 +10,8 @@
 
 **ホスト側リレー稼働開始** (2026-06-12)。GitHub App `nyalog-relay` + systemd timer (60s)。サンドボックス内エージェントは `claude/*` ブランチへ commit するだけで push / PR 化され、`Relay-Merge: yes` トレーラーで CI green 後の自動 merge まで委任できる（PR #65 で E2E 実証済み）。
 
+**workers.dev サブドメインを `shiraoka` に改名** (2026-06)。全パスキーが RP_ID 束縛で無効化されるため、家族の再登録 + 既存スペースへの再紐付けを実施する（手順: `packages/web/scripts/2026-06-subdomain-rename-rebind.sql`）。
+
 **デプロイは Workers Builds（キーレス）に完全移行** (2026-06-12)。初回ビルド green・非本番ブランチビルド OFF 確認後、`deploy.yml` と GitHub Actions Secrets（`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）を撤去。デプロイ credential は Cloudflare の外に存在しない。残タスク: 旧デプロイ用 API トークンの CF ダッシュボードでの失効、D1 週次バックアップ導入（後日）。
 
 ## 直近完了フェーズ
