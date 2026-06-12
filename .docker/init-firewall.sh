@@ -134,7 +134,7 @@ done
 #   statsig.* / featuregates.org / prodregistryv2.org
 #       → Claude Code usage telemetry uploads (model picker works without them;
 #         gates arrive via api.anthropic.com)
-#   nyalog.toshiaki-mukai-9981.workers.dev
+#   nyalog.shiraoka.workers.dev
 #       → production host, lets the in-container agent verify deploys
 #         (e.g. curl -s .../api/auth/me → 401 = serving)
 #   cdn.playwright.dev / playwright.download.prss.microsoft.com
@@ -150,7 +150,7 @@ for domain in \
     "featuregates.org" \
     "statsigapi.net" \
     "prodregistryv2.org" \
-    "nyalog.toshiaki-mukai-9981.workers.dev" \
+    "nyalog.shiraoka.workers.dev" \
     "cdn.playwright.dev" \
     "playwright.download.prss.microsoft.com"; do
     echo "Resolving optional $domain..."

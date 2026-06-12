@@ -30,8 +30,10 @@
   "vars": {
     // RP_ID is the workers.dev hostname without scheme/port.
     // Passkeys are bound to this value — changing it invalidates all registrations.
-    "RP_ID": "nyalog.toshiaki-mukai-9981.workers.dev",
-    "ORIGIN": "https://nyalog.toshiaki-mukai-9981.workers.dev",
+    // 2026-06: account subdomain 改名 (toshiaki-mukai-9981 → shiraoka) で全パスキーを
+    // 再登録した。次にこの値を変えるのは custom domain 移行のときだけにすること。
+    "RP_ID": "nyalog.shiraoka.workers.dev",
+    "ORIGIN": "https://nyalog.shiraoka.workers.dev",
     // 血液検査画像の解析エンジン選択。worker/lib/analyzer/factory.ts の switch case と対応。
     // 将来 Claude Vision 等を増やす時はここを書き換える。
     "ANALYZER_MODEL": "workers-ai-gemma",

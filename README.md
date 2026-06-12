@@ -2,7 +2,7 @@
 
 猫の健康管理 Web アプリ。トイレ記録 / 猫プロフィール CRUD / (今後) 薬・通院・食事の管理を、家族 + テスト含めて最大 4 名規模で運用する個人ツール。
 
-- 本番: `https://nyalog.toshiaki-mukai-9981.workers.dev`
+- 本番: `https://nyalog.shiraoka.workers.dev`
 - インフラ: Cloudflare Workers (Assets + D1)
 - 認証: パスキー (WebAuthn) — 招待制
 - スタック: Hono / React / Drizzle ORM / Zod / neverthrow / TypeScript strict

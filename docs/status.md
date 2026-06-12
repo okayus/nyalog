@@ -180,11 +180,11 @@ PR #49 deploy 後、本番 `/api/auth/login/begin` に対して **35 req 順次 
 
 ## 本番環境リファレンス (次セッション向け)
 
-- 本番 URL: `https://nyalog.toshiaki-mukai-9981.workers.dev`
+- 本番 URL: `https://nyalog.shiraoka.workers.dev`
 - Cloudflare Account ID: `b206ff3a1f57cd57469b20adaf8be123`
 - D1 `database_id`: `82db6367-0a73-46d3-baf3-c665adf1e10b` (`wrangler.jsonc` にも記載)
 - Worker 名: `nyalog`
-- RP_ID: `nyalog.toshiaki-mukai-9981.workers.dev`
+- RP_ID: `nyalog.shiraoka.workers.dev`
 - 現在投入済みの secret: `SESSION_SECRET` (HS256 JWT 用)
 - `INITIAL_REGISTRATION_TOKEN` は失効済み (家族追加時のみ再投入)
 - 手動デプロイ経路は今も生きている: `pnpm run deploy` (`packages/web` から)

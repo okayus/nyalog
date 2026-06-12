@@ -34,8 +34,8 @@
       "Bash(gh issue list:*)",
       "Bash(gh api:*)",
       "Bash(curl -s https://api.github.com/*)",
-      "Bash(curl -s https://nyalog.toshiaki-mukai-9981.workers.dev/*)",
-      "WebFetch(domain:nyalog.toshiaki-mukai-9981.workers.dev)",
+      "Bash(curl -s https://nyalog.shiraoka.workers.dev/*)",
+      "WebFetch(domain:nyalog.shiraoka.workers.dev)",
       "WebFetch(domain:code.claude.com)",
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:docs.mcp.cloudflare.com)"
