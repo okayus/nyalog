@@ -6,7 +6,9 @@
 
 **セキュリティ検査・防御強化フェーズ (進行中)**。CT Log 経由で外部スキャン bot に確実に晒される前提で、コスト枯渇耐性と未認証経路の保護を優先。
 
-**開発環境がサンドボックス化された** ([ADR-008](./adr/008-sandboxed-development-and-credential-free-pipeline.md))。開発は egress 制限つきコンテナ内（credential ゼロ）、dev/e2e は `ai` binding なしの `wrangler.local.jsonc` + mock analyzer で起動し、CI から Cloudflare token を撤去済み。残る人手セレモニー: (1) GitHub App `nyalog-relay` 作成 → ホスト側リレー有効化、(2) Workers Builds 接続 → `deploy.yml` と GitHub Secrets の撤去（完了までは従来の deploy.yml が現役）。
+**開発環境がサンドボックス化された** ([ADR-008](./adr/008-sandboxed-development-and-credential-free-pipeline.md))。開発は egress 制限つきコンテナ内（credential ゼロ）、dev/e2e は `ai` binding なしの `wrangler.local.jsonc` + mock analyzer で起動し、CI から Cloudflare token を撤去済み。
+
+**ホスト側リレー稼働開始** (2026-06-12)。GitHub App `nyalog-relay` + systemd timer (60s)。サンドボックス内エージェントは `claude/*` ブランチへ commit するだけで push / PR 化される（この変更自体がリレー経由の初 PR）。**Workers Builds 接続済み** — この PR の merge が初回ビルドの検証を兼ねる。green を確認したら `deploy.yml` + GitHub Secrets 撤去の follow-up PR で keyless 化が完了する。
 
 ## 直近完了フェーズ
 
