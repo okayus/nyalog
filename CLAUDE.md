@@ -34,7 +34,7 @@ mainブランチは保護されている。すべての変更はPR経由でマ�
 1. **ブランチ作成**: `git switch -c claude/<type>-<short-description>` (例: `claude/feat-toilet-record`)。`claude/*` 以外はリレーが push を拒否する
 2. **実装と commit**: commit までがエージェントの仕事。push はしない — ホスト側リレー (systemd timer, 60秒間隔) が自動 push し、PR を作成する
 3. **CI 確認**: 上記の未認証 REST で check-runs を確認し、red なら直して commit を積む
-4. **マージ**: 確信のある完成した変更のみ、最終 commit メッセージ末尾に `Relay-Merge: yes` トレーラーを付けると、CI green 後にリレーが squash merge する（トレーラーは HEAD commit のみ有効）。迷う変更・影響の大きい変更には付けず、人間のレビューとマージに委ねる
+4. **マージ**: 確信のある完成した変更のみ、最終 commit メッセージ末尾に `Relay-Merge: yes` トレーラーを付けると、CI green 後にリレーが squash merge する（トレーラーは HEAD commit のみ有効）。迷う変更・影響の大きい変更には付けず、人間のレビューとマージに委ねる。**migration（`drizzle/` の変更）を含む PR には絶対に付けない** — merge は Workers Builds の deploy command 経由で本番 D1 への migration 適用まで直結する（D1 cascade 事故の前歴: ADR-005 Addendum）
 5. **ステータス更新**: 大きな節目で [docs/status.md](./docs/status.md) を併せて更新する。PRの一部に含めて良い
 
 **ホストでの作業**（人間）は従来どおり: `git switch -c <type>/<short-description>` → 空コミット → 計画を本文に書いた Draft PR → 実装 → squash merge。
@@ -151,7 +151,9 @@ pnpm db:migrate       # マイグレーション適用(ローカル)
 pnpm db:migrate:prod  # マイグレーション適用(本番)
 
 # デプロイ
-pnpm deploy           # Cloudflareへデプロイ
+pnpm deploy           # 手動デプロイ (緊急用、要 wrangler login)。通常は main への
+                      # merge で Workers Builds が migration + deploy を自動実行
+
 ```
 
 ### D1 migration の注意点

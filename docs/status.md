@@ -8,7 +8,9 @@
 
 **開発環境がサンドボックス化された** ([ADR-008](./adr/008-sandboxed-development-and-credential-free-pipeline.md))。開発は egress 制限つきコンテナ内（credential ゼロ）、dev/e2e は `ai` binding なしの `wrangler.local.jsonc` + mock analyzer で起動し、CI から Cloudflare token を撤去済み。
 
-**ホスト側リレー稼働開始** (2026-06-12)。GitHub App `nyalog-relay` + systemd timer (60s)。サンドボックス内エージェントは `claude/*` ブランチへ commit するだけで push / PR 化される（この変更自体がリレー経由の初 PR）。**Workers Builds 接続済み** — この PR の merge が初回ビルドの検証を兼ねる。green を確認したら `deploy.yml` + GitHub Secrets 撤去の follow-up PR で keyless 化が完了する。
+**ホスト側リレー稼働開始** (2026-06-12)。GitHub App `nyalog-relay` + systemd timer (60s)。サンドボックス内エージェントは `claude/*` ブランチへ commit するだけで push / PR 化され、`Relay-Merge: yes` トレーラーで CI green 後の自動 merge まで委任できる（PR #65 で E2E 実証済み）。
+
+**デプロイは Workers Builds（キーレス）に完全移行** (2026-06-12)。初回ビルド green・非本番ブランチビルド OFF 確認後、`deploy.yml` と GitHub Actions Secrets（`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID`）を撤去。デプロイ credential は Cloudflare の外に存在しない。残タスク: 旧デプロイ用 API トークンの CF ダッシュボードでの失効、D1 週次バックアップ導入（後日）。
 
 ## 直近完了フェーズ
 
