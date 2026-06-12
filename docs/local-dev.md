@@ -2,6 +2,22 @@
 
 README の「ローカル開発」の補足。別マシンで開発環境を立ち上げるときや、認証まわりで詰まったときに読む。
 
+## サンドボックス開発（標準の開発形態, ADR-008）
+
+`pnpm install`・ビルド・テスト・Claude Code は **egress 制限つきコンテナ内**で実行する。ホストで `pnpm install` しない（サプライチェーン対策。理由と全体像は [ADR-008](./adr/008-sandboxed-development-and-credential-free-pipeline.md)）。
+
+```bash
+docker compose up -d            # 初回は build に数分。logs に Firewall verification passed ×2 が出ること
+docker compose exec dev zsh     # コンテナに入る (workspace = リポジトリ root)
+# 以降のこのガイドのコマンドは全部コンテナ内で実行する
+```
+
+- ホスト側は**エディタと git だけ**（bind mount なので編集は即時反映）。コンテナに Cloudflare/GitHub の credential は入れない（`wrangler login` もしない）
+- dev サーバーはコンテナ内で `pnpm dev -- --host 0.0.0.0` → ホストのブラウザから **http://localhost:5473/** （他プロジェクトとのポート衝突回避。コンテナ内部は 5173 のまま）
+- コンテナ内 `claude` の初回認証は OAuth URL をホストブラウザで開いてコードを貼る（auth は named volume に永続化され `docker compose down` でも消えない）
+- **血液検査画像の解析は dev では mock 固定**: dev/e2e は `ai` binding を持たない `wrangler.local.jsonc` で起動するため（起動に Cloudflare 認証が必要になるのを避ける）、analyzer は固定値を返す `mock` になる。実モデル (workers-ai-gemma) の検証は本番デプロイ後のみ
+- 新しい外部ドメインに繋ぐ必要が出たら `.docker/init-firewall.sh` の allowlist に追記 → `docker compose down && docker compose build && docker compose up -d`（プロジェクトディレクトリで `-f` なしで実行。症状は「新しいホストだけ繋がらない/ハングする」）
+
 ## セットアップのおさらい
 
 ```bash
@@ -56,6 +72,10 @@ UUID は何でもよい (上記はゼロ埋めの v4 形) が、同じマシン�
 - 念のため、本番シークレットに `DEV_BYPASS_USER_ID` を入れてはいけない。`pnpm --filter @nyalog/web exec wrangler secret list` に現れていないことを時々確認する
 
 ## トラブルシューティング
+
+### 起動ログの `Unable to fetch the Request.cf object! ... EHOSTUNREACH`
+
+無害。miniflare が本物の `Request.cf` データを Cloudflare から取りに行き、サンドボックスの egress firewall に弾かれて placeholder にフォールバックしただけ（設計どおり）。dev の動作には影響しない。
 
 ### `pnpm dev` を 2 回叩いたら画面のデータが消えた
 
