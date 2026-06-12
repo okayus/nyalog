@@ -2,7 +2,7 @@
 
 - ステータス: Accepted
 - 日付: 2026-06-12
-- 関連 PR: (本 ADR 導入 PR)
+- 関連 PR: [#64](https://github.com/okayus/nyalog/pull/64)
 
 ## 背景
 
