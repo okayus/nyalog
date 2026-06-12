@@ -6,6 +6,8 @@
 
 **セキュリティ検査・防御強化フェーズ (進行中)**。CT Log 経由で外部スキャン bot に確実に晒される前提で、コスト枯渇耐性と未認証経路の保護を優先。
 
+**開発環境がサンドボックス化された** ([ADR-008](./adr/008-sandboxed-development-and-credential-free-pipeline.md))。開発は egress 制限つきコンテナ内（credential ゼロ）、dev/e2e は `ai` binding なしの `wrangler.local.jsonc` + mock analyzer で起動し、CI から Cloudflare token を撤去済み。残る人手セレモニー: (1) GitHub App `nyalog-relay` 作成 → ホスト側リレー有効化、(2) Workers Builds 接続 → `deploy.yml` と GitHub Secrets の撤去（完了までは従来の deploy.yml が現役）。
+
 ## 直近完了フェーズ
 
 **猫タスク (定期 todo) 機能 完了** (PR [#61](https://github.com/okayus/nyalog/pull/61) + [#62](https://github.com/okayus/nyalog/pull/62))

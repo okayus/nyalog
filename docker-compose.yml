@@ -1,0 +1,96 @@
+# Drives Anthropic's published devcontainer image (.docker/Dockerfile) without
+# VS Code. Bring up with `docker compose up -d`, then `docker compose exec dev zsh`.
+#
+# Project: nyalog. Security model: ADR-008 — the container holds ZERO
+# credentials (no Cloudflare token, no GitHub token, no wrangler login);
+# egress is default-deny via .docker/init-firewall.sh.
+services:
+  dev:
+    build:
+      context: .docker
+      dockerfile: Dockerfile
+      args:
+        TZ: Asia/Tokyo
+        CLAUDE_CODE_VERSION: latest
+        # Opt-in language toolchains. nyalog is TS-only — keep both false.
+        INSTALL_RUST: "false"
+        INSTALL_HASKELL: "false"
+        # Chromium system libraries + browser binary for in-container
+        # Playwright e2e, both baked at build time (see Dockerfile).
+        INSTALL_BROWSER_DEPS: "true"
+        # Keep in sync with packages/web devDependencies @playwright/test.
+        PLAYWRIGHT_VERSION: "1.59.1"
+    container_name: nyalog-dev
+    # Required so init-firewall.sh can program iptables/ipset.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # Non-root so `--dangerously-skip-permissions` is usable; the firewall is the boundary.
+    user: node
+    working_dir: /workspace
+    volumes:
+      # Project bind mount: edit on the host, runs in the container.
+      - ./:/workspace:delegated
+      # Named volumes: Claude auth + shell history survive `docker compose down`.
+      # NOTE: no volume on ~/.cache/ms-playwright — chromium is baked into the
+      # image (.docker/Dockerfile PLAYWRIGHT_VERSION); a volume would shadow it.
+      - claude-config:/home/node/.claude
+      - bash-history:/commandhistory
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=4096"
+      CLAUDE_CONFIG_DIR: "/home/node/.claude"
+      # CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC (umbrella for the three flags
+      # below + DISABLE_TELEMETRY) is split so that ONLY Statsig stays enabled
+      # (DISABLE_TELEMETRY unset): the /model picker's roster is feature-flag
+      # driven and flag-gated models (Fable 5) only appear with telemetry on.
+      # Sentry stays blocked; updates stay npm-at-start (command below).
+      DISABLE_AUTOUPDATER: "1"
+      DISABLE_FEEDBACK_COMMAND: "1"
+      DISABLE_ERROR_REPORTING: "1"
+      # Default model for the in-container agent.
+      ANTHROPIC_MODEL: "claude-fable-5"
+      # wrangler runs purely local here (ADR-008): silence its telemetry so it
+      # doesn't poke the firewalled sparrow.cloudflare.com on every command.
+      WRANGLER_SEND_METRICS: "false"
+      # Distinguishable git identity for in-container commits (the relay pushes
+      # them as-is). Compose env survives container recreation — a global
+      # .gitconfig in the container layer would not, and writing user.name into
+      # the bind-mounted .git/config would leak into host commits.
+      GIT_AUTHOR_NAME: "Claude (nyalog sandbox)"
+      GIT_AUTHOR_EMAIL: "claude-nyalog-sandbox@users.noreply.github.com"
+      GIT_COMMITTER_NAME: "Claude (nyalog sandbox)"
+      GIT_COMMITTER_EMAIL: "claude-nyalog-sandbox@users.noreply.github.com"
+      POWERLEVEL9K_DISABLE_GITSTATUS: "true"
+      TZ: Asia/Tokyo
+    ports:
+      # host:container — host 5473 avoids collision with other local dev servers
+      # (5173 = generic Vite, 5273 = kokemusu, 5373 = mazuoboeru). Inside the
+      # container Vite listens on 5173; reach it at http://localhost:5473.
+      - "5473:5173" # Vite dev server (run with --host 0.0.0.0 in-container)
+    init: true
+    tty: true
+    stdin_open: true
+    # On every start: program the firewall, refresh global CLIs, enforce container-side
+    # Claude defaults, keep the container alive.
+    # - claude updates via npm (registry.npmjs.org is allowlisted) because the native
+    #   auto-updater's download host (downloads.claude.ai) is outside the egress allowlist.
+    # - pnpm lives in the container layer and vanishes on recreation, so reinstall it too
+    #   (pnpm@10 to match CI's pnpm/action-setup version).
+    # - defaultMode=bypassPermissions is written into the CONTAINER-scope user settings
+    #   (named volume), NOT the repo-shared .claude/settings.json — host sessions keep
+    #   normal prompting. Safe here because the firewall is the boundary and deny rules
+    #   (git push) still apply in bypass mode.
+    # - No step may kill the container on failure (fall back to image-baked versions).
+    command: >
+      sh -c "sudo /usr/local/bin/init-firewall.sh &&
+             (npm i -g @anthropic-ai/claude-code@latest pnpm@10 ||
+              echo 'WARN: claude/pnpm update failed; using image-baked versions') &&
+             ([ -s /home/node/.claude/settings.json ] || echo '{}' > /home/node/.claude/settings.json) &&
+             (jq '.permissions.defaultMode = \"bypassPermissions\"' /home/node/.claude/settings.json > /tmp/cs.json &&
+              mv /tmp/cs.json /home/node/.claude/settings.json ||
+              echo 'WARN: could not set bypassPermissions default') &&
+             exec sleep infinity"
+
+volumes:
+  claude-config:
+  bash-history:

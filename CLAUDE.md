@@ -17,21 +17,31 @@
 
 ## 開発ワークフロー
 
+### 開発環境の前提 (ADR-008)
+
+開発は **egress 制限つき Docker サンドボックス内**で行う（[docs/local-dev.md](./docs/local-dev.md) 冒頭参照）。コンテナには credential が一切無い: `git push` は deny かつ不可能、`gh` は未認証で動かない、`wrangler login` はしない。push/PR が必要な操作はホスト側リレーか人間が担う。
+
+- PR / CI の状態確認は未認証 REST を使う（public repo なので読み取りは認証不要・60 req/h）:
+  `curl -s https://api.github.com/repos/okayus/nyalog/commits/<branch>/check-runs` / `.../pulls?head=okayus:<branch>`
+- 血液検査解析は dev では `mock` analyzer 固定（`wrangler.local.jsonc`）。実モデルは本番のみ
+
 ### ブランチ戦略
 
 mainブランチは保護されている。すべての変更はPR経由でマージする。
 
-作業開始時は以下のワークフローに従う:
+**サンドボックス内エージェント**（コンテナ内 claude）の作業フロー:
 
-1. **ブランチ作成**: `git switch -c <type>/<short-description>` (例: `feat/toilet-record`, `fix/auth-redirect`)
-2. **空コミット**: `git commit --allow-empty -m "chore: start <description>"` で作業開始を記録
-3. **PR作成**: 作業計画を本文に記載したDraft PRを作成し、pushする
-4. **実装**: 計画に沿って実装を進め、PRの本文を実態に合わせて更新する
-5. **ステータス更新**: 大きな節目 (機能完成、フェーズ移行、後回し判断) で [docs/status.md](./docs/status.md) を併せて更新する。PRの一部に含めて良い
-6. **マージ**: squash mergeでmainにマージ
+1. **ブランチ作成**: `git switch -c claude/<type>-<short-description>` (例: `claude/feat-toilet-record`)。`claude/*` 以外はリレーが push を拒否する
+2. **実装と commit**: commit までがエージェントの仕事。push はしない — ホスト側リレー (systemd timer, 60秒間隔) が自動 push し、PR を作成する
+3. **CI 確認**: 上記の未認証 REST で check-runs を確認し、red なら直して commit を積む
+4. **マージ**: 確信のある完成した変更のみ、最終 commit メッセージ末尾に `Relay-Merge: yes` トレーラーを付けると、CI green 後にリレーが squash merge する（トレーラーは HEAD commit のみ有効）。迷う変更・影響の大きい変更には付けず、人間のレビューとマージに委ねる
+5. **ステータス更新**: 大きな節目で [docs/status.md](./docs/status.md) を併せて更新する。PRの一部に含めて良い
+
+**ホストでの作業**（人間）は従来どおり: `git switch -c <type>/<short-description>` → 空コミット → 計画を本文に書いた Draft PR → 実装 → squash merge。
 
 ### ブランチ命名規則
 
+- `claude/<type>-<desc>` — サンドボックス内エージェントの作業（リレーが push/PR を代行する唯一の prefix）
 - `feat/` — 新機能
 - `fix/` — バグ修正
 - `refactor/` — リファクタリング

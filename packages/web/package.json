@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
+    "dev": "NYALOG_WRANGLER_LOCAL=1 vp dev",
     "build": "vp build",
-    "preview": "vp preview",
+    "preview": "NYALOG_WRANGLER_LOCAL=1 vp preview",
     "deploy": "vp build && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply nyalog-db --local",

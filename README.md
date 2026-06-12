@@ -11,11 +11,16 @@
 
 ## ローカル開発
 
+> **標準の開発形態は egress 制限つき Docker サンドボックス内** ([ADR-008](./docs/adr/008-sandboxed-development-and-credential-free-pipeline.md))。
+> `docker compose up -d && docker compose exec dev zsh` で入り、以降のコマンドはコンテナ内で実行する
+> （手順と注意点は [docs/local-dev.md](./docs/local-dev.md) 冒頭）。`wrangler login` は**不要**
+> — dev は `ai` binding を持たない `wrangler.local.jsonc` で起動し、Cloudflare 認証なしで動く。
+
 ### 必要なもの
 
-- Node.js 20+
-- pnpm 10+
-- Cloudflare アカウント (`wrangler login` 済み)
+- Docker + Docker Compose v2（サンドボックス開発）
+- Node.js 22+ / pnpm 10+（コンテナ外でホスト実行する場合のみ）
+- Cloudflare アカウント + `wrangler login` — **ホストでの本番操作**（`pnpm deploy` / `pnpm db:migrate:prod`）**にのみ**必要。dev には不要
 
 ### セットアップ
 

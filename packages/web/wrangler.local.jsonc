@@ -1,0 +1,73 @@
+// ローカル開発・e2e 専用の Worker 設定 (ADR-008)。vite.config.ts が serve
+// (vp dev / vp preview) のときだけこちらを使い、build = デプロイ成果物は
+// wrangler.jsonc を使う。
+//
+// wrangler.jsonc との意図された差分は次の 2 点 ONLY:
+//   1. `ai` binding が無い — Workers AI にはローカルシミュレーションが無く、
+//      binding が存在するだけで起動時に Cloudflare 認証つき remote proxy
+//      session を張りに行くため、credential ゼロのサンドボックス/CI では
+//      dev サーバーが起動できなくなる。
+//   2. ANALYZER_MODEL=mock — ai binding が無いので実モデルは選べない
+//      (worker/lib/analyzer/factory.ts 参照)。
+// それ以外 (D1/R2/Workflows/ratelimits/assets) はローカルシミュレーションで
+// 動くので本番と同じ定義を保つ。wrangler.jsonc を変更したら必ずこのファイル
+// にも同じ変更を反映すること。
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nyalog",
+  "compatibility_date": "2025-03-28",
+  "main": "./worker/index.ts",
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true,
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 30,
+        "period": 60,
+      },
+    },
+  ],
+  "vars": {
+    // RP_ID/ORIGIN は本番値が default。dev での bypass は .dev.vars の
+    // DEV_BYPASS_USER_ID + ORIGIN=http://localhost:5173 で上書きする
+    // (docs/local-dev.md)。
+    "RP_ID": "nyalog.toshiaki-mukai-9981.workers.dev",
+    "ORIGIN": "https://nyalog.toshiaki-mukai-9981.workers.dev",
+    // ai binding なしで動く唯一の analyzer。"workers-ai-gemma" 等の実モデルに
+    // 変えると起動はするが解析実行時に構成不整合で失敗する (factory.ts)。
+    "ANALYZER_MODEL": "mock",
+  },
+  "workflows": [
+    {
+      "name": "blood-test-analyzer",
+      "binding": "ANALYZE_WORKFLOW",
+      "class_name": "AnalyzeBloodTestWorkflow",
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nyalog-db",
+      // 本番と同じ id を保つこと: `pnpm db:migrate` (--local) は wrangler.jsonc
+      // を読むため、id が一致していないと migration 先とdev サーバーの参照する
+      // ローカル D1 インスタンスが別物になる。
+      "database_id": "82db6367-0a73-46d3-baf3-c665adf1e10b",
+      "migrations_dir": "drizzle",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDICAL_BUCKET",
+      "bucket_name": "nyalog-medical",
+    },
+  ],
+}

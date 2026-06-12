@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .wrangler/
+# サンドボックス内 pnpm の store (bind mount 上だと hardlink 先が workspace 内になる)
+.pnpm-store/
 .dev.vars
 .env
 .env.local
@@ -14,6 +16,9 @@ test-results/
 # Claude Code: skills はコミット対象、個人設定と下書きプランは除外
 .claude/settings.local.json
 .claude/plans/
+
+# dev sandbox: ホスト固有パスを含むローカル override (okayus-skills マウント)
+docker-compose.override.yml
 
 # vercel-labs/agent-skills のローカルキャッシュ（実体は .claude/skills/ に置く）
 .agents/

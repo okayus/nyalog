@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm run:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm db:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(pnpm -r:*)",
+      "Bash(pnpm --filter:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(tsx:*)",
+      "Bash(wrangler dev:*)",
+      "Bash(wrangler d1:*)",
+      "Bash(wrangler types:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+      "Bash(git remote -v:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh api:*)",
+      "Bash(curl -s https://api.github.com/*)",
+      "Bash(curl -s https://nyalog.toshiaki-mukai-9981.workers.dev/*)",
+      "WebFetch(domain:nyalog.toshiaki-mukai-9981.workers.dev)",
+      "WebFetch(domain:code.claude.com)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "WebFetch(domain:docs.mcp.cloudflare.com)"
+    ],
+    "deny": [
+      "Bash(git push:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": false
+}
