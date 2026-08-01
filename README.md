@@ -116,11 +116,25 @@ pnpm --filter @nyalog/web exec wrangler secret delete INITIAL_REGISTRATION_TOKEN
 
 ### パスキー紛失時
 
-最後の 1 つのパスキーを削除しようとするとサーバが 409 (`last_credential`) を返してブロックする。万一全てのパスキーを失った場合は、wrangler 経由で D1 を直接操作してリカバリ:
+最後の 1 つのパスキーを削除しようとするとサーバが 409 (`last_credential`) を返してブロックする。万一全てのパスキーを失った場合、**旧 `users` 行は削除しない**: `cats` / `toilet_records` / `weight_records` / `medical_records` / `cat_tasks` / `cat_task_completions` の `created_by` / `completed_by` が audit 用に参照しており ([ADR-004](./docs/adr/004-family-shared-with-created-by.md))、削除すると FK 制約違反になるか監査情報が壊れる。代わりに新規ユーザとして登録し直し、既存スペースに再紐付けする ([ADR-005](./docs/adr/005-per-space-membership.md) — 猫・記録はユーザではなくスペースに属するため、新ユーザをスペースに加えるだけで既存データにアクセスできる):
 
 ```bash
-pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "DELETE FROM credentials WHERE user_id = '<lost-user-id>'; DELETE FROM users WHERE id = '<lost-user-id>';"
-# → その後、新規招待トークンサイクルでアカウントを再作成
+# 1. 招待トークンを払い出す (上の「新規アカウント作成」と同じ手順)
+openssl rand -hex 32 | pnpm --filter @nyalog/web exec wrangler secret put INITIAL_REGISTRATION_TOKEN
+
+# 2. 本人が本番 URL の「新規登録」からトークンでパスキーを再登録する
+#    (まだどのスペースにも属していないため、この時点では猫が何も見えないのが正常)
+
+# 3. 新しい user id と既存 space id を確認して再紐付け (INSERT のみ = cascade リスクなし)
+pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "SELECT id, display_name, created_at FROM users ORDER BY created_at DESC LIMIT 5;"
+pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "SELECT id, name FROM spaces;"
+pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "INSERT INTO space_members (space_id, user_id, role, created_at) VALUES ('<SPACE_ID>', '<NEW_USER_ID>', 'member', '<NOW ISO8601>');"
+
+# 4. トークンを削除 (リプレイ防止)
+pnpm --filter @nyalog/web exec wrangler secret delete INITIAL_REGISTRATION_TOKEN
+
+# 5. (任意) 使えなくなった旧 credential だけ削除 (旧 users 行は残す)
+pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "DELETE FROM credentials WHERE user_id = '<lost-user-id>';"
 ```
 
 ## ゼロから本番環境を構築する
