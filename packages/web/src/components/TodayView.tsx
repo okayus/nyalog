@@ -396,14 +396,13 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
                 <strong>{group.title}</strong>
                 <small>{recurrenceLabel(group.recurrence)}</small>
               </div>
-              {group.notes ? <p className="task-card-notes">{group.notes}</p> : null}
-              <ul className="task-cat-rows">
+              <ul className="task-cat-chips">
                 {group.items.map((item) => {
                   const completed = item.completion !== null;
                   return (
                     <li
                       key={`${item.task.id}-${item.cat.id}`}
-                      className="task-cat-row"
+                      className="task-cat-chip"
                       data-cat-theme={item.cat.themeColor}
                       data-completed={completed ? "true" : "false"}
                     >
@@ -414,14 +413,15 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
                           onChange={() => handleToggleTaskCheck(item)}
                         />
                         <span>{item.cat.name}</span>
+                        {item.completion ? (
+                          <small>{toHHMM(item.completion.completedAt)}</small>
+                        ) : null}
                       </label>
-                      {item.completion ? (
-                        <small>済 {toHHMM(item.completion.completedAt)}</small>
-                      ) : null}
                     </li>
                   );
                 })}
               </ul>
+              {group.notes ? <p className="task-card-notes">{group.notes}</p> : null}
             </li>
           ))}
         </ul>

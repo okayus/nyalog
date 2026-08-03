@@ -979,6 +979,10 @@
     gap: var(--space-3);
   }
 
+  .task-today-list {
+    gap: var(--space-2);
+  }
+
   .task-card {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -1012,47 +1016,59 @@
     justify-content: flex-end;
   }
 
-  .task-cat-rows {
-    list-style: none;
+  .task-today-list > .task-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+    padding-block: var(--space-1);
+  }
+
+  .task-today-list > .task-card > .task-card-notes {
+    flex-basis: 100%;
+  }
+
+  /* base layer の ul / li / label / input を打ち消してチップ 1 個 = 1 行に収める */
+  .task-cat-chips {
+    margin-inline-start: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .task-cat-chip {
+    padding: 0;
+    border-color: var(--cat-border, var(--color-border));
+    background: var(--cat-tint, var(--color-surface));
+  }
+
+  .task-cat-chip > label {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-1);
+    min-block-size: var(--control-min);
+    padding-inline: var(--space-2);
+    font-size: 1rem;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .task-cat-chip > label > input[type="checkbox"] {
+    flex: none;
+    inline-size: 20px;
+    block-size: 20px;
+    min-block-size: 0;
     padding: 0;
     margin: 0;
-    display: grid;
-    gap: var(--space-1);
+    border: none;
+    background: none;
   }
 
-  .task-cat-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding-block: var(--space-1);
-    padding-inline: var(--space-2);
-    border-radius: var(--radius-md);
-    min-block-size: var(--control-min);
-  }
-
-  .task-cat-row[data-cat-theme] {
-    background: var(--cat-tint, transparent);
-  }
-
-  .task-cat-row[data-completed="true"] > label > span {
+  .task-cat-chip[data-completed="true"] > label > span {
     text-decoration: line-through;
     color: var(--color-text-muted);
   }
 
-  .task-cat-row > label {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    flex: 1;
-    cursor: pointer;
-  }
-
-  .task-cat-row > label > input[type="checkbox"] {
-    inline-size: 20px;
-    block-size: 20px;
-  }
-
-  .task-cat-row > small {
+  .task-cat-chip > label > small {
     color: var(--color-text-muted);
     font-size: var(--font-size-sm);
   }
