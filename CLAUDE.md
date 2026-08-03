@@ -58,6 +58,21 @@ mainブランチは保護されている。すべての変更はPR経由でマ�
 
 type: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`
 
+### Agent skills の管理
+
+third-party skill は `.claude/skills/` に **実体を vendoring する（symlink にしない）**。追加・更新はサンドボックス内で実行する（ADR-008: npm パッケージをホストで走らせない）:
+
+```bash
+docker compose exec dev npx -y skills@latest add <owner>/<repo> -y -s <skill> --copy
+docker compose exec dev npx -y skills@latest update -y -p    # 更新 (project スコープ)
+```
+
+- **`--copy` 必須。** 既定の symlink は gitignore 済みの `.agents/` を指すため clone 先で必ず壊れる。しかも壊れても警告が出ず、同名の user-scope skill があるとそちらが解決して「使えているように見える」。実際 `vercel-react-best-practices` はこれで 2 ヶ月壊れたまま気づかなかった（PR #70 で修正）
+- **更新は単独 PR で。** 差分が数万行になるので他の変更と混ぜない
+- `--copy` は `.agents/skills/` と `.claude/skills/` の両方に置き、`skills list` は前者を表示する。**git が追うのは後者**なので、更新後は `git status` に `.claude/skills/` の差分が出ていることを必ず確認する
+- `skills-lock.json` は commit する。skill を捨てる時はエントリも一緒に消す（壊れたまま残さない）
+- 検証: `find .claude/skills -xtype l` が空であること
+
 ## コーディング思想
 
 **Domain Modelling Made Functional** の原則に基づく。
@@ -107,6 +122,16 @@ function createToiletRecord(input: unknown): Result<ToiletRecord, ValidationErro
 - any型の使用
 - 過度な抽象化・汎用化（現在の要件に必要な最小限の複雑さ）
 - 不要なコメント・ドキュメント（型と関数名で意図を伝える）
+
+### フロントエンド: モダン Web 前提
+
+HTML/CSS/クライアント JS を書く前に **`modern-web-guidance` skill を引く**（[GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)、`.claude/skills/` に導入済み）。モデルの訓練データは古いパターンに偏っており、nyalog は「モダン CSS を実践するサンプル」を標榜しているため、当てずっぽうで書かない。
+
+**Browser Support ポリシー**: 家族数人が各自のスマホで使うだけなので、**Baseline Newly available まで採用してよい**。ただし polyfill と重い fallback は入れない — 未対応ブラウザでは *機能が消えるだけで壊れない* 形に倒す（graceful degradation）。既存の前例に倣うこと:
+
+- `src/view-transition.ts`: `typeof doc.startViewTransition === "function"` で機能検出し、未対応なら即時 `update()`
+- scroll-driven animations / `[popover]` / `:has()`: 未対応でも内容は読める前提で採用済み
+- `@media (prefers-reduced-motion: reduce)` は常に添える
 
 ## テスト方針
 
