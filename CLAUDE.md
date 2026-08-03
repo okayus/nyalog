@@ -108,6 +108,16 @@ function createToiletRecord(input: unknown): Result<ToiletRecord, ValidationErro
 - 過度な抽象化・汎用化（現在の要件に必要な最小限の複雑さ）
 - 不要なコメント・ドキュメント（型と関数名で意図を伝える）
 
+### フロントエンド: モダン Web 前提
+
+HTML/CSS/クライアント JS を書く前に **`modern-web-guidance` skill を引く**（[GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance)、`.claude/skills/` に導入済み）。モデルの訓練データは古いパターンに偏っており、nyalog は「モダン CSS を実践するサンプル」を標榜しているため、当てずっぽうで書かない。
+
+**Browser Support ポリシー**: 家族数人が各自のスマホで使うだけなので、**Baseline Newly available まで採用してよい**。ただし polyfill と重い fallback は入れない — 未対応ブラウザでは *機能が消えるだけで壊れない* 形に倒す（graceful degradation）。既存の前例に倣うこと:
+
+- `src/view-transition.ts`: `typeof doc.startViewTransition === "function"` で機能検出し、未対応なら即時 `update()`
+- scroll-driven animations / `[popover]` / `:has()`: 未対応でも内容は読める前提で採用済み
+- `@media (prefers-reduced-motion: reduce)` は常に添える
+
 ## テスト方針
 
 **ユニットテストと e2e は別レイヤーの別責務**。混ぜない。
