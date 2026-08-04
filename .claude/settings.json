@@ -35,6 +35,26 @@
       "Bash(gh api:*)",
       "Bash(curl -s https://api.github.com/*)",
       "Bash(curl -s https://nyalog.shiraoka.workers.dev/*)",
+      "Bash(docker compose exec:*)",
+      "Bash(scripts/ci-status.sh:*)",
+      "Bash(./scripts/ci-status.sh:*)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_navigate_back",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_hover",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_find",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_tabs",
+      "mcp__playwright__browser_close",
       "WebFetch(domain:nyalog.shiraoka.workers.dev)",
       "WebFetch(domain:code.claude.com)",
       "WebFetch(domain:developers.cloudflare.com)",
@@ -44,5 +64,18 @@
       "Bash(git push:*)"
     ]
   },
-  "enableAllProjectMcpServers": false
+  "enableAllProjectMcpServers": false,
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/check-frontend.sh",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
+  }
 }

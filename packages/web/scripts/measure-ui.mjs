@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 //
-// フォームコントロールの寸法・スタイルを全ビュー横断で計測する。
-// CSS を触る PR で「before/after の実測を commit メッセージに残す」ための道具。
+// フォームコントロールの寸法・スタイルと a11y 属性を全ビュー横断で計測する。
+// CSS や aria を触る PR で「before/after の実測を commit メッセージに残す」ための道具。
 //
 //   # 変更前
 //   node scripts/measure-ui.mjs --out /tmp/before.json
-//   # ...CSS を編集...
+//   # ...CSS や aria を編集...
 //   node scripts/measure-ui.mjs --out /tmp/after.json
 //   node scripts/measure-ui.mjs --diff /tmp/before.json /tmp/after.json
 //
@@ -18,6 +18,15 @@
 //   --shots <dir>      各ビューのスクリーンショットも保存
 //   --diff A B         2 つの JSON を突き合わせて Markdown 表を出す (ブラウザ不要)
 //   --all              --diff で変化しなかった項目も出す
+//
+// 拾うもの:
+//   - 寸法 / display / flex / font-size / 色 / 枠 / accent-color
+//   - a11y: role / aria-live / aria-invalid / aria-busy / tabindex / disabled
+//   - ビュー単位の @title (document.title) と @focus (activeElement)
+//     a11y は目視で判定できない。「読まれるか」は見えないが「アクセシビリティツリーに
+//     何が居るか」は属性として出せるので、表に出して commit メッセージで示す。
+//     focus の行き先を enterView() の直後に撮るのは、ビューに入るのに押したボタンごと
+//     DOM が消えるため — そこが View Transition 解決後の着地点そのものになる。
 //
 // 前提:
 //   - dev サーバーが起動していること (`pnpm dev`)
@@ -54,6 +63,15 @@ const COMPARED = [
   "background",
   "border",
   "accentColor",
+  // a11y。属性が無い要素では undefined 同士になるので、付けた／外した時だけ表に出る。
+  "title",
+  "focus",
+  "role",
+  "ariaLive",
+  "ariaInvalid",
+  "ariaBusy",
+  "tabindex",
+  "disabled",
 ];
 
 function parseArgs(argv) {
@@ -77,15 +95,30 @@ function parseArgs(argv) {
   return o;
 }
 
-// ページ内で実行される。フォームコントロールを DOM 順に拾い、
+// ページ内で実行される。対象要素を DOM 順に拾い、
 // 種類ごとの連番でキーを作る (CSS 変更では DOM が動かない前提)。
+// page.evaluate に渡すので、モジュールスコープの値は一切参照できない (全部この中に置く)。
 function collect() {
+  // 見出しと live region / role 付き要素も拾う。前者は focus の着地点、後者は
+  // 「アクセシビリティツリーに居るか」の確認先で、どちらもフォームコントロールではない。
+  const TARGETS =
+    "input, select, textarea, button, label, fieldset, h1, h2, h3, [aria-live], [role]";
   const round = (n) => Math.round(n * 10) / 10;
   const kindOf = (el) => (el.tagName === "INPUT" ? `input[${el.type}]` : el.tagName.toLowerCase());
+  const describe = (el) => {
+    if (!el) return "(none)";
+    if (el === document.body) return "body";
+    const text = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 20);
+    return text ? `${kindOf(el)} "${text}"` : kindOf(el);
+  };
 
-  const out = {};
+  // ビュー単位の事実。要素と同じ平坦な形にしてあるので、既存の diff にそのまま乗る。
+  const out = {
+    "@title": { title: document.title },
+    "@focus": { focus: describe(document.activeElement) },
+  };
   const seen = {};
-  for (const el of document.querySelectorAll("input, select, textarea, button, label, fieldset")) {
+  for (const el of document.querySelectorAll(TARGETS)) {
     const kind = kindOf(el);
     seen[kind] = (seen[kind] ?? 0) + 1;
     const r = el.getBoundingClientRect();
@@ -112,6 +145,13 @@ function collect() {
       delete d.fontSize;
       d.accentColor = cs.accentColor;
     }
+    // 属性が無いものは載せない。全要素に null が並ぶと --all の表が読めなくなる。
+    for (const name of ["role", "aria-live", "aria-invalid", "aria-busy", "tabindex"]) {
+      const v = el.getAttribute(name);
+      if (v !== null) d[name.replace(/-(\w)/g, (_, c) => c.toUpperCase())] = v;
+    }
+    // disabled は false も載せる。(a)(d) は「外した」ことが差分に出てほしい。
+    if (typeof el.disabled === "boolean") d.disabled = el.disabled;
     out[`${kind}#${seen[kind]}`] = d;
   }
   return out;
@@ -193,7 +233,7 @@ function diff(beforePath, afterPath, showAll) {
       );
       if (fields.length === 0) {
         same++;
-        if (showAll) rows.push([label(key, a[key]), "—", "変化なし", `${a[key].w} x ${a[key].h}`]);
+        if (showAll) rows.push([label(key, a[key]), "—", "変化なし", dims(a[key])]);
         continue;
       }
       changed++;
@@ -201,7 +241,7 @@ function diff(beforePath, afterPath, showAll) {
     }
     for (const key of Object.keys(a)) {
       if (!(key in b)) {
-        rows.push([label(key, a[key]), "(新規)", "—", `${a[key].w} x ${a[key].h}`]);
+        rows.push([label(key, a[key]), "(新規)", "—", dims(a[key])]);
         changed++;
       }
     }
@@ -218,13 +258,15 @@ function diff(beforePath, afterPath, showAll) {
 
 const label = (key, d) => (d.text ? `${key} (${d.text})` : key);
 const fmt = (v) => (v === undefined ? "—" : String(v));
+// @title / @focus は寸法を持たない。
+const dims = (d) => (d.w === undefined ? "—" : `${d.w} x ${d.h}`);
 
 const opts = parseArgs(process.argv.slice(2));
 if (opts.help) {
   console.log(
     readFileSync(new URL(import.meta.url), "utf8")
       .split("\n")
-      .slice(1, 27)
+      .slice(1, 35)
       .join("\n"),
   );
   process.exit(0);

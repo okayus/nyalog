@@ -21,11 +21,12 @@
 
 開発は **egress 制限つき Docker サンドボックス内**で行う（[docs/local-dev.md](./docs/local-dev.md) 冒頭参照）。コンテナには credential が一切無い: `git push` は deny かつ不可能、`gh` は未認証で動かない、`wrangler login` はしない。push/PR が必要な操作はホスト側リレーか人間が担う。
 
-- PR / CI の状態確認は未認証 REST を使う（public repo なので読み取りは認証不要・60 req/h）:
-  `curl -s https://api.github.com/repos/okayus/nyalog/commits/<branch>/check-runs` / `.../pulls?head=okayus:<branch>`
+- PR / CI の状態確認は **`scripts/ci-status.sh`**（`--watch` で決着まで待つ）。public repo なので
+  読み取りは認証不要・60 req/h の未認証 REST を叩いている。手で引くなら
+  `curl -s https://api.github.com/repos/okayus/nyalog/commits/<sha>/check-runs`
 - **追いコミット後は branch でなく sha で引く。** `commits/<branch>/check-runs` はリレーが push する前の
   古い sha の結果を返すため、CI 完了を待つループが前の commit の success を掴んで誤って抜ける。
-  `git rev-parse HEAD` の sha を使って `commits/<sha>/check-runs` を見る
+  `ci-status.sh` は `git rev-parse HEAD` の sha 固定なのでこの穴を踏まない
 - **merge 後の deploy 完了は GitHub からは見えない。** Workers Builds は commit status を出さない
   （`commits/<sha>/status` は `statuses: []` のまま）。本番の `/assets/index-*.css` のハッシュが
   ローカルビルド (`packages/web/dist/client/assets/`) と一致するかで確認する

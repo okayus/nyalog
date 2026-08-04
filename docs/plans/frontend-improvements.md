@@ -28,6 +28,12 @@ base layer の `input, select, textarea { inline-size: 100%; min-block-size: var
 - (d) AuthView の「入力するまで submit disabled」をやめ busy のみに (forms ガイドの DON'T)
 - (e) base layer に `:user-invalid` スタイル + `aria-invalid` 同期 (`required-field-feedback` ガイド、Baseline Widely 2023)
 
+**段取り** (`/dandori` で決定、着手前に整備済み):
+
+- `measure-ui.mjs` を a11y まで拾うよう拡張した (`role` / `aria-live` / `aria-invalid` / `tabindex` / `disabled` と、ビュー単位の `@title` / `@focus`)。(b)(c) と (e) の `aria-invalid` は目視で判定できないので、同じ before/after 表に載せてレビュー可能にする。(e) の base layer 無影響は従来どおり「不変 N 件」で示す
+- 手動 Playwright MCP に残すのは measure で撮れないものだけ: (a) の連打、(b) のエラー発生時、(e) の `:user-invalid` の見た目 (ライト/ダーク)
+- 実施順は **before 計測 (light+dark) → 実装 → after 計測 → 手動確認 → 最後に e2e**。e2e を先に回すと猫が消えて before/after のラベルがずれる
+
 ### 3. トイレ記録の全件フェッチ / 全件レンダリング解消
 
 list API が無パラメータ全件返し (本番 1200 件超) で、TodayView は今日の表示のために全猫の全履歴 + 全体重を取得しクライアント filter、ToiletRecordView は 860+ 件の li を一括レンダーしている。
