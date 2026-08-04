@@ -204,6 +204,22 @@
     border-color: var(--color-primary);
   }
 
+  /* 「入力して空のまま離れた」「submit で弾かれた」時だけ効く。ページを開いた直後の
+     required は対象外なので、触る前から赤くならない (required-field-feedback ガイド)。
+     色だけで状態を伝えないよう破線にして、形でも区別できるようにする。
+     :focus-visible より後ろに置くのは、submit で弾かれた直後は当の入力欄に focus が
+     移っているため — 同じ詳細度で後ろが勝ち、focus 中でも枠は危険色のままになる。
+     outline には触らないので focus リングはそのまま出る (2 つの状態が別々の
+     プロパティに乗るので同時に見える)。border-width を太らせると 1px ぶん
+     回り込みが動くので、太さの補強は box-shadow でやる。 */
+  input:user-invalid,
+  select:user-invalid,
+  textarea:user-invalid {
+    border-color: var(--color-danger);
+    border-style: dashed;
+    box-shadow: 0 0 0 1px var(--color-danger);
+  }
+
   button {
     font: inherit;
     min-block-size: var(--control-min);
@@ -233,6 +249,20 @@
     background: var(--color-disabled);
     border-color: var(--color-disabled);
     cursor: not-allowed;
+  }
+
+  /* 送信中のボタン。多重送信ガードで周りも一斉に disabled になるので、そちらと
+     同じ灰色に沈めると「どれを待っているか」が分からなくなる。枠で区別する。 */
+  button[data-busy="true"]:disabled {
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    cursor: progress;
+  }
+
+  [data-busy="true"] label,
+  [data-busy="true"] input {
+    cursor: progress;
   }
 
   li button,

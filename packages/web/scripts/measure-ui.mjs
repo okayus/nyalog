@@ -256,8 +256,10 @@ function diff(beforePath, afterPath, showAll) {
   return [head, ...lines].join("\n");
 }
 
-const label = (key, d) => (d.text ? `${key} (${d.text})` : key);
-const fmt = (v) => (v === undefined ? "—" : String(v));
+// document.title のように値自体が | を含むと、そのままではセルが割れる。
+const esc = (v) => String(v).replaceAll("|", "\\|");
+const label = (key, d) => esc(d.text ? `${key} (${d.text})` : key);
+const fmt = (v) => (v === undefined ? "—" : esc(v));
 // @title / @focus は寸法を持たない。
 const dims = (d) => (d.w === undefined ? "—" : `${d.w} x ${d.h}`);
 

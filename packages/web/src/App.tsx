@@ -23,6 +23,33 @@ type AuthState =
   | { status: "unauthenticated" }
   | { status: "authenticated"; user: AuthUser };
 
+// 固有の文脈を先頭に置く (accessibility ガイド「Front-load unique context」)。
+function pageTitle(auth: AuthState, view: View): string {
+  if (auth.status === "loading") return "nyalog";
+  if (auth.status === "unauthenticated") return "サインイン | nyalog";
+  switch (view.kind) {
+    case "today":
+      return "今日 | nyalog";
+    case "tasks":
+      return "タスク管理 | nyalog";
+    case "credentials":
+      return "パスキー管理 | nyalog";
+    case "toilet":
+      return `${view.catName} のトイレ記録 | nyalog`;
+    case "medical":
+      return `${view.catName} の医療記録 | nyalog`;
+    case "weight":
+      return `${view.catName} の体重 | nyalog`;
+  }
+}
+
+// 遷移先の見出しへ focus を移す。押したボタンごと DOM が消えるので、放っておくと
+// focus が body に落ちてキーボード操作の位置を見失う。tabindex="-1" を持つ見出しは
+// 各ビューが自分で宣言している (data-view-heading)。
+function focusViewHeading(): void {
+  document.querySelector<HTMLElement>("[data-view-heading]")?.focus();
+}
+
 export function App() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [view, setView] = useState<View>({ kind: "today" });
@@ -36,12 +63,20 @@ export function App() {
     });
   }, []);
 
+  useEffect(() => {
+    document.title = pageTitle(auth, view);
+  }, [auth, view]);
+
+  function goTo(next: View) {
+    withViewTransition(() => setView(next), focusViewHeading);
+  }
+
   async function handleLogout() {
     await authApi.logout();
     withViewTransition(() => {
       setAuth({ status: "unauthenticated" });
       setView({ kind: "today" });
-    });
+    }, focusViewHeading);
   }
 
   if (auth.status === "loading") {
@@ -69,10 +104,7 @@ export function App() {
       <p>猫の健康管理アプリ</p>
       <header>
         <span>ログイン中: {auth.user.displayName}</span>{" "}
-        <button
-          type="button"
-          onClick={() => withViewTransition(() => setView({ kind: "credentials" }))}
-        >
+        <button type="button" onClick={() => goTo({ kind: "credentials" })}>
           パスキー管理
         </button>{" "}
         <button type="button" onClick={handleLogout}>
@@ -84,49 +116,41 @@ export function App() {
         <>
           <TodayView
             onOpenDetail={(cat) =>
-              withViewTransition(() =>
-                setView({
-                  kind: "toilet",
-                  catId: cat.id,
-                  catName: cat.name,
-                  themeColor: cat.themeColor,
-                }),
-              )
+              goTo({
+                kind: "toilet",
+                catId: cat.id,
+                catName: cat.name,
+                themeColor: cat.themeColor,
+              })
             }
             onOpenMedical={(cat) =>
-              withViewTransition(() =>
-                setView({
-                  kind: "medical",
-                  catId: cat.id,
-                  catName: cat.name,
-                  themeColor: cat.themeColor,
-                }),
-              )
+              goTo({
+                kind: "medical",
+                catId: cat.id,
+                catName: cat.name,
+                themeColor: cat.themeColor,
+              })
             }
             onOpenWeight={(cat) =>
-              withViewTransition(() =>
-                setView({
-                  kind: "weight",
-                  catId: cat.id,
-                  catName: cat.name,
-                  themeColor: cat.themeColor,
-                }),
-              )
+              goTo({
+                kind: "weight",
+                catId: cat.id,
+                catName: cat.name,
+                themeColor: cat.themeColor,
+              })
             }
-            onOpenTasks={() => withViewTransition(() => setView({ kind: "tasks" }))}
+            onOpenTasks={() => goTo({ kind: "tasks" })}
           />
           <VetCalendar />
         </>
       ) : null}
-      {view.kind === "tasks" ? (
-        <TasksView onBack={() => withViewTransition(() => setView({ kind: "today" }))} />
-      ) : null}
+      {view.kind === "tasks" ? <TasksView onBack={() => goTo({ kind: "today" })} /> : null}
       {view.kind === "toilet" ? (
         <ToiletRecordView
           catId={view.catId}
           catName={view.catName}
           themeColor={view.themeColor}
-          onBack={() => withViewTransition(() => setView({ kind: "today" }))}
+          onBack={() => goTo({ kind: "today" })}
         />
       ) : null}
       {view.kind === "medical" ? (
@@ -134,7 +158,7 @@ export function App() {
           catId={view.catId}
           catName={view.catName}
           themeColor={view.themeColor}
-          onBack={() => withViewTransition(() => setView({ kind: "today" }))}
+          onBack={() => goTo({ kind: "today" })}
         />
       ) : null}
       {view.kind === "weight" ? (
@@ -142,11 +166,11 @@ export function App() {
           catId={view.catId}
           catName={view.catName}
           themeColor={view.themeColor}
-          onBack={() => withViewTransition(() => setView({ kind: "today" }))}
+          onBack={() => goTo({ kind: "today" })}
         />
       ) : null}
       {view.kind === "credentials" ? (
-        <CredentialsView onBack={() => withViewTransition(() => setView({ kind: "today" }))} />
+        <CredentialsView onBack={() => goTo({ kind: "today" })} />
       ) : null}
     </main>
   );

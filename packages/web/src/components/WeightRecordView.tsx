@@ -9,6 +9,7 @@ import {
 } from "../api";
 import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
+import { ErrorText } from "./ErrorText";
 import { WeightChart } from "./WeightChart";
 
 type Props = {
@@ -148,7 +149,9 @@ export function WeightRecordView({ catId, catName, themeColor, onBack }: Props) 
         ← 戻る
       </button>
 
-      <h2>{catName} の体重</h2>
+      <h2 tabIndex={-1} data-view-heading>
+        {catName} の体重
+      </h2>
 
       <WeightChart
         data={records.map((r) => ({ measuredAt: r.measuredAt, weightGrams: r.weightGrams }))}
@@ -181,7 +184,7 @@ export function WeightRecordView({ catId, catName, themeColor, onBack }: Props) 
         <button type="submit">追加</button>
       </form>
 
-      {error ? <p className="error-text">エラー: {error}</p> : null}
+      {error ? <ErrorText>{`エラー: ${error}`}</ErrorText> : null}
 
       {records.length === 0 ? (
         <p>記録がありません</p>

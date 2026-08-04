@@ -3,6 +3,7 @@ import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-re
 import { createToiletRecord, deleteToiletRecord, listToiletRecords } from "../api";
 import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
+import { ErrorText } from "./ErrorText";
 
 type Props = {
   catId: string;
@@ -88,7 +89,9 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
         ← 戻る
       </button>
 
-      <h2>{catName} のトイレ記録</h2>
+      <h2 tabIndex={-1} data-view-heading>
+        {catName} のトイレ記録
+      </h2>
 
       <form onSubmit={handleCreate}>
         <fieldset>
@@ -144,7 +147,7 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
         <button type="submit">記録</button>
       </form>
 
-      {error && <p className="error-text">エラー: {error}</p>}
+      {error && <ErrorText>{`エラー: ${error}`}</ErrorText>}
 
       {records.length === 0 ? (
         <p>記録がありません</p>

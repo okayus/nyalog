@@ -16,6 +16,7 @@ import { withViewTransition } from "../view-transition";
 import { BloodTestAnalysisPanel, type PanelState } from "./BloodTestAnalysisPanel";
 import { type AnalysisForDisplay, buildItemSeries } from "./blood-test-display";
 import { ConfirmButton } from "./ConfirmButton";
+import { ErrorText } from "./ErrorText";
 
 type Props = {
   catId: string;
@@ -327,7 +328,9 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
         ← 戻る
       </button>
 
-      <h2>{catName} の医療記録</h2>
+      <h2 tabIndex={-1} data-view-heading>
+        {catName} の医療記録
+      </h2>
 
       <form onSubmit={handleCreate}>
         <fieldset>
@@ -381,7 +384,7 @@ export function MedicalRecordsView({ catId, catName, themeColor, onBack }: Props
         <button type="submit">追加</button>
       </form>
 
-      {error && <p className="error-text">エラー: {error}</p>}
+      {error && <ErrorText>{`エラー: ${error}`}</ErrorText>}
 
       {records.length === 0 ? (
         <p>記録がありません</p>
