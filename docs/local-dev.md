@@ -121,6 +121,24 @@ pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --local --file scri
 
 **画面で動作確認しながら作業しているなら、確認を撮り終えてから e2e を回すこと。**
 
+## CSS を触る PR の before/after 実測
+
+`scripts/measure-ui.mjs` が dev サーバー相手に 9 ビューを巡回し、全フォームコントロール（`input` / `select` / `textarea` / `button` / `label` / `fieldset`）の寸法・display・flex 方向・font-size・色・枠を JSON に落とす。2 つの JSON を突き合わせると Markdown 表が出るので、そのまま commit メッセージに貼れる。
+
+```bash
+pnpm --filter @nyalog/web measure:ui --out /tmp/before.json   # 変更前
+# ...CSS を編集...
+pnpm --filter @nyalog/web measure:ui --out /tmp/after.json
+pnpm --filter @nyalog/web measure:ui --diff /tmp/before.json /tmp/after.json
+```
+
+- ホストから叩くなら `--url http://localhost:5473`（コンテナ内は既定の 5173 のまま）
+- `--theme dark` / `--viewport 1280x900` / `--views tasks,toilet` / `--shots <dir>`（スクリーンショットも保存）
+- **before と after で dev データを変えないこと。** 猫の名前が変わると要素のラベルがずれる。計測の途中で `pnpm test:e2e` を回さない（上記のとおり猫が消える）
+- 意図的に無視しているもの: checkbox / radio の `color` と `font-size`（ネイティブ描画で文字を持たないので見た目に出ない）。ビューに入るのに押したボタンの hover transition は、ポインタを逃がして 300ms 待ってから計測している
+
+同じ CSS で 2 回走らせて「変化 0 件 / 不変 266 件」になることを確認済み。差分が出たら本物の変化。
+
 ## 型チェック / lint
 
 CI と同じ順序で手元で走らせるには:
