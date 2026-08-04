@@ -23,6 +23,12 @@
 
 - PR / CI の状態確認は未認証 REST を使う（public repo なので読み取りは認証不要・60 req/h）:
   `curl -s https://api.github.com/repos/okayus/nyalog/commits/<branch>/check-runs` / `.../pulls?head=okayus:<branch>`
+- **追いコミット後は branch でなく sha で引く。** `commits/<branch>/check-runs` はリレーが push する前の
+  古い sha の結果を返すため、CI 完了を待つループが前の commit の success を掴んで誤って抜ける。
+  `git rev-parse HEAD` の sha を使って `commits/<sha>/check-runs` を見る
+- **merge 後の deploy 完了は GitHub からは見えない。** Workers Builds は commit status を出さない
+  （`commits/<sha>/status` は `statuses: []` のまま）。本番の `/assets/index-*.css` のハッシュが
+  ローカルビルド (`packages/web/dist/client/assets/`) と一致するかで確認する
 - 血液検査解析は dev では `mock` analyzer 固定（`wrangler.local.jsonc`）。実モデルは本番のみ
 
 ### ブランチ戦略
@@ -155,6 +161,12 @@ HTML/CSS/クライアント JS を書く前に **`modern-web-guidance` skill を
   - **認可の横流れ**: 他スペースのリソースに触れない（`WHERE space_id IN c.var.memberSpaceIds` 漏れの回帰防止 / [ADR-005](./docs/adr/005-per-space-membership.md)）
   - **セキュリティヘッダ**: CSP / HSTS / X-Frame-Options の付与（ミドルウェア配線の回帰防止）
 - 入れない: ドメインの意味（ユニットに譲る）、見た目のアニメーション挙動（ブラウザ依存の偶有的複雑さ）、網羅的な入力バリデーション（ユニットと Zod で押さえる）
+
+**`pnpm test:e2e` はローカル dev の猫と記録を消す。** `e2e/global-setup.ts` が dev-bypass ユーザの `cats` / `toilet_records` を毎回全削除する（cascade で `cat_task_cats` / `cat_task_completions` も落ちる）。画面で動作確認しながら作業しているなら、e2e は**確認を撮り終えてから**回すこと。復旧:
+
+```bash
+pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --local --file scripts/dev-seed.sql
+```
 
 ### 棲み分けの原則
 

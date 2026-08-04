@@ -13,10 +13,12 @@ const wranglerLocal = process.env.NYALOG_WRANGLER_LOCAL === "1";
 
 export default defineConfig({
   plugins: [cloudflare(wranglerLocal ? { configPath: "./wrangler.local.jsonc" } : {})],
+  // .wrangler/** は build が吐く成果物 (gitignore 済み)。除外しないと `pnpm build` 後の
+  // `vp check` が .wrangler/deploy/config.json の整形エラーで落ち、自分の変更を疑わせる。
   lint: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", ".wrangler/**"],
   },
   fmt: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", ".wrangler/**"],
   },
 });

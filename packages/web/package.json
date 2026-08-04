@@ -11,7 +11,8 @@
     "db:migrate": "wrangler d1 migrations apply nyalog-db --local",
     "db:migrate:prod": "wrangler d1 migrations apply nyalog-db --remote",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "measure:ui": "node scripts/measure-ui.mjs"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^13.3.0",
