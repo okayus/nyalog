@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { type CredentialSummary, authApi } from "../api";
+import { ErrorText } from "./ErrorText";
 
 type Props = {
   onBack: () => void;
@@ -59,7 +60,9 @@ export function CredentialsView({ onBack }: Props) {
       <button type="button" onClick={onBack}>
         ← 戻る
       </button>
-      <h2>パスキー管理</h2>
+      <h2 tabIndex={-1} data-view-heading>
+        パスキー管理
+      </h2>
 
       <form onSubmit={handleAdd}>
         <label>
@@ -76,7 +79,7 @@ export function CredentialsView({ onBack }: Props) {
         </button>
       </form>
 
-      {error && <p className="error-text">エラー: {error}</p>}
+      {error && <ErrorText>{`エラー: ${error}`}</ErrorText>}
 
       <ul>
         {credentials.map((c) => (

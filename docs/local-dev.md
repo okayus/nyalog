@@ -121,23 +121,44 @@ pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --local --file scri
 
 **画面で動作確認しながら作業しているなら、確認を撮り終えてから e2e を回すこと。**
 
-## CSS を触る PR の before/after 実測
+## CSS / a11y を触る PR の before/after 実測
 
-`scripts/measure-ui.mjs` が dev サーバー相手に 9 ビューを巡回し、全フォームコントロール（`input` / `select` / `textarea` / `button` / `label` / `fieldset`）の寸法・display・flex 方向・font-size・色・枠を JSON に落とす。2 つの JSON を突き合わせると Markdown 表が出るので、そのまま commit メッセージに貼れる。
+`scripts/measure-ui.mjs` が dev サーバー相手に 9 ビューを巡回し、JSON に落とす。2 つの JSON を突き合わせると Markdown 表が出るので、そのまま commit メッセージに貼れる。
+
+拾うもの:
+
+- **見た目**: `input` / `select` / `textarea` / `button` / `label` / `fieldset` の寸法・display・flex 方向・font-size・色・枠・accent-color
+- **a11y**: 上記に加えて `h1`〜`h3` / `[aria-live]` / `[role]` を対象に、`role` / `aria-live` / `aria-invalid` / `aria-busy` / `tabindex` / `disabled`
+- **ビュー単位**: `@title` (`document.title`) と `@focus` (`activeElement`)
+
+a11y を表に出しているのは、**「読まれるか」は目視で判定できない**から。アクセシビリティツリーに何が居るかは属性として出せるので、レビュアーが commit メッセージだけで検証できる形にする。`@focus` を撮る位置がビュー遷移直後なのは、ビューに入るのに押したボタンごと DOM が消えるため — そこが View Transition 解決後の着地点そのものになる。
 
 ```bash
-pnpm --filter @nyalog/web measure:ui --out /tmp/before.json   # 変更前
-# ...CSS を編集...
-pnpm --filter @nyalog/web measure:ui --out /tmp/after.json
-pnpm --filter @nyalog/web measure:ui --diff /tmp/before.json /tmp/after.json
+D="docker compose exec -T dev"                                # ホストから叩く場合
+$D pnpm --filter @nyalog/web measure:ui --out /tmp/before.json   # 変更前
+# ...CSS や aria を編集...
+$D pnpm --filter @nyalog/web measure:ui --out /tmp/after.json
+$D pnpm --filter @nyalog/web measure:ui --diff /tmp/before.json /tmp/after.json
 ```
 
-- ホストから叩くなら `--url http://localhost:5473`（コンテナ内は既定の 5173 のまま）
+- **ホストで直接は走らない。** chromium はイメージに焼いてあり（`.docker/Dockerfile` の `PLAYWRIGHT_VERSION`）ホストには無い。加えてホストの `pnpm` は `node_modules` を purge しにかかる（ADR-008）。必ず `docker compose exec` 越しに走らせる。JSON の置き場もコンテナ内の `/tmp`（`--diff` も同じ場所で走る）
+- コンテナ内なので `--url` は既定の 5173 のまま。ホストのブラウザから見る時だけ 5473
 - `--theme dark` / `--viewport 1280x900` / `--views tasks,toilet` / `--shots <dir>`（スクリーンショットも保存）
 - **before と after で dev データを変えないこと。** 猫の名前が変わると要素のラベルがずれる。計測の途中で `pnpm test:e2e` を回さない（上記のとおり猫が消える）
 - 意図的に無視しているもの: checkbox / radio の `color` と `font-size`（ネイティブ描画で文字を持たないので見た目に出ない）。ビューに入るのに押したボタンの hover transition は、ポインタを逃がして 300ms 待ってから計測している
 
-同じ CSS で 2 回走らせて「変化 0 件 / 不変 266 件」になることを確認済み。差分が出たら本物の変化。
+同じ状態で 2 回走らせて「変化 0 件 / 不変 315 件」になることを確認済み。差分が出たら本物の変化。
+
+## CI の状態を引く
+
+```bash
+scripts/ci-status.sh            # HEAD の check-runs と PR 番号
+scripts/ci-status.sh --watch    # 決着が付くまで 30 秒ごとに引き直す
+```
+
+`git rev-parse HEAD` の sha で `commits/<sha>/check-runs` を引く。branch 名で引くとリレー（60 秒 timer）が push する前の古い sha の結果が返り、CI 完了を待つループが前の commit の success で誤って抜ける（CLAUDE.md）。sha 固定をスクリプトに焼いてあるので、追いコミット後もそのまま使える。
+
+終了コードは 0 = 全部 success / 1 = failure あり / 2 = pending か push 前。PR 番号も出るので、`docs/plans/` に `✅ (PR #nn)` を書く時の確認に使える。
 
 ## 型チェック / lint
 

@@ -13,6 +13,7 @@ import {
   type ItemSeries,
   type ItemSeriesPoint,
 } from "./blood-test-display";
+import { ErrorText } from "./ErrorText";
 import { ItemDetailChart } from "./ItemDetailChart";
 import { Sparkline } from "./Sparkline";
 
@@ -128,7 +129,7 @@ export function BloodTestAnalysisPanel({
   if (state.kind === "failed") {
     return (
       <div className="blood-test-panel" data-cat-theme={themeColor}>
-        <p className="error-text">⚠️ 解析失敗: {state.errorMessage}</p>
+        <ErrorText>{`解析失敗: ${state.errorMessage}`}</ErrorText>
         <button type="button" onClick={onAnalyze} disabled={analyzing}>
           {analyzing ? "🤖 再解析中…" : "🔁 再解析"}
         </button>

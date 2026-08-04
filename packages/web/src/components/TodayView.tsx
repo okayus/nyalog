@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEFAULT_THEME_COLOR, type Cat, type ThemeColor } from "../../worker/domain/cat";
 import type { Recurrence } from "../../worker/domain/cat-task";
 import type { StoolCondition, ToiletRecord } from "../../worker/domain/toilet-record";
@@ -20,6 +20,7 @@ import {
 } from "../api";
 import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
+import { ErrorText } from "./ErrorText";
 import { ThemeSwatchGroup } from "./ThemeSwatchGroup";
 
 type Props = {
@@ -142,6 +143,23 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
+  // 記録系ボタンの多重送信ガード。ダブルタップで同じ記録が 2 件入るのを止める。
+  // ref が実際のラッチで、state は描画のためだけに持つ — setState は非同期なので、
+  // state だけだと同一フレームの 2 発目を取りこぼしうる。
+  const busyRef = useRef(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  function beginBusy(key: string): boolean {
+    if (busyRef.current) return false;
+    busyRef.current = true;
+    setBusyKey(key);
+    return true;
+  }
+
+  function endBusy() {
+    busyRef.current = false;
+    setBusyKey(null);
+  }
 
   useEffect(() => {
     (async () => {
@@ -184,6 +202,16 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
   }, []);
 
   async function handleToggleTaskCheck(item: TodayTaskItem) {
+    const key = `task:${item.task.id}:${item.cat.id}`;
+    if (!beginBusy(key)) return;
+    try {
+      await toggleTaskCheck(item);
+    } finally {
+      endBusy();
+    }
+  }
+
+  async function toggleTaskCheck(item: TodayTaskItem) {
     setError(null);
     if (item.completion === null) {
       const completedAt = new Date().toISOString();
@@ -237,6 +265,16 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
   }
 
   async function handleQuick(catId: string, type: "urination" | "defecation") {
+    const key = `quick:${catId}:${type}`;
+    if (!beginBusy(key)) return;
+    try {
+      await createQuickRecord(catId, type);
+    } finally {
+      endBusy();
+    }
+  }
+
+  async function createQuickRecord(catId: string, type: "urination" | "defecation") {
     setError(null);
     const iso = new Date().toISOString();
     const result =
@@ -378,13 +416,15 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
   return (
     <section>
       <header className="section-header">
-        <h2>今日のタスク</h2>
+        <h2 tabIndex={-1} data-view-heading>
+          今日のタスク
+        </h2>
         <button type="button" className="link-button" onClick={onOpenTasks}>
           タスク管理 →
         </button>
       </header>
 
-      {error ? <p className="error-text">エラー: {error}</p> : null}
+      {error ? <ErrorText>{`エラー: ${error}`}</ErrorText> : null}
 
       {groupedTodayTasks.length === 0 ? (
         <p>今日のタスクはありません</p>
@@ -399,21 +439,27 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
               <ul className="task-cat-chips">
                 {group.items.map((item) => {
                   const completed = item.completion !== null;
+                  const busy = busyKey === `task:${item.task.id}:${item.cat.id}`;
                   return (
                     <li
                       key={`${item.task.id}-${item.cat.id}`}
                       className="task-cat-chip"
                       data-cat-theme={item.cat.themeColor}
                       data-completed={completed ? "true" : "false"}
+                      data-busy={busy ? "true" : undefined}
                     >
                       <label>
                         <input
                           type="checkbox"
                           checked={completed}
+                          aria-busy={busy}
+                          disabled={busyKey !== null}
                           onChange={() => handleToggleTaskCheck(item)}
                         />
                         <span>{item.cat.name}</span>
-                        {item.completion ? (
+                        {busy ? (
+                          <small aria-hidden="true">⏳</small>
+                        ) : item.completion ? (
                           <small>{toHHMM(item.completion.completedAt)}</small>
                         ) : null}
                       </label>
@@ -504,20 +550,24 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
                   )}
                 </div>
                 <div className="quick-cell-actions">
-                  <button
-                    type="button"
-                    aria-label={`${cat.name} の排尿を記録`}
-                    onClick={() => handleQuick(cat.id, "urination")}
-                  >
-                    {cat.name} 💧
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${cat.name} の排便を記録`}
-                    onClick={() => handleQuick(cat.id, "defecation")}
-                  >
-                    {cat.name} 💩
-                  </button>
+                  {(["urination", "defecation"] as const).map((type) => {
+                    const key = `quick:${cat.id}:${type}`;
+                    const busy = busyKey === key;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        aria-label={`${cat.name} の${type === "urination" ? "排尿" : "排便"}を記録`}
+                        aria-busy={busy}
+                        data-busy={busy ? "true" : undefined}
+                        disabled={busyKey !== null}
+                        onClick={() => handleQuick(cat.id, type)}
+                      >
+                        {/* 絵文字を差し替えるだけなので、押下中でも幅が動かない。 */}
+                        {cat.name} {busy ? "⏳" : type === "urination" ? "💧" : "💩"}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
                   詳細記録 →

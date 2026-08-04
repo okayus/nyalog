@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { type AuthUser, authApi } from "../api";
+import { ErrorText } from "./ErrorText";
 
 type Props = {
   onAuthenticated: (user: AuthUser) => void;
@@ -42,7 +43,9 @@ export function AuthView({ onAuthenticated }: Props) {
 
   return (
     <section>
-      <h2>サインイン</h2>
+      <h2 tabIndex={-1} data-view-heading>
+        サインイン
+      </h2>
       <nav>
         <button type="button" onClick={() => setMode("login")} disabled={mode === "login" || busy}>
           ログイン
@@ -90,13 +93,16 @@ export function AuthView({ onAuthenticated }: Props) {
               maxLength={80}
             />
           </label>
-          <button type="submit" disabled={busy || !displayName.trim() || !token.trim()}>
+          {/* 未入力でも押させる。押せば native validation が空の required を
+              :user-invalid にして最初の 1 つへ focus を移す — disabled で塞ぐより
+              「何が足りないか」が伝わる (forms / required-field-feedback ガイド)。 */}
+          <button type="submit" disabled={busy}>
             パスキーを登録
           </button>
         </form>
       )}
 
-      {error && <p className="error-text">エラー: {error}</p>}
+      {error && <ErrorText>{`エラー: ${error}`}</ErrorText>}
     </section>
   );
 }

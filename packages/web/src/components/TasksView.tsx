@@ -4,6 +4,7 @@ import type { Recurrence } from "../../worker/domain/cat-task";
 import { type CatTask, createTask, deleteTask, listCats, listTasks, updateTask } from "../api";
 import { withViewTransition } from "../view-transition";
 import { ConfirmButton } from "./ConfirmButton";
+import { ErrorText } from "./ErrorText";
 
 type Props = { onBack: () => void };
 
@@ -166,13 +167,15 @@ export function TasksView({ onBack }: Props) {
   return (
     <section>
       <header className="section-header">
-        <h2>タスク管理</h2>
+        <h2 tabIndex={-1} data-view-heading>
+          タスク管理
+        </h2>
         <button type="button" className="link-button" onClick={onBack}>
           ← 戻る
         </button>
       </header>
 
-      {error ? <p className="error-text">エラー: {error}</p> : null}
+      {error ? <ErrorText>{`エラー: ${error}`}</ErrorText> : null}
 
       <h3>新規タスク</h3>
       <form onSubmit={handleCreate} className="task-form">

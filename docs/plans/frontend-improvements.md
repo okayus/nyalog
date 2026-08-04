@@ -20,13 +20,28 @@ base layer の `input, select, textarea { inline-size: 100%; min-block-size: var
 
 **結果**: radio/checkbox は 20×20 のネイティブ描画になり、label が row / 自然幅 / 44px タップ領域を持つ形に。実測値の before/after 全表は PR #74 の commit メッセージにある。TodayView のチップは打ち消し削除後も 1px も動かず (スクリーンショットが md5 一致)。`label:has(> input:is([type="checkbox"], [type="radio"]))` で分岐しているので、以後 checkbox/radio を足しても個別の打ち消しは要らない。
 
-### 2. a11y/UX 小束 (1 PR)
+### ✅ (PR #76) 2. a11y/UX 小束 (1 PR)
 
 - (a) TodayView `handleQuick` に in-flight ガード — ダブルタップで重複記録が入る
 - (b) `.error-text` に `role="alert"` — 動的エラーが SR に通知されない
 - (c) view 遷移時に `document.title` 更新 + 新 view の見出しへ focus 移動 — 現状は押したボタンごと DOM が消え focus が body に落ちる
 - (d) AuthView の「入力するまで submit disabled」をやめ busy のみに (forms ガイドの DON'T)
 - (e) base layer に `:user-invalid` スタイル + `aria-invalid` 同期 (`required-field-feedback` ガイド、Baseline Widely 2023)
+
+**結果**: 実測 **変化 52 件 / 不変 272 件、ライトとダークで完全に同一**。見た目のプロパティ (w/h/display/flex/font/color/background/border/accent-color) は両テーマとも **0 件** — base layer を触ったが `:user-invalid` は操作しない限りマッチしないため、既存フォームは 1px も動いていない。全表は PR #76 の commit メッセージにある。
+
+設計の分かれ目だったところ:
+
+- **(b) は個別の `role="alert"` を後付けせず、常設 live region 1 つに集約した** (`src/announce.ts`)。accessibility ガイドの「Centralize live regions」。8 箇所の `.error-text` は `ErrorText` コンポーネントに寄せ、色だけで状態を伝えないよう ⚠️ を必ず添える
+- **(e) の `:user-invalid` は `:focus-visible` の "後ろ" に置く。** submit で弾かれた直後は当の入力欄に focus が移っているので、前に置くと focus リングが危険状態を覆い隠す。後ろに置きつつ `outline` に触らないことで、focus リング (outline) と危険状態 (border) が別プロパティに乗って同時に見える。太さの補強は `box-shadow` (border-width を変えると回り込みが動く)
+- **(c) の outline は出っぱなしにならない。** マウス由来の遷移では `:focus-visible` が false のまま、キーボード由来では true になる。`outline: none` で潰していない
+
+**段取り** (`/dandori` で決定、着手前に整備した。以降の PR でもそのまま使える):
+
+- `measure-ui.mjs` を a11y まで拾うよう拡張 (`role` / `aria-live` / `aria-invalid` / `tabindex` / `disabled` と、ビュー単位の `@title` / `@focus`)。`enterView()` がビュー遷移そのものを実行しているので、(c) の検証は 6 ビュー分がこの巡回で自動的に取れる
+- `scripts/ci-status.sh` — HEAD の sha 固定で check-runs と PR 番号を引く
+- Stop hook (`.claude/hooks/check-frontend.sh`) — ターン終了前に `vp check` + `tsc`
+- 実施順は **before 計測 (light+dark) → 実装 → after 計測 → 手動確認 → 最後に e2e**。e2e を先に回すと猫が消えて before/after のラベルがずれる
 
 ### 3. トイレ記録の全件フェッチ / 全件レンダリング解消
 
