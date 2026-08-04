@@ -13,9 +13,10 @@ dist/
 playwright-report/
 test-results/
 
-# Claude Code: skills はコミット対象、個人設定と下書きプランは除外
+# Claude Code: skills / hooks はコミット対象、個人設定と下書きプランは除外
 .claude/settings.local.json
 .claude/plans/
+.claude/.hook-log
 
 # dev sandbox: ホスト固有パスを含むローカル override (okayus-skills マウント)
 docker-compose.override.yml
