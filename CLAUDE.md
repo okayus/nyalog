@@ -29,7 +29,11 @@
   `ci-status.sh` は `git rev-parse HEAD` の sha 固定なのでこの穴を踏まない
 - **merge 後の deploy 完了は GitHub からは見えない。** Workers Builds は commit status を出さない
   （`commits/<sha>/status` は `statuses: []` のまま）。本番の `/assets/index-*.css` のハッシュが
-  ローカルビルド (`packages/web/dist/client/assets/`) と一致するかで確認する
+  ローカルビルド (`packages/web/dist/client/assets/`) と一致するかで確認する。
+  **`scripts/deploy-status.sh --build --watch`** がこの照合をやる
+- **リレーは先頭 commit から PR タイトルを付ける。** ブランチの先頭には本題の commit を置くこと
+  （準備・段取り系を先に積むと、squash 後の main の履歴まで実態より小さい名前になる。
+  PR #76 が `chore: 段取りを整える` のまま feat 本体ごとマージされた）
 - 血液検査解析は dev では `mock` analyzer 固定（`wrangler.local.jsonc`）。実モデルは本番のみ
 
 ### ブランチ戦略
