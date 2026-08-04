@@ -12,7 +12,7 @@
 
 ## 次にやること (次セッションの出発点)
 
-1. **フロントエンド改善** — [plans/frontend-improvements.md](./plans/frontend-improvements.md) を上から順に PR 化する。**次: 計画 1「base layer のフォームコントロール根治」**(全フォーム影響のため単独 PR + 視覚確認必須)
+1. **フロントエンド改善** — [plans/frontend-improvements.md](./plans/frontend-improvements.md) を上から順に PR 化する。計画 1 (base layer のフォームコントロール根治) は [#74](https://github.com/okayus/nyalog/pull/74) で完了。**次: 計画 2「a11y/UX 小束」**(in-flight ガード / `role="alert"` / view 遷移時の title + focus / submit disabled 撤廃 / `:user-invalid`、まとめて 1 PR)
 2. **セキュリティ残タスク** — [plans/security-remaining.md](./plans/security-remaining.md)(予算アラート / rate limit 再検証 / `/security-review` / 運用 TODO)
 3. **機能候補 (順序流動)** — 猫タスクの月カレンダー表示 (`enumerateDueDates` 実装済み、UI のみ) / ご飯・カロリー管理 (スキーマ設計から) / ADR-004 phase 2 の `created_by` NOT NULL 化(**cats rebuild で D1 CASCADE 再発リスク — [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリスト必須**)
 
