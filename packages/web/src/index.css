@@ -156,7 +156,30 @@
     color: var(--color-text-label);
   }
 
-  input,
+  /* checkbox / radio を含む label はキャプション + 入力欄ではなく「選択肢そのもの」なので
+     横並び・自然幅・本文サイズにする。タップ領域 44px は input を太らせず label 側で確保する。 */
+  label:has(> input:is([type="checkbox"], [type="radio"])) {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
+    inline-size: fit-content;
+    max-inline-size: 100%;
+    min-block-size: var(--control-min);
+    font-size: 1rem;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  /* checkbox / radio はネイティブ描画のまま accent-color でブランド適用するのが正解
+     (brand-consistent-forms) なので、下の text 系スタイル (全幅・枠・padding) を当てない。 */
+  input:is([type="checkbox"], [type="radio"]) {
+    flex: none;
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    margin: 0;
+  }
+
+  input:not([type="checkbox"], [type="radio"]),
   select,
   textarea {
     font: inherit;
@@ -1028,7 +1051,8 @@
     flex-basis: 100%;
   }
 
-  /* base layer の ul / li / label / input を打ち消してチップ 1 個 = 1 行に収める */
+  /* base layer の ul (縦積み) を打ち消してチップを横に流す。padding は li でなく label 側に持たせ、
+     タップ領域全体を tint で塗る */
   .task-cat-chips {
     margin-inline-start: auto;
     flex-direction: row;
@@ -1042,25 +1066,8 @@
   }
 
   .task-cat-chip > label {
-    flex-direction: row;
-    align-items: center;
     gap: var(--space-1);
-    min-block-size: var(--control-min);
     padding-inline: var(--space-2);
-    font-size: 1rem;
-    color: inherit;
-    cursor: pointer;
-  }
-
-  .task-cat-chip > label > input[type="checkbox"] {
-    flex: none;
-    inline-size: 20px;
-    block-size: 20px;
-    min-block-size: 0;
-    padding: 0;
-    margin: 0;
-    border: none;
-    background: none;
   }
 
   .task-cat-chip[data-completed="true"] > label > span {
