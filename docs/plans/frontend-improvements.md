@@ -10,13 +10,15 @@
 
 ## 実施順 (優先度高)
 
-### 1. base layer のフォームコントロール根治 (PR #69 で発見済みの既知課題)
+### ✅ (PR #74) 1. base layer のフォームコントロール根治 (PR #69 で発見済みの既知課題)
 
 base layer の `input, select, textarea { inline-size: 100%; min-block-size: var(--control-min); padding; border }` と `label { flex-direction: column }` が checkbox / radio にも効き、TasksView の繰り返しラジオ・対象猫チェックボックス、ToiletRecordView の 💧💩 ラジオ、MedicalRecordsView の種類ラジオが「全幅 44px 枠付きボックス + ラベル縦積み」になっている (実測 44px × 335px)。
 
 `brand-consistent-forms` ガイドの通りネイティブコントロール + `accent-color` (設定済み) が正解なので、base 側を `input:not([type="checkbox"], [type="radio"])` に限定し、radio/checkbox を含む label は row 方向に。PR #69 でチップ側 (`.task-cat-chip`) に入れた個別打ち消しは根治後に削除する。
 
 **全フォームに影響するので単独 PR + 視覚確認必須。**
+
+**結果**: radio/checkbox は 20×20 のネイティブ描画になり、label が row / 自然幅 / 44px タップ領域を持つ形に。実測値の before/after 全表は PR #74 の commit メッセージにある。TodayView のチップは打ち消し削除後も 1px も動かず (スクリーンショットが md5 一致)。`label:has(> input:is([type="checkbox"], [type="radio"]))` で分岐しているので、以後 checkbox/radio を足しても個別の打ち消しは要らない。
 
 ### 2. a11y/UX 小束 (1 PR)
 
