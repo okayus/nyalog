@@ -4,7 +4,9 @@
 
 ## 現在のフェーズ
 
-**セキュリティ検査・防御強化フェーズ (進行中)**。CT Log 経由で外部スキャン bot に確実に晒される前提で、コスト枯渇耐性と未認証経路の保護を優先。
+**フロントエンド改善フェーズ (2026-08-04 開始)**。`modern-web-guidance` (12 ガイド) + `vercel-react-best-practices` の両 skill でフロント全体 (index.html / index.css / 全コンポーネント / api.ts) を監査し、改善項目と実施順を確定した。「次にやること > 1」を上から順に PR 化していく。
+
+**セキュリティ検査・防御強化フェーズ**は主要対応 (auth rate limit / Observability / robots.txt / セキュリティヘッダ) を反映済み。CT Log 経由で外部スキャン bot に晒される前提の防御は入っており、残タスクは運用系と再検証のみ (「次にやること > 2」)。
 
 **開発環境がサンドボックス化された** ([ADR-008](./adr/008-sandboxed-development-and-credential-free-pipeline.md))。開発は egress 制限つきコンテナ内（credential ゼロ）、dev/e2e は `ai` binding なしの `wrangler.local.jsonc` + mock analyzer で起動し、CI から Cloudflare token を撤去済み。
 
@@ -79,7 +81,34 @@ PR-A〜F (6 本) で「モダン CSS を実践するサンプル」として nya
 
 ## 次にやること (次セッションの出発点)
 
-### 1. セキュリティ検査 (ユーザー指示で最優先、進行中)
+### 1. フロントエンド改善 (2026-08-04 調査完了、これを順番に実施)
+
+`modern-web-guidance` (brand-consistent-forms / forms / required-field-feedback / accessible-error-announcement / accessibility / html / css / performance / faster-spa-view-transitions / defer-rendering-heavy-content / dark-mode / passkey-authentication の 12 ガイド) と `vercel-react-best-practices` をコード全体に突き合わせた監査結果。@layer + OKLCH / container queries / logical properties / `:focus-visible` / popover / View Transitions / scroll-driven / `loading="lazy"` は規範適合を確認済みで再監査不要。以下を上から順に PR 化する。
+
+**実施順 (優先度高):**
+
+1. **base layer のフォームコントロール根治 (PR #69 で発見済みの既知課題)** — base layer の `input, select, textarea { inline-size: 100%; min-block-size: var(--control-min); padding; border }` と `label { flex-direction: column }` が checkbox / radio にも効き、TasksView の繰り返しラジオ・対象猫チェックボックス、ToiletRecordView の 💧💩 ラジオ、MedicalRecordsView の種類ラジオが「全幅 44px 枠付きボックス + ラベル縦積み」になっている (実測 44px × 335px)。`brand-consistent-forms` ガイドの通りネイティブコントロール + `accent-color` (設定済み) が正解なので、base 側を `input:not([type="checkbox"], [type="radio"])` に限定し、radio/checkbox を含む label は row 方向に。PR #69 でチップ側に入れた個別打ち消しは根治後に削除する。**全フォームに影響するので単独 PR + 視覚確認必須**
+2. **a11y/UX 小束 (1 PR)** — (a) TodayView `handleQuick` に in-flight ガード (ダブルタップで重複記録が入る)。(b) `.error-text` に `role="alert"` (動的エラーが SR に通知されない)。(c) view 遷移時に `document.title` 更新 + 新 view の見出しへ focus 移動 (押したボタンごと DOM が消え focus が body に落ちる)。(d) AuthView の「入力するまで submit disabled」をやめ busy のみに (forms ガイドの DON'T)。(e) base layer に `:user-invalid` スタイル + `aria-invalid` 同期 (`required-field-feedback` ガイド、Baseline Widely 2023)
+3. **トイレ記録の全件フェッチ / 全件レンダリング解消** — list API が無パラメータ全件返し (本番 1200 件超) で、TodayView は今日の表示のために全猫の全履歴 + 全体重を取得しクライアント filter、ToiletRecordView は 860+ 件の li を一括レンダーしている。(a) API に `?since=` / `?limit=` を追加 (TodayView は since=今日、詳細画面は直近 N 件 + もっと見る、体重サマリは最新 2 件で足りる)。(b) `.record-item` に `content-visibility: auto` + `contain-intrinsic-size` (`defer-rendering-heavy-content` ガイド、Baseline Newly・未対応でも無害)
+4. **`<Activity>` で TodayView の状態保持** — App.tsx が view 切替でアンマウントするため、詳細から戻るたびに cats + 全記録 + 体重 + タスクを再フェッチしている。React 19.2.4 なので `<Activity mode>` (vercel `rendering-activity`) で TodayView を hidden 保持し、戻り即表示 + フェッチゼロ + スクロール位置維持に (`faster-spa-view-transitions` ガイドと同思想の React ネイティブ版)
+
+**続けて実施 (優先度中、まとめ方は着手時に判断):**
+
+- `<summary>` 内の h2 (猫の管理) — SR の見出しナビから消える、accessibility ガイド明記の DON'T。見出しを summary の外へ or `h2 > button[aria-expanded]` 化
+- 主要 `<ul>` に `role="list"` — base の `list-style: none` + flex で Safari が list 意味論を除去する (家族は iPhone 利用)
+- `.attachment img` の CLS — `inline-size / block-size: 8rem` 固定 or `aspect-ratio` でロード前に空間予約
+- `body { font-size: 16px }` → `1rem` (ユーザーのブラウザ文字サイズ設定を尊重、css ガイドの DON'T)
+- reduced motion は `0.01ms` 一括上書きでなく `view-transition.ts` 側で `matchMedia("(prefers-reduced-motion: reduce)")` を見て VT 自体をスキップ
+- `env(safe-area-inset-bottom)` (main の padding) が viewport meta に `viewport-fit=cover` が無いため iOS で常に 0 — 付けるか消すか
+- TodayView 初期ロード: `listTodayTasks` は cats に依存しないので `listCats` と並列化 + 1 猫のエラーで全体 return せず部分表示
+- 血液検査 running 中の自動更新 (ポーリング or visibilitychange 再フェッチ) — 現状リロードするまで結果が出ない
+- ToiletRecordView / WeightRecordView の create 後全リスト再フェッチ (2 往復) → 作成レスポンスの局所 insert に (TodayView と一貫させる)
+
+**任意 (未計画、やるなら上記後):** ConfirmButton の `<dialog closedby="any">` 化 (破壊的確認は dialog が本来の道具) / パスキー Conditional UI (`autocomplete="username webauthn"` + `mediation: "conditional"`) / favicon + PWA manifest + `theme-color` (ホーム画面アプリとしての体裁) / 微細群 (TasksView catName の Map 化、`interpolate-size` の :root 集約、`.item-detail-popover` の無効な `position-area: center` 削除と `overscroll-behavior: contain` 追加、CredentialsView の disabled ボタンの aria-label 見直し)
+
+**見送り:** SWR 等のフェッチライブラリ導入 — 家族規模 + neverthrow ラッパ確立済みでは「過度な抽象化をしない」が勝つ。上記 4 (Activity) と局所 insert で実害は消える
+
+### 2. セキュリティ検査の残タスク
 
 bot スキャン耐性 (CT Log 起因) を観点に現状を調査済み。重要な実態:
 
@@ -118,14 +147,13 @@ PR #49 deploy 後、本番 `/api/auth/login/begin` に対して **35 req 順次 
 - `/security-review` skill による広域レビュー (本対応とは別 PR)
 - (任意) Cloudflare Dashboard の **Bot Fight Mode** (Free プラン可) を有効化、または **WAF Custom Rule** で `(http.user_agent contains "MetaExternalFetcher" or ... )` に Managed Challenge — robots.txt を無視する bot に対する追加層。家族 UX への影響は通常ブラウザでは無いが、誤検知リスクと比較して保留中
 
-### 2. その他の機能候補 (順序は流動)
+### 3. その他の機能候補 (順序は流動)
 
-- **base layer のフォームコントロール規則の見直し (PR #69 で発見、未対応)** — `index.css` の base layer にある `input, select, textarea { inline-size: 100%; min-block-size: var(--control-min); padding-block: 10px; border }` が checkbox / radio にも効いており、**アプリ全体でチェックボックスとラジオが「全幅 × 44px の枠付きボックス」になっている**。`label { flex-direction: column }` と合わさってラベル文字が上、コントロールが下に縦積みされる。TasksView の「繰り返し」ラジオを実測すると 44px × 335px。PR #69 では今日のタスクのチップ側で個別に打ち消したが、**根治するなら base layer に `input[type="checkbox"], input[type="radio"]` のリセットを足す**。影響範囲が全フォームに及ぶので単独 PR で、視覚確認を伴って行う
 - **猫タスクの月カレンダー表示** — PR-2 で `enumerateDueDates` まで純粋関数で実装済なので、UI だけ追加すれば月単位の予定一覧が作れる。今やる順序の妥当性次第
 - **ご飯・カロリー管理** — DB スキーマ設計から
 - **ADR-004 phase 2 の残り**: `cats.created_by` / `toilet_records.created_by` を NOT NULL 化。ただし **PR #37 と同じ D1 CASCADE 事故を踏まないよう**、事前に [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリストを必ず実施する (`cats` を rebuild すると `toilet_records.cat_id` CASCADE が再発する)
 
-### 3. 運用 TODO (コード変更なし)
+### 4. 運用 TODO (コード変更なし)
 
 - `INITIAL_REGISTRATION_TOKEN` は家族追加直後に `wrangler secret delete` で必ず消す (現状そうしているが手順化)
 - D1 バックアップ方針 (`wrangler d1 export` を週次で手動 or cron) をどこかに書く。PR #37 の事故で露見した通り、table rebuild migration の直前には必ず backup を取る運用を明文化
@@ -152,7 +180,7 @@ PR #49 deploy 後、本番 `/api/auth/login/begin` に対して **35 req 順次 
 - **パスキー全紛失時のリカバリ手順を安全な方法に修正 (PR [#68](https://github.com/okayus/nyalog/pull/68))** — README の旧手順が `DELETE FROM users` を指示していたが、ADR-004 の `created_by` / `completed_by` が 6 テーブル (`cats` / `toilet_records` / `weight_records` / `medical_records` / `cat_tasks` / `cat_task_completions`) から参照しており、削除すると FK 制約違反か監査情報の破壊になる。「新規ユーザとして登録し直し → `space_members` に INSERT で既存スペースへ再紐付け → 旧 credentials のみ掃除（旧 users 行は残す）」に置き換えた。INSERT のみなので PR #37 の D1 CASCADE 事故のリスクもない。ADR-005 で猫・記録はユーザではなくスペースに属するため、新ユーザをスペースに加えるだけで既存データが見える
 - **過去体重ログ一括インポート (2026-05-21)** — CSV「おかゆとしらたま - 体重.csv」(50 行) を本番 D1 に投入。おかゆ 49 件 (2025-07-14 〜 2026-05-19、5000g〜5260g)、しらたま 1 件 (2025-07-14: 4600g)。`measured_at` は日付のみだったので朝 8:00 JST (`+09:00`) で固定。使い捨て JS スクリプトで INSERT SQL を生成 → `wrangler d1 execute --remote --file` で一括流し込み。`created_at = '2026-05-21T11:55:00.000+09:00'` の同値マーカーを付与しており、事故時は `DELETE FROM weight_records WHERE created_at = '<marker>'` で一括ロールバック可能。事前に `wrangler d1 export --remote` で `backups/2026-05-21-pre-weight-import.sql` (512KB、1512 INSERT) を取得。CSV・SQL・スクリプトは取り込み後削除済み。バックアップは `backups/` 配下 (`.gitignore` 済) でローカル保持
 - **体重記録機能 + 自作 SVG グラフ (PR [#53](https://github.com/okayus/nyalog/pull/53))** — 体重を継続記録する CRUD 機能を追加。`weight_records` (cat_id FK CASCADE + `weight_grams INTEGER` + `measured_at TEXT`) を新規スキーマで起こし、トイレ記録の domain/routes パターンを thinnest copy で踏襲 (discriminated union は不要、フラットな record 型)。`worker/domain/weight-record.ts` で Branded `WeightRecordId` / `WeightGrams` (z.number().int().positive().max(50_000)) / `MeasuredAt` (Timestamp と同じ未来 60s 制約) を定義、vitest 15 cases。Routes は `/api/cats/:catId/weights` で list/get/post/put/delete の 5 endpoint、認可は `resolveCatId()` をローカル複製 (所属外 cat は 404)。フロントは `WeightChart` (自前 SVG 折れ線、props は `{ measuredAt, weightGrams }[]` の JSON-serializable な最小データに固定、`buildChartGeometry` を純粋関数として分離し後でライブラリ差し替え可能な境界に) + `WeightRecordView` (グラフ + フォーム + 履歴 + inline 編集/削除) を新規、`App.tsx` の View union に `kind: "weight"` 追加、`TodayView` の各猫 quick-cell に「⚖️ **4.2 kg** (-0.1 kg)」のような最新体重 + 前回比サマリと「体重 →」リンクを追加。保存は整数グラム / 表示は kg 1桁 (浮動小数誤差ゼロ)。トップにクイック記録ボタンは置かない判断 (体重測定は頻繁でないため詳細画面でのみ記録)。Migration `0010_*.sql` は CREATE TABLE のみで cats rebuild なしのため D1 CASCADE 事故リスクなし。e2e 未実装 (クリティカルパス外 / 認可は既存パターンの素直な複製)
-- **Workers Observability + auth エンドポイント rate limit (PR [#49](https://github.com/okayus/nyalog/pull/49))** — `wrangler.jsonc` に `observability: { enabled: true, head_sampling_rate: 1 }` と `ratelimits[].AUTH_RATE_LIMITER` (`namespace_id: "1001"`, `simple: { limit: 30, period: 60 }`) を追加。`worker/middleware/rate-limit.ts` で `CF-Connecting-IP` を key に `limit({ key })` し、超過時に 429 `{error:{type:"rate_limited"}}` を返す Hono middleware を新設。`worker/routes/auth.ts` の `/register/{begin,verify}` `/login/{begin,verify}` の 4 経路に適用。`worker/types.ts` の `Bindings` に `AUTH_RATE_LIMITER: RateLimit` を追加。本番反映 (Worker version `8a11b677`) 後、`wrangler versions view` で `env.AUTH_RATE_LIMITER (30 requests/60s)` バインドが登録されていること、Workers Observability に POST `/api/auth/login/begin` の構造化ログ (`cpuTimeMs: 1`, `wallTimeMs: 1`) が出ることを確認。Rate limit の 429 動作確認は計 295 req のバーストでも 429 が返らず宿題化 (詳細は「次にやること > 1」の Rate Limit 動作確認の宿題)
+- **Workers Observability + auth エンドポイント rate limit (PR [#49](https://github.com/okayus/nyalog/pull/49))** — `wrangler.jsonc` に `observability: { enabled: true, head_sampling_rate: 1 }` と `ratelimits[].AUTH_RATE_LIMITER` (`namespace_id: "1001"`, `simple: { limit: 30, period: 60 }`) を追加。`worker/middleware/rate-limit.ts` で `CF-Connecting-IP` を key に `limit({ key })` し、超過時に 429 `{error:{type:"rate_limited"}}` を返す Hono middleware を新設。`worker/routes/auth.ts` の `/register/{begin,verify}` `/login/{begin,verify}` の 4 経路に適用。`worker/types.ts` の `Bindings` に `AUTH_RATE_LIMITER: RateLimit` を追加。本番反映 (Worker version `8a11b677`) 後、`wrangler versions view` で `env.AUTH_RATE_LIMITER (30 requests/60s)` バインドが登録されていること、Workers Observability に POST `/api/auth/login/begin` の構造化ログ (`cpuTimeMs: 1`, `wallTimeMs: 1`) が出ることを確認。Rate limit の 429 動作確認は計 295 req のバーストでも 429 が返らず宿題化 (詳細は「次にやること > 2」の Rate Limit 動作確認の宿題)
 - **カード内ラベルの絵文字化 (PR #23)** — 今日のトイレ記録カードを筆頭に `排尿` `排便` `編集` `削除` の4語を絵文字 (💧💩✏️🗑️) に置換し、同じ語を使う詳細トイレ記録・猫の管理・パスキー管理でも横断で揃えた。`typeLabel` は `"💧"` / `"💩 (${STOOL_LABEL[r.condition]})"` に短縮 (便の状態は残す)。`ConfirmButton` は `triggerLabel` に絵文字を渡すだけで成立するよう元々設計されていたため props 追加なし。クイック記録ボタンも `{cat.name} 💧` / `{cat.name} 💩` に整理し `aria-label={\`${cat.name} の排尿を記録\`}` を付与。`CredentialsView`の削除ボタンは既存`title`に加えて`aria-label`を追加してアクセシブル名を重ねた。detail view のラジオは`<label aria-label="排尿">💧</label>` 形で視覚と SR の両立。セクション見出し (`今日のトイレ記録` 等)・フォームラベル (`名前`/`誕生日`/`日時`/`状態`)・便状態ラベル (`普通`/`軟便`/等)・確認ダイアログ本文 (`削除する`/`キャンセル`) は残している
 - **猫ごとのテーマカラー (PR #22)** — `cats` に `theme_color TEXT NOT NULL DEFAULT 'gray'` カラムを追加し、7 色プリセット (`gray` / `pink` / `blue` / `mint` / `peach` / `lavender` / `yellow`) を `THEME_COLORS` + `ThemeColor` (Zod enum + branded) でドメインに宣言。CSS は `[data-cat-theme]` 属性セレクタで `--cat-hue` だけ差し替え、`--cat-tint: oklch(0.96 0.035 var(--cat-hue))` / `--cat-border: oklch(0.82 0.09 H)` / `--cat-accent: oklch(0.62 0.17 H)` を公式派生。ダークモードは明度式だけ差し替え (hue は同じ)。`.record-item` / `.quick-cell` は tint 背景 + border、`.cat-list > li` は左 4px の accent ボーダーで控えめ識別。`ThemeSwatchGroup` コンポーネントで fieldset + button のスウォッチ UI (選択中は `aria-pressed=true` + accent の dot)。`TodayView` の新規作成フォームと既存猫行の両方でテーマ変更可能、`updateCat` API 新設で `PUT /api/cats/:id` の `themeColor` も反映。`ToiletRecordView` も `themeColor` prop で記録カードを色付け。playwright で しらたま相当→pink / おかゆ相当→blue を設定して `oklch(0.96 0.035 10)` / `oklch(0.96 0.035 250)` の計算値とレイアウトを確認
 - **動物病院カレンダー埋め込み (PR #21)** — 行きつけのビンゴ動物病院 (bingo-ah.com) の診療カレンダーを nyalog 内に表示。同サイトのカレンダーは公開 Google Calendar を JS 描画しているだけだったのでスクレイピング不要、公式 iframe 埋め込みで済んだ。`src/config/vet-calendar.ts` にカレンダー ID 一覧 + TZ (`Asia/Tokyo`) + `buildGoogleEmbedUrl()` 純粋関数、`src/components/VetCalendar.tsx` に iframe コンポーネントを置き、将来 B 案 (iCal を Worker で fetch + エッジキャッシュ + 自前 UI 描画) に移行する際は VetCalendar の中身だけ差し替えれば済む境界に。CSP は `frame-src https://calendar.google.com https://accounts.google.com` を明示 (後者は embed 内部のサブ iframe が認証状態チェックに使う)。playwright で 2026 年 4 月の月表示カレンダー (院長/副院長/休診日/祝日イベント) が完全ロードされることを確認
