@@ -107,6 +107,20 @@ rm -rf packages/web/.wrangler/state
 pnpm db:migrate
 ```
 
+### e2e を回したら画面から猫が消えた
+
+**仕様。** `e2e/global-setup.ts` が毎回 dev-bypass ユーザの `cats` / `toilet_records` を全削除する（他スペースの fixture を毎回 ensure し直すため）。`cats` の削除は cascade で `cat_task_cats` / `cat_task_completions` も落とすので、猫タスクの対象猫紐付けまで消える。`cat_tasks` 本体だけが残り、対象猫ゼロのタスクが並ぶ。
+
+fixture を戻す:
+
+```bash
+pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --local --file scripts/dev-seed.sql
+```
+
+猫 2 匹（しらたま / おかゆ）と、dev スペースの既存タスク全部への紐付けが入る。何度流しても同じ結果になる。トイレ記録・体重記録は入れていない（画面から作る想定）。
+
+**画面で動作確認しながら作業しているなら、確認を撮り終えてから e2e を回すこと。**
+
 ## 型チェック / lint
 
 CI と同じ順序で手元で走らせるには:
