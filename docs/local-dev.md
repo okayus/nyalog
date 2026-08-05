@@ -149,6 +149,27 @@ $D pnpm --filter @nyalog/web measure:ui --diff /tmp/before.json /tmp/after.json
 
 同じ状態で 2 回走らせて「変化 0 件 / 不変 315 件」になることを確認済み。差分が出たら本物の変化。
 
+## フェッチ量 / レンダリング量を触る PR の before/after 実測
+
+`scripts/measure-perf.mjs` が `measure-ui.mjs` の対。「何件取ってきて、何ノード描いたか」を数える。
+
+```bash
+D="docker compose exec -T dev"
+$D pnpm --filter @nyalog/web exec node scripts/measure-perf.mjs --out /tmp/perf-before.json
+# ...実装...
+$D pnpm --filter @nyalog/web exec node scripts/measure-perf.mjs --out /tmp/perf-after.json
+$D pnpm --filter @nyalog/web exec node scripts/measure-perf.mjs --diff /tmp/perf-before.json /tmp/perf-after.json
+```
+
+拾うもの: `/api/` の本数・レスポンス長・配列要素数 / DOM のノード数と `.record-item` 数 / CDP `Performance.getMetrics` の `Nodes` `LayoutObjects` `LayoutCount` `RecalcStyleCount` と各 Duration。
+
+- **CSS ルール 1 本の効きを見るなら `--override` を使う。** stash して撮り直すより確実:
+  `--override '.record-item { content-visibility: visible !important }'` を付けた JSON と素の JSON を `--diff` する
+- **`api.reqs` / `api.records` は dev では本番の 2 倍出る** (StrictMode が effect を二度走らせる)。比率の比較には使えるが絶対値を本番の数字として書かない
+- **`content-visibility` でスキップされた件数は JS から数えられない。** `checkVisibility()` も `getBoundingClientRect()` も、問い合わせた時点で display lock が解けて「全部描いた」しか返さない。効きは `cdp.LayoutObjects` で見る
+- **headless shell では `content-visibility` の off-screen スキップ自体が走らない。** 最小ページで試しても 200/200 描画される。実際に効いているかの確認は実ブラウザ (Playwright MCP など) でやる
+- **stash して before を撮るなら、dev サーバーが配る CSS が戻り切るのを待つ。** `curl -s localhost:5173/src/index.css | grep <目印>` が期待どおりになるまでポーリングする。待たずに撮ると Vite の HMR が古いままで、before に after の CSS が混ざる
+
 ## CI の状態を引く
 
 ```bash

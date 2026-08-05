@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { cats, toiletRecords } from "../db/schema";
 import { CatId, type CatId as CatIdType } from "../domain/cat";
+import { parseListQuery } from "../domain/list-query";
 import type { SpaceId } from "../domain/space";
 import {
   type ToiletRecord,
@@ -84,11 +85,31 @@ export const toiletRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    const rows = await db
+    const query = parseListQuery({
+      since: c.req.query("since"),
+      limit: c.req.query("limit"),
+      offset: c.req.query("offset"),
+    });
+    if (query.isErr()) {
+      const { body, status } = errorResponse(query.error);
+      return c.json(body, status);
+    }
+    const { since, limit, offset } = query.value;
+
+    // timestamp は ISO 8601 UTC の TEXT なので、辞書順比較がそのまま時刻順になる
+    // (書き込みは全て toISOString())。既存の orderBy も同じ前提に乗っている。
+    // id を第 2 キーに置くのは、同時刻の記録があっても offset ページングが
+    // ずれないようにするため。
+    const base = db
       .select()
       .from(toiletRecords)
-      .where(eq(toiletRecords.catId, cat.catId))
-      .orderBy(desc(toiletRecords.timestamp));
+      .where(
+        since
+          ? and(eq(toiletRecords.catId, cat.catId), gte(toiletRecords.timestamp, since))
+          : eq(toiletRecords.catId, cat.catId),
+      )
+      .orderBy(desc(toiletRecords.timestamp), desc(toiletRecords.id));
+    const rows = limit === undefined ? await base : await base.limit(limit).offset(offset ?? 0);
     return c.json(rows.map(toRecord));
   })
   .get("/:id", async (c) => {

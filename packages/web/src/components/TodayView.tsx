@@ -170,9 +170,19 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
       }
       const loaded = catsResult.value;
       setCats(loaded);
+      // この画面が見せるのは今日ぶんと最新体重だけなので、取るのもそこまでに絞る。
+      // 体重は最新と 1 つ前の差分を出すので 2 件あれば足りる (summarizeWeights)。
+      const since = new Date(startOfTodayMs()).toISOString();
       const [recordResults, weightResults, tasksResult] = await Promise.all([
-        Promise.all(loaded.map(async (c) => ({ id: c.id, result: await listToiletRecords(c.id) }))),
-        Promise.all(loaded.map(async (c) => ({ id: c.id, result: await listWeightRecords(c.id) }))),
+        Promise.all(
+          loaded.map(async (c) => ({ id: c.id, result: await listToiletRecords(c.id, { since }) })),
+        ),
+        Promise.all(
+          loaded.map(async (c) => ({
+            id: c.id,
+            result: await listWeightRecords(c.id, { limit: 2 }),
+          })),
+        ),
         listTodayTasks(todayDateOnly()),
       ]);
       const recordMap: Record<string, ToiletRecord[]> = {};
@@ -402,6 +412,8 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
     });
   }
 
+  // フェッチ側で since=今日 0 時に絞ってあるので、ここは日付をまたいだ時の保険。
+  // 開きっぱなしのまま日付が変わっても「今日のトイレ記録」が昨日ぶんを見せない。
   const startMs = startOfTodayMs();
   const todayItems = cats
     .flatMap((c) =>

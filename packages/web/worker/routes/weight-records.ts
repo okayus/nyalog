@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { cats, weightRecords } from "../db/schema";
 import { CatId, type CatId as CatIdType } from "../domain/cat";
+import { parseListQuery } from "../domain/list-query";
 import type { SpaceId } from "../domain/space";
 import {
   type WeightRecord,
@@ -84,11 +85,28 @@ export const weightRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    const rows = await db
+    const query = parseListQuery({
+      since: c.req.query("since"),
+      limit: c.req.query("limit"),
+      offset: c.req.query("offset"),
+    });
+    if (query.isErr()) {
+      const { body, status } = errorResponse(query.error);
+      return c.json(body, status);
+    }
+    const { since, limit, offset } = query.value;
+
+    // measured_at も ISO 8601 UTC の TEXT。辞書順 = 時刻順 (toilet-records と同じ前提)。
+    const base = db
       .select()
       .from(weightRecords)
-      .where(eq(weightRecords.catId, cat.catId))
-      .orderBy(desc(weightRecords.measuredAt));
+      .where(
+        since
+          ? and(eq(weightRecords.catId, cat.catId), gte(weightRecords.measuredAt, since))
+          : eq(weightRecords.catId, cat.catId),
+      )
+      .orderBy(desc(weightRecords.measuredAt), desc(weightRecords.id));
+    const rows = limit === undefined ? await base : await base.limit(limit).offset(offset ?? 0);
     return c.json(rows.map(toRecord));
   })
   .get("/:id", async (c) => {

@@ -20,8 +20,19 @@ const STOOL_OPTIONS: { value: StoolCondition; label: string }[] = [
   { value: "bloody", label: "血便" },
 ];
 
+// 1 ページぶん。本番は 1 匹で 1200 件超あるので、開いた瞬間に全部は取らない。
+const PAGE_SIZE = 50;
+
+// 一覧は timestamp の降順。作成した 1 件をその順序を保ったまま差し込む。
+function insertSorted(records: ToiletRecord[], created: ToiletRecord): ToiletRecord[] {
+  const i = records.findIndex((r) => r.timestamp < created.timestamp);
+  return i === -1 ? [...records, created] : [...records.slice(0, i), created, ...records.slice(i)];
+}
+
 export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) {
   const [records, setRecords] = useState<ToiletRecord[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [type, setType] = useState<"urination" | "defecation">("urination");
   const [timestamp, setTimestamp] = useState(() => {
     const now = new Date();
@@ -32,19 +43,46 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
   const [condition, setCondition] = useState<StoolCondition>("normal");
   const [error, setError] = useState<string | null>(null);
 
-  async function refresh() {
-    const result = await listToiletRecords(catId);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const result = await listToiletRecords(catId, { limit: PAGE_SIZE, offset: 0 });
+      if (cancelled) return;
+      if (result.isErr()) {
+        setError(result.error.message);
+        return;
+      }
+      setRecords(result.value);
+      // ちょうど 1 ページぶん返ってきた時だけ「まだあるかもしれない」。
+      // 総件数は数えない (COUNT のために毎回もう 1 往復する価値はない)。
+      setHasMore(result.value.length === PAGE_SIZE);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [catId]);
+
+  async function handleLoadMore() {
+    setLoadingMore(true);
+    const result = await listToiletRecords(catId, { limit: PAGE_SIZE, offset: records.length });
+    setLoadingMore(false);
     if (result.isErr()) {
       setError(result.error.message);
       return;
     }
-    setRecords(result.value);
+    const page = result.value;
+    setHasMore(page.length === PAGE_SIZE);
+    withViewTransition(() => {
+      setRecords((prev) => {
+        // 読み込んだ後に自分で記録を足すと窓が 1 件ずれて既読が混ざる。id で弾く。
+        const seen = new Set(prev.map((r) => r.id));
+        return [...prev, ...page.filter((r) => !seen.has(r.id))];
+      });
+    });
   }
 
-  useEffect(() => {
-    void refresh();
-  }, [catId]);
-
+  // 作成・削除の後に一覧を取り直さないのは、読み込み済みのページが 1 ページ目に
+  // 巻き戻ってしまうため。返ってきた 1 件をその場で入れ／抜きする。
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -61,12 +99,8 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
       setError(createResult.error.message);
       return;
     }
-    const listResult = await listToiletRecords(catId);
-    if (listResult.isErr()) {
-      setError(listResult.error.message);
-      return;
-    }
-    withViewTransition(() => setRecords(listResult.value));
+    const created = createResult.value;
+    withViewTransition(() => setRecords((prev) => insertSorted(prev, created)));
   }
 
   async function handleDelete(id: string) {
@@ -75,12 +109,7 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
       setError(deleteResult.error.message);
       return;
     }
-    const listResult = await listToiletRecords(catId);
-    if (listResult.isErr()) {
-      setError(listResult.error.message);
-      return;
-    }
-    withViewTransition(() => setRecords(listResult.value));
+    withViewTransition(() => setRecords((prev) => prev.filter((r) => r.id !== id)));
   }
 
   return (
@@ -152,28 +181,40 @@ export function ToiletRecordView({ catId, catName, themeColor, onBack }: Props) 
       {records.length === 0 ? (
         <p>記録がありません</p>
       ) : (
-        <ul>
-          {records.map((r) => (
-            <li
-              key={r.id}
-              className="record-item"
-              data-cat-theme={themeColor}
-              style={{ viewTransitionName: `record-detail-${r.id}` }}
+        <>
+          <ul>
+            {records.map((r) => (
+              <li
+                key={r.id}
+                className="record-item"
+                data-cat-theme={themeColor}
+                style={{ viewTransitionName: `record-detail-${r.id}` }}
+              >
+                {new Date(r.timestamp).toLocaleString()} {r.type === "urination" ? "💧" : "💩"}
+                {r.type === "defecation" &&
+                  ` (${STOOL_OPTIONS.find((o) => o.value === r.condition)?.label})`}{" "}
+                <ConfirmButton
+                  popoverId={`del-detail-${r.id}`}
+                  triggerLabel="🗑️"
+                  triggerAriaLabel="記録を削除"
+                  message="この記録を削除しますか？"
+                  confirmLabel="削除する"
+                  onConfirm={() => handleDelete(r.id)}
+                />
+              </li>
+            ))}
+          </ul>
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              aria-busy={loadingMore}
             >
-              {new Date(r.timestamp).toLocaleString()} {r.type === "urination" ? "💧" : "💩"}
-              {r.type === "defecation" &&
-                ` (${STOOL_OPTIONS.find((o) => o.value === r.condition)?.label})`}{" "}
-              <ConfirmButton
-                popoverId={`del-detail-${r.id}`}
-                triggerLabel="🗑️"
-                triggerAriaLabel="記録を削除"
-                message="この記録を削除しますか？"
-                confirmLabel="削除する"
-                onConfirm={() => handleDelete(r.id)}
-              />
-            </li>
-          ))}
-        </ul>
+              {loadingMore ? "読み込み中…" : `もっと見る (次の ${PAGE_SIZE} 件)`}
+            </button>
+          ) : null}
+        </>
       )}
     </section>
   );
