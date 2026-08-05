@@ -211,6 +211,11 @@ async function measure(opts) {
   return result;
 }
 
+// リストの件数を変える PR では要素が何百と消える/生える。1 行ずつ並べると本命の
+// 「寸法が動いた」行がその中に埋もれるので、しきい値を超えたら 1 行に畳む
+// (計画 3 で消滅 2549 件に対し本命 5 行、awk で振り分ける羽目になった)。--all で展開。
+const FOLD_THRESHOLD = 20;
+
 function diff(beforePath, afterPath, showAll) {
   const before = JSON.parse(readFileSync(beforePath, "utf8"));
   const after = JSON.parse(readFileSync(afterPath, "utf8"));
@@ -222,9 +227,11 @@ function diff(beforePath, afterPath, showAll) {
     const b = before.views[view] ?? {};
     const a = after.views[view] ?? {};
     const rows = [];
+    const gone = [];
+    const born = [];
     for (const key of Object.keys(b)) {
       if (!(key in a)) {
-        rows.push([`${key}`, "(消滅)", JSON.stringify(b[key]), "—"]);
+        gone.push([`${key}`, "(消滅)", JSON.stringify(b[key]), "—"]);
         changed++;
         continue;
       }
@@ -241,10 +248,15 @@ function diff(beforePath, afterPath, showAll) {
     }
     for (const key of Object.keys(a)) {
       if (!(key in b)) {
-        rows.push([label(key, a[key]), "(新規)", "—", dims(a[key])]);
+        born.push([label(key, a[key]), "(新規)", "—", dims(a[key])]);
         changed++;
       }
     }
+    const fold = (list, what) =>
+      !showAll && list.length > FOLD_THRESHOLD
+        ? [[`**${what} ${list.length} 件**`, `(--all で展開)`, "—", "—"]]
+        : list;
+    rows.push(...fold(gone, "消滅した要素"), ...fold(born, "新規の要素"));
     if (rows.length === 0) continue;
     lines.push(`\n### ${view}\n`);
     lines.push("| 要素 | 項目 | before | after |");

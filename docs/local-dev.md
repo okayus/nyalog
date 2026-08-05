@@ -168,7 +168,30 @@ $D pnpm --filter @nyalog/web exec node scripts/measure-perf.mjs --diff /tmp/perf
 - **`api.reqs` / `api.records` は dev では本番の 2 倍出る** (StrictMode が effect を二度走らせる)。比率の比較には使えるが絶対値を本番の数字として書かない
 - **`content-visibility` でスキップされた件数は JS から数えられない。** `checkVisibility()` も `getBoundingClientRect()` も、問い合わせた時点で display lock が解けて「全部描いた」しか返さない。効きは `cdp.LayoutObjects` で見る
 - **headless shell では `content-visibility` の off-screen スキップ自体が走らない。** 最小ページで試しても 200/200 描画される。実際に効いているかの確認は実ブラウザ (Playwright MCP など) でやる
-- **stash して before を撮るなら、dev サーバーが配る CSS が戻り切るのを待つ。** `curl -s localhost:5173/src/index.css | grep <目印>` が期待どおりになるまでポーリングする。待たずに撮ると Vite の HMR が古いままで、before に after の CSS が混ざる
+
+## before/after を撮る (stash の自動化)
+
+上の 2 つを手で回すと、`git stash` → 計測 → `git stash pop` を毎回組むことになる。**`scripts/measure-ab.sh` がそれをやる**（ホストからでもコンテナ内からでも動く）:
+
+```bash
+scripts/measure-ab.sh --marker contain-intrinsic-size        # ui (light/dark) + perf
+scripts/measure-ab.sh --marker 'limit: PAGE_SIZE' --perf     # perf だけ
+scripts/measure-ab.sh --marker foo --ui --views toilet,today # 対象を絞る
+```
+
+`--marker` は**変更後にだけ現れる文字列**。dev サーバーが実際に配っている中身にこれが出入りするのをポーリングして、Vite の HMR が追いつくのを待つ。手で組んだ時に踏んだ 2 つをここに閉じ込めてある:
+
+- **stash の取りこぼし。** 途中で失敗すると作業ツリーが stash に入ったまま残り、気づかず commit すると変更が半分消える（実際に一度残った）。`trap` で必ず戻す
+- **目印の選び間違い。** 変更前から存在する文字列を渡すと「消えるのを待つ」が永久に成立しない（計画 3 で `content-visibility` を渡して踏んだ — 既存の `::details-content` の transition に入っていた）。今の dev サーバーに見えるかを先に確かめ、消えなければタイムアウトして理由を出す
+
+**計測には本番規模のデータが要る。** `dev-seed.sql` は記録を入れていない（画面から作る想定）ので、撒くのは別スクリプト:
+
+```bash
+docker compose exec -T dev sh -c 'cd packages/web && node scripts/dev-seed-bulk.mjs'
+# しらたま 900 件 / おかゆ 320 件 + 体重。--records で件数を変えられる
+```
+
+固定 seed なので何度流しても同じ形になる。消すのは dev の猫 2 匹の記録だけで、cross-space の fixture は残す。`--local` 固定（本番 D1 には流せない）。**日付をまたいだら撒き直すこと** — 「今日」の件数が変わって today ビューの計測がずれる。
 
 ## CI の状態を引く
 
