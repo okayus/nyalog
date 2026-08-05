@@ -46,7 +46,7 @@ const VIEWS = {
   "toilet-defecation": [{ text: "詳細記録" }, { click: 'input[type="radio"][value="defecation"]' }],
   medical: [{ text: "医療記録" }],
   weight: [{ text: "体重 →" }],
-  credentials: [{ text: "パスキー管理" }],
+  credentials: [{ click: ".menu-trigger" }, { text: "パスキー管理" }],
 };
 
 // 比較対象。text は行のラベルに使うだけで、差分判定には含めない

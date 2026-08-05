@@ -581,15 +581,17 @@ export function TodayView({ onOpenDetail, onOpenMedical, onOpenWeight, onOpenTas
                     );
                   })}
                 </div>
-                <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
-                  詳細記録 →
-                </button>
-                <button type="button" className="link-button" onClick={() => onOpenMedical(cat)}>
-                  医療記録 →
-                </button>
-                <button type="button" className="link-button" onClick={() => onOpenWeight(cat)}>
-                  体重 →
-                </button>
+                <div className="quick-cell-links">
+                  <button type="button" className="link-button" onClick={() => onOpenDetail(cat)}>
+                    詳細記録 →
+                  </button>
+                  <button type="button" className="link-button" onClick={() => onOpenMedical(cat)}>
+                    医療記録 →
+                  </button>
+                  <button type="button" className="link-button" onClick={() => onOpenWeight(cat)}>
+                    体重 →
+                  </button>
+                </div>
               </div>
             );
           })}

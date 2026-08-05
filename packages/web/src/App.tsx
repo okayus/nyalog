@@ -100,16 +100,46 @@ export function App() {
 
   return (
     <main>
-      <h1>nyalog</h1>
-      <p>猫の健康管理アプリ</p>
       <header>
-        <span>ログイン中: {auth.user.displayName}</span>{" "}
-        <button type="button" onClick={() => goTo({ kind: "credentials" })}>
-          パスキー管理
-        </button>{" "}
-        <button type="button" onClick={handleLogout}>
-          ログアウト
+        <h1>nyalog</h1>
+        <button
+          type="button"
+          className="menu-trigger"
+          popoverTarget="account-menu"
+          aria-label="アカウントメニュー"
+        >
+          <svg
+            aria-hidden="true"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
         </button>
+        <div id="account-menu" popover="auto" className="account-menu">
+          <p className="account-menu-user">ログイン中: {auth.user.displayName}</p>
+          <button
+            type="button"
+            popoverTarget="account-menu"
+            popoverTargetAction="hide"
+            onClick={() => goTo({ kind: "credentials" })}
+          >
+            パスキー管理
+          </button>
+          <button
+            type="button"
+            popoverTarget="account-menu"
+            popoverTargetAction="hide"
+            onClick={handleLogout}
+          >
+            ログアウト
+          </button>
+        </div>
       </header>
 
       {view.kind === "today" ? (

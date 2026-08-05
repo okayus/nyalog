@@ -116,7 +116,7 @@
 
   h2 {
     font-size: var(--font-size-h2);
-    margin-block: var(--space-6) var(--space-3);
+    margin-block: var(--space-4) var(--space-2);
     text-wrap: balance;
   }
 
@@ -125,27 +125,27 @@
     text-wrap: pretty;
   }
 
+  /* アプリヘッダー (App.tsx) と .section-header (TodayView/TasksView) の両方に効く共通行。 */
   header {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
     align-items: center;
-    padding-block: var(--space-3);
+    justify-content: space-between;
+    padding-block: var(--space-2);
     border-block-end: 1px solid var(--color-border);
-    margin-block-end: var(--space-4);
+    margin-block-end: var(--space-3);
   }
 
-  header span {
-    flex: 1 1 100%;
-    font-size: var(--font-size-sm);
-    color: var(--color-text-muted);
+  header h1 {
+    margin-block: 0;
   }
 
   form {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    margin-block: var(--space-3) var(--space-6);
+    margin-block: var(--space-3) var(--space-4);
   }
 
   label {
@@ -321,11 +321,59 @@
 }
 
 @layer components {
+  /* --- アカウントメニュー (ヘッダーの popover) --- */
+
+  .menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-inline: var(--space-3);
+  }
+
+  .account-menu {
+    /* anchor positioning 対応ブラウザではトリガー直下・inline-end 揃えに出す。
+       未対応ブラウザでは position-area が無視され、inset: auto が UA の中央寄せ
+       (inset: 0 + margin: auto) を外して fixed の static 位置近似 = ヘッダー付近に
+       出る (resilient-context-menus ガイドの legacy fallback)。 */
+    inset: auto;
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block;
+    margin: var(--space-1) 0 0;
+    min-inline-size: 13rem;
+    padding: var(--space-1);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.15);
+  }
+
+  .account-menu-user {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .account-menu button {
+    display: block;
+    inline-size: 100%;
+    text-align: start;
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-text);
+  }
+
+  .account-menu button:hover:not(:disabled) {
+    background: var(--color-primary-tint);
+  }
+
   .quick-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--space-3);
-    margin-block: var(--space-3) var(--space-6);
+    margin-block: var(--space-3) var(--space-4);
   }
 
   @container app (min-inline-size: 30rem) {
@@ -367,7 +415,13 @@
     color: var(--color-primary);
     min-block-size: 32px;
     padding: var(--space-1);
-    align-self: flex-end;
+  }
+
+  .quick-cell-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    column-gap: var(--space-2);
   }
 
   .cat-list {
@@ -434,7 +488,7 @@
   }
 
   .vet-calendar {
-    margin-block: var(--space-6) var(--space-4);
+    margin-block: var(--space-4) var(--space-2);
   }
 
   .vet-calendar-frame {
@@ -1017,7 +1071,7 @@
     justify-content: space-between;
     gap: var(--space-3);
     flex-wrap: wrap;
-    margin-block-start: var(--space-6);
+    margin-block-start: var(--space-4);
   }
 
   .section-header > h2 {
