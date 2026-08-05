@@ -1172,6 +1172,22 @@
     animation-range: entry 0% cover 35%;
   }
 
+  /* 確実に画面外にいる分だけ、レイアウトと描画を後回しにする。
+     先頭 12 件を対象外にするのは、初期ビューポートに入っている要素に掛けると
+     可視判定が初期描画の前に挟まって逆に遅くなるため (defer-rendering-heavy-content
+     ガイドの DON'T)。1 件 72px なので 12 件 = 864px、リストの開始位置 614px と
+     足して縦 1478px までのビューポートを覆う。
+     contain-intrinsic-size の auto は「一度描いたら実寸を覚える」指定。
+     **プレースホルダは border box ではなく content box を指す。** 行の実寸 72px から
+     padding (--space-3 = 12px × 2) と border (1px × 2) を引いた 46px = 2.875rem を
+     置く。72px を書くと 1 行あたり 26px ぶん高く見積もり、スクロール中にページが
+     縮んでスクロールバーが暴れる (実測 754px / 16% ずれた)。
+     未対応ブラウザは両方まるごと無視する。 */
+  .record-item:nth-child(n + 13) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 2.875rem;
+  }
+
   .scroll-progress {
     position: fixed;
     inset-block-start: 0;

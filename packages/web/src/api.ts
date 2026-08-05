@@ -85,8 +85,24 @@ export function deleteCat(id: string): Promise<Result<Record<string, never>, Api
   return request(`/api/cats/${id}`, { method: "DELETE" });
 }
 
-export function listToiletRecords(catId: string): Promise<Result<ToiletRecord[], ApiError>> {
-  return request<ToiletRecord[]>(`/api/cats/${catId}/toilet-records`);
+// 一覧取得の窓。パラメータを 1 つも渡さないと従来どおり全件返る。
+// offset は limit とペアでのみ有効 (worker/domain/list-query.ts)。
+export type ListWindow = { since?: string; limit?: number; offset?: number };
+
+function withWindow(path: string, window?: ListWindow): string {
+  const params = new URLSearchParams();
+  if (window?.since !== undefined) params.set("since", window.since);
+  if (window?.limit !== undefined) params.set("limit", String(window.limit));
+  if (window?.offset !== undefined) params.set("offset", String(window.offset));
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
+export function listToiletRecords(
+  catId: string,
+  window?: ListWindow,
+): Promise<Result<ToiletRecord[], ApiError>> {
+  return request<ToiletRecord[]>(withWindow(`/api/cats/${catId}/toilet-records`, window));
 }
 
 export function createToiletRecord(
@@ -124,8 +140,11 @@ export function deleteToiletRecord(
 type CreateWeightRecordInput = { weightGrams: number; measuredAt: string };
 type UpdateWeightRecordInput = { weightGrams?: number; measuredAt?: string };
 
-export function listWeightRecords(catId: string): Promise<Result<WeightRecord[], ApiError>> {
-  return request<WeightRecord[]>(`/api/cats/${catId}/weights`);
+export function listWeightRecords(
+  catId: string,
+  window?: ListWindow,
+): Promise<Result<WeightRecord[], ApiError>> {
+  return request<WeightRecord[]>(withWindow(`/api/cats/${catId}/weights`, window));
 }
 
 export function createWeightRecord(

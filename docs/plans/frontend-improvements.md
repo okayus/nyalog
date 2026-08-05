@@ -43,12 +43,34 @@ base layer の `input, select, textarea { inline-size: 100%; min-block-size: var
 - Stop hook (`.claude/hooks/check-frontend.sh`) — ターン終了前に `vp check` + `tsc`
 - 実施順は **before 計測 (light+dark) → 実装 → after 計測 → 手動確認 → 最後に e2e**。e2e を先に回すと猫が消えて before/after のラベルがずれる
 
-### 3. トイレ記録の全件フェッチ / 全件レンダリング解消
+### ✅ (PR #78) 3. トイレ記録の全件フェッチ / 全件レンダリング解消
 
 list API が無パラメータ全件返し (本番 1200 件超) で、TodayView は今日の表示のために全猫の全履歴 + 全体重を取得しクライアント filter、ToiletRecordView は 860+ 件の li を一括レンダーしている。
 
 - (a) API に `?since=` / `?limit=` を追加 — TodayView は since=今日、詳細画面は直近 N 件 + もっと見る、体重サマリは最新 2 件で足りる
 - (b) `.record-item` に `content-visibility: auto` + `contain-intrinsic-size` (`defer-rendering-heavy-content` ガイド、Baseline Newly・未対応でも無害)
+
+**結果** (ローカルに本番規模 900 件を撒いての実測。全表は PR #78 の commit メッセージ):
+
+| | before | after |
+| --- | --- | --- |
+| 詳細画面のフェッチ量 | 1.03 MB / 4416 件 | 31 KB / 136 件 (**-97%**) |
+| 詳細画面の `.record-item` | 900 | 50 (**-94%**) |
+| 詳細画面の LayoutObjects | 7517 | 640 (**-91%**) |
+| 今日の画面のフェッチ量 | 613 KB / 2616 件 | 8 KB / 36 件 (**-99%**) |
+
+`content-visibility` 単体の効き (同じ 50 件で CSS だけ A/B): LayoutObjects 803 → 640 (**-20%**)、3 回とも同値。スクロール中の scrollHeight 変動 0px。**7 ビュー中トイレ詳細以外は寸法・a11y ともに変化 0 件** (light/dark 同一)。
+
+設計の分かれ目だったところ:
+
+- **`contain-intrinsic-size` は border box ではなく content box を指す。** 行の実寸 72px をそのまま書いたら 1 行あたり 26px (padding 12×2 + border 1×2) 過大に見積もり、スクロールしてプレースホルダが実寸に入れ替わるたびにページが縮んだ (実測 754px / 16%、スクロールバーが暴れる)。content box の 46px = 2.875rem にして変動 0px
+- **先頭 12 件は `content-visibility` の対象外にする。** 初期ビューポート内の要素に掛けると可視判定が初期描画の前に挟まって逆に遅くなる (ガイドの DON'T)。1 件 72px × 12 = 864px にリストの開始位置 614px を足して、縦 1478px までのビューポートを覆う
+- **スキップされた件数は JS から数えられない。** `checkVisibility()` も `getBoundingClientRect()` も、問い合わせた時点で display lock が解けて「全部描いた」しか返さない。効きを見るのは CDP の `LayoutObjects` (要素を触らないグローバルカウンタ)。加えて **headless shell では off-screen スキップ自体が走らない** ので、この確認は実ブラウザでやる
+- **`offset` は `limit` とペアでしか受け付けない。** SQLite が LIMIT を伴わない OFFSET を拒否するため、SQL を組む前に Zod の `.refine()` で閉じた。`ORDER BY` に id を第 2 キーとして足してあるので、同時刻の記録があってもページ境界がずれない
+- **詳細画面の create / delete は一覧を取り直さず局所 insert / remove。** 取り直すと読み込み済みのページが 1 ページ目に巻き戻る。ついでに 2 往復が 1 往復になった (「続けて実施」に挙げていた項目の ToiletRecordView 側)
+- 総件数は数えない。「ちょうど 1 ページぶん返ってきたら、まだあるかもしれない」で `もっと見る` を出す。最終ページが端数なら消え、ちょうど割り切れる時だけ空振りが 1 回増える (実測: 320 件の猫で 6 回送って消滅、id 重複 0)
+
+**段取り**: `scripts/measure-perf.mjs` を追加した (フェッチ量・DOM 量・CDP カウンタ。`--override` で CSS ルール 1 本を打ち消して A/B できる)。見た目を撮る `measure-ui.mjs` の対。計画 4 (Activity) も同じ数字で測れる。**dev サーバー相手に stash して before を撮る時は、Vite の HMR が古い CSS を配り終えるのを待つこと** — 待たずに撮ると before に after の CSS が混ざる (実際に一度混ざった)
 
 ### 4. `<Activity>` で TodayView の状態保持
 
@@ -64,7 +86,7 @@ App.tsx が view 切替でアンマウントするため、詳細から戻るた
 - `env(safe-area-inset-bottom)` (main の padding) が viewport meta に `viewport-fit=cover` が無いため iOS で常に 0 — 付けるか消すか
 - TodayView 初期ロード: `listTodayTasks` は cats に依存しないので `listCats` と並列化 + 1 猫のエラーで全体 return せず部分表示
 - 血液検査 running 中の自動更新 (ポーリング or visibilitychange 再フェッチ) — 現状リロードするまで結果が出ない
-- ToiletRecordView / WeightRecordView の create 後全リスト再フェッチ (2 往復) → 作成レスポンスの局所 insert に (TodayView と一貫させる)
+- WeightRecordView の create 後全リスト再フェッチ (2 往復) → 作成レスポンスの局所 insert に (TodayView / ToiletRecordView と一貫させる。ToiletRecordView 側は計画 3 で対応済み)
 
 ## 任意 (未計画、やるなら上記後)
 
