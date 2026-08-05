@@ -38,7 +38,7 @@ interface BloodTestAnalyzer {
 }
 ```
 
-実装は **`WorkersAIGemmaAnalyzer`** (default: `@cf/google/gemma-3-12b-it`) のみ。env 経由で `ANALYZER_MODEL` を切り替え可能 (現状は Gemma 固定だが、`factory.ts` の switch を 1 箇所増やせば差し替え完了)。
+実装は **`WorkersAIGemmaAnalyzer`** (default: `@cf/google/gemma-4-26b-a4b-it`、当初は `@cf/google/gemma-3-12b-it` — [Addendum](#addendum-2026-08-05-gemma-3-12b-の-deprecation-と-gemma-4-への移行) 参照) のみ。env 経由で `ANALYZER_MODEL` を切り替え可能 (現状は Gemma 固定だが、`factory.ts` の switch を 1 箇所増やせば差し替え完了)。
 
 差し替え可能性が必要な理由:
 - **応答時間が不確実**: 初回本番計測で Gemma が **7 分 17 秒** を記録 (#47 で観測)、その後の検証では 97 秒。Workers AI の colo 状態に依存して大きくぶれる
@@ -127,9 +127,42 @@ function distanceToRange(v, lo, hi): number {
 - **Gemma 応答時間が再び数分台に常態化** → `BloodTestAnalyzer` の差し替えで Claude Vision (Sonnet 4.6) を試す。期待値は 5〜15 秒、月数十件規模ならコストも家族用途では現実的
 - **抽出漏れ / 誤抽出が UI で目立つ** → AI 出力後の inline 編集 UI を実装 (CRUD endpoint は既にある、`PUT /analysis/values/:id` が `reviewed=true` を自動セット)
 - **trend 表示で初回ロード時間が体感的に遅い** → 集約 endpoint `/blood-test-series` を新設して 1 RTT 化
+- **使用中のモデルが Workers AI の deprecation リストに載る** → 後継モデルへ移行 ([Addendum](#addendum-2026-08-05-gemma-3-12b-の-deprecation-と-gemma-4-への移行))。deprecation はアプリ側に一切通知が来ないので、Cloudflare の [changelog](https://developers.cloudflare.com/changelog/product/workers-ai/) 頼み
 
 ## 関連
 
 - [ADR-005](./005-per-space-membership.md) — per-space 認可。`getBloodTestAnalysis` も `memberSpaceIds` チェックを cat 経由で間接的に効かせている
 - [ADR-006](./006-medical-records-r2.md) — R2 + Worker proxy 配信。本 ADR の解析対象は ADR-006 の attachment
 - [okayus-skills `cloudflare-workflows-for-long-tasks`](https://github.com/okayus/okayus-skills/tree/main/skills/cloudflare-workflows-for-long-tasks) — Workflow 関連の落とし穴 (`Workflow<Params>` 型, bytes を step 跨ぎで渡さない, step.do の冪等性) の skill 化
+
+## Addendum (2026-08-05): Gemma 3 12B の deprecation と Gemma 4 への移行
+
+`@cf/google/gemma-3-12b-it` は [2026-05-08 の changelog](https://developers.cloudflare.com/changelog/post/2026-05-08-planned-model-deprecations/) で告知された catalog 整理の対象 18 モデルに含まれ、**2026-05-30 に deprecated** となった。Kimi K2.5 のような後継への自動 alias は告知されていない。default を Cloudflare 推奨の後継 **`@cf/google/gemma-4-26b-a4b-it`** に差し替える。
+
+**期限を 2 ヶ月過ぎるまで気づかなかった**。deprecation はデプロイ済みアプリに何も通知しない上、nyalog では解析失敗が UI 上「status=failed の解析」として静かに溜まるだけで、家族の誰も画像を上げていない期間は誰の目にも触れない。上記「移行トリガー」に changelog 監視の項を足した。
+
+### 「`factory.ts` の switch を 1 箇所増やせば差し替え完了」ではなかった
+
+本 ADR の「2. `BloodTestAnalyzer` interface を切る」で見込んだ差し替えコストは、同じ Workers AI 内の世代交代には効かなかった。gemma-4 は **OpenAI 互換の chat completions schema** で、gemma-3 の vision 用 schema とは入出力ごと別物:
+
+| | gemma-3-12b-it | gemma-4-26b-a4b-it |
+| --- | --- | --- |
+| プロンプト | `{ prompt: string }` | `{ messages: [{ role, content: part[] }] }` |
+| 画像 | `{ image: number[] }` (生バイト列) | content part `{ type: "image_url", image_url: { url } }` (data URI) |
+| 出力 | `{ response: string }` | `{ choices: [{ message: { content } }] }` |
+| 生成上限 | `max_tokens` | `max_completion_tokens` (`max_tokens` は deprecated) |
+| JSON 強制 | なし (プロンプト頼み) | `response_format: { type: "json_object" }` |
+
+`response_format` は新 schema で拾えた収穫。`parseGemmaJsonResponse` は応答全体が 1 個の JSON であることを要求する (前置きの散文が付くと `parse_error`) 一方、gemma-4 は reasoning 系でプロンプトの「JSON のみ」指示だけでは心許ない。schema 側でも縛る。
+
+interface (`BloodTestAnalyzer`) の外側 — Workflow / API / UI — は無変更で済んだので、境界の切り方自体は正しかった。差し替えが 1 行で済むのは「実装ファイルを 1 個足す」場合であって、**同じファイル内でのモデル更新は呼び出し規約の変更を伴いうる**、というのが実際の粒度。
+
+画像 bytes → data URI の変換 (`toImageDataUri`) は純粋関数として切り出してユニットテストを持たせた。`String.fromCharCode(...bytes)` の spread が添付上限 10MB で call stack を溢れさせるため chunk 分割しており、境界の取りこぼしは本番でしか出ない類の壊れ方をする。
+
+### コスト
+
+単価はむしろ下がった (`$0.35 / $0.56` per M in/out → **`$0.10 / $0.30`**)。1 枚あたり 150〜290 Neurons の見積もりに対し無料枠は 10,000 Neurons/日なので、いずれにせよ家族利用では課金領域に入らない。
+
+### 検証
+
+ADR-008 のとおり dev / CI では `mock` analyzer 固定で、実モデルの呼び出し規約が正しいかは**ローカルでは一切検証できない**。本番デプロイ後に血液検査画像を 1 枚アップロードし、`blood_test_analyses` の `status` が `succeeded` になること、`model_name` が gemma-4 になっていることを確認する必要がある。失敗時は `error_message` に `model_error` / `io_error` が残る。

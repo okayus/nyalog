@@ -14,7 +14,8 @@
 
 1. **フロントエンド改善** — [plans/frontend-improvements.md](./plans/frontend-improvements.md) を上から順に PR 化する。計画 1 (base layer のフォームコントロール根治) は [#74](https://github.com/okayus/nyalog/pull/74)、計画 2 (a11y/UX 小束) は [#76](https://github.com/okayus/nyalog/pull/76)、計画 3 (全件フェッチ / 全件レンダリング解消) は [#78](https://github.com/okayus/nyalog/pull/78) で完了。**次: 計画 4「`<Activity>` で TodayView の状態保持」**(view 切替のたびに全再フェッチしているのを React 19 の `<Activity mode>` で hidden 保持に)
 2. **セキュリティ残タスク** — [plans/security-remaining.md](./plans/security-remaining.md)(予算アラート / rate limit 再検証 / `/security-review` / 運用 TODO)
-3. **機能候補 (順序流動)** — 猫タスクの月カレンダー表示 (`enumerateDueDates` 実装済み、UI のみ) / ご飯・カロリー管理 (スキーマ設計から) / ADR-004 phase 2 の `created_by` NOT NULL 化(**cats rebuild で D1 CASCADE 再発リスク — [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリスト必須**)
+3. **血液検査解析 (gemma-4) の本番確認** — 旧 default `gemma-3-12b-it` が 2026-05-30 に deprecated になっていたため `gemma-4-26b-a4b-it` へ移行した ([ADR-007 Addendum](./adr/007-blood-test-vision-analysis.md#addendum-2026-08-05-gemma-3-12b-の-deprecation-と-gemma-4-への移行))。dev は mock 固定で呼び出し規約を検証できないので、**デプロイ後に画像を 1 枚上げて `blood_test_analyses.status=succeeded` を確認**する
+4. **機能候補 (順序流動)** — 猫タスクの月カレンダー表示 (`enumerateDueDates` 実装済み、UI のみ) / ご飯・カロリー管理 (スキーマ設計から) / ADR-004 phase 2 の `created_by` NOT NULL 化(**cats rebuild で D1 CASCADE 再発リスク — [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリスト必須**)
 
 ## 後回し (Backlog)
 
