@@ -46,6 +46,9 @@ mainブランチは保護されている。すべての変更はPR経由でマ�
 2. **実装と commit**: commit までがエージェントの仕事。push はしない — ホスト側リレー (systemd timer, 60秒間隔) が自動 push し、PR を作成する
 3. **CI 確認**: 上記の未認証 REST で check-runs を確認し、red なら直して commit を積む
 4. **マージ**: 確信のある完成した変更のみ、最終 commit メッセージ末尾に `Relay-Merge: yes` トレーラーを付けると、CI green 後にリレーが squash merge する（トレーラーは HEAD commit のみ有効）。迷う変更・影響の大きい変更には付けず、人間のレビューとマージに委ねる。**migration（`drizzle/` の変更）を含む PR には絶対に付けない** — merge は Workers Builds の deploy command 経由で本番 D1 への migration 適用まで直結する（D1 cascade 事故の前歴: ADR-005 Addendum）
+   - **push 済みの後からマージを頼まれたら、amend せず空 commit でトレーラーを出す。** リレーは exact refspec しか push しない（force しない）ので、既に push された commit を書き換えると以後 push が拒否される: `git commit --allow-empty -m "chore: マージを依頼する" -m "Relay-Merge: yes"`
+   - 追い commit で CI が回り直すため、**最初の tick は必ず空振りする**（journal に `merge pending #NN ... 405: Required status check "check" is expected`）。異常ではないので、次の tick を待つ
+   - merge 後はブランチが即削除され `pulls?head=` が空になる。成否は `journalctl --user -u nyalog-relay.service` か `pulls/<番号>` の `merged` で見る
 5. **ステータス更新**: 大きな節目で [docs/status.md](./docs/status.md) を併せて更新する。PRの一部に含めて良い
 
 **ホストでの作業**（人間）は従来どおり: `git switch -c <type>/<short-description>` → 空コミット → 計画を本文に書いた Draft PR → 実装 → squash merge。

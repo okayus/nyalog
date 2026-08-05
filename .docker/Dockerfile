@@ -35,6 +35,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # runtime via `pnpm exec playwright install chromium` (cdn.playwright.dev is an
 # OPTIONAL firewall domain) so its version always matches @playwright/test, and
 # is cached in the playwright-browsers named volume.
+#
+# fonts-noto-cjk is here for the SCREENSHOTS, not for the tests: the UI is in
+# Japanese, and without it `measure-ui.mjs --shots` renders every label as tofu
+# boxes, which makes the shots useless for the visual confirmation those PRs
+# require. The e2e specs match on accessible names, so they pass either way —
+# which is why this went unnoticed until someone actually looked at a shot.
 ARG INSTALL_BROWSER_DEPS=true
 RUN if [ "$INSTALL_BROWSER_DEPS" = "true" ]; then \
   apt-get update && apt-get install -y --no-install-recommends \
@@ -56,6 +62,7 @@ RUN if [ "$INSTALL_BROWSER_DEPS" = "true" ]; then \
   libcairo2 \
   fonts-liberation \
   fonts-noto-color-emoji \
+  fonts-noto-cjk \
   && apt-get clean && rm -rf /var/lib/apt/lists/* ; \
   fi
 
