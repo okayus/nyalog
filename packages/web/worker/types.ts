@@ -29,4 +29,8 @@ type Variables = {
   memberSpaceIds: SpaceId[];
 };
 
+// /api/spaces/:spaceId/* は spaceMiddleware が所属を確かめたあとの文脈で動く。
+type SpaceVariables = Variables & { spaceId: SpaceId };
+
 export type Env = { Bindings: Bindings; Variables: Variables };
+export type SpaceEnv = { Bindings: Bindings; Variables: SpaceVariables };

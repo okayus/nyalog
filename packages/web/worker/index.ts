@@ -6,8 +6,12 @@ import { catTaskRoutes } from "./routes/cat-tasks";
 import { medicalRecordRoutes } from "./routes/medical-records";
 import { toiletRoutes } from "./routes/toilet-records";
 import { weightRoutes } from "./routes/weight-records";
+import { inviteAcceptRoutes } from "./routes/invite-accept";
+import { spaceInviteRoutes } from "./routes/space-invites";
+import { spaceRoutes } from "./routes/spaces";
 import { sessionMiddleware } from "./middleware/session";
-import type { Env } from "./types";
+import { spaceMiddleware } from "./middleware/space";
+import type { Env, SpaceEnv } from "./types";
 
 const app = new Hono<Env>();
 
@@ -45,6 +49,16 @@ protectedApi.route("/cats/:catId/toilet-records", toiletRoutes);
 protectedApi.route("/cats/:catId/medical-records", medicalRecordRoutes);
 protectedApi.route("/cats/:catId/weights", weightRoutes);
 protectedApi.route("/tasks", catTaskRoutes);
+// 一覧と参加は spaceMiddleware の外 — どちらもまだ :spaceId が決まっていない段階で呼ぶ
+protectedApi.route("/spaces", spaceRoutes);
+protectedApi.route("/invites", inviteAcceptRoutes);
+
+// /api/spaces/:spaceId/* は所属を 1 回だけ確かめてから (所属外は 404)
+const space = new Hono<SpaceEnv>();
+space.use("*", spaceMiddleware);
+space.route("/invites", spaceInviteRoutes);
+protectedApi.route("/spaces/:spaceId", space);
+
 api.route("/", protectedApi);
 
 app.route("/api", api);

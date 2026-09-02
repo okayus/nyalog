@@ -84,56 +84,76 @@ pnpm run deploy            # vp build && wrangler deploy
 
 ## 認証運用 (パスキー)
 
-ADR-003 のとおり、本アプリはパスキーのみ + 招待制。新規ユーザを増やすたびに「初回登録トークンを払い出して使い切る」サイクルを回す。
+ADR-003 のとおり、本アプリはパスキーのみ + 招待制。登録の入口は 2 本だけ:
 
-### 新規アカウント作成 (招待)
+| 経路 | 誰が | 手段 |
+|---|---|---|
+| 初回 owner | スペースがまだ無い最初の 1 人 | `INITIAL_REGISTRATION_TOKEN` (下記) |
+| 招待リンク | 2 人目以降の家族 | アプリ内でオーナーが発行 (**通常はこちら**) |
+
+### 家族を招待する (アプリ内、wrangler 不要)
+
+1. オーナーがログイン → ヘッダのメニュー → **メンバーを招待**
+2. 「招待リンクを作る」→ 出てきた URL をコピー or 共有して家族に渡す
+3. 家族がそのリンクを開く
+   - アカウントが無い → 表示名を入れてパスキーを作ると、そのままスペースに参加する
+   - 既にアカウントがある → 「参加する」だけでそのスペースに加わる
+
+- 招待リンクは **7 日間・1 回だけ**有効。使い切る前に取り消したければ同じ画面の 🗑️ から
+- トークンは URL の**フラグメント**に載る (`/invite#token=...`)。サーバのアクセスログにも
+  `Referer` にも乗らない。DB には sha256 しか保存されないので、発行画面を離れると二度と表示できない
+- 発行できるのは **スペースの owner だけ**。招待から入った人は `member` なので、その人はさらに
+  招待できない (増やしたいなら `space_members.role` を SQL で `owner` に上げる)
+- 登録・参加は「users / space_members / 招待の消費」を 1 つの D1 batch で行う。
+  「登録できたがどのスペースにも属していない」中途半端な状態は作られない
+
+### 初回 owner の登録 (新しい環境を建てた直後だけ)
 
 ```bash
 # 1. ランダムトークンを払い出して secret に投入
 openssl rand -hex 32 | pnpm --filter @nyalog/web exec wrangler secret put INITIAL_REGISTRATION_TOKEN
 
-# 2. 表示されたトークンを招待者に渡す (Signal/直接対面 など、痕跡が残らない経路で)
+# 2. 本番 URL の「新規登録」タブで、表示名 + そのトークンを入れてパスキーを登録
+#    (この経路は users + spaces + space_members(owner) + credentials を 1 batch で作る)
 
-# 3. 招待者は本番 URL を開いて「新規登録」タブから:
-#    - 表示名
-#    - 上記トークン
-#    - デバイス名 (任意)
-#    を入力 → OS のパスキー UI で登録
-
-# 4. 登録完了を確認したら secret を即削除 (リプレイ防止)
+# 3. 登録できたら secret を即削除 (リプレイ防止)
 pnpm --filter @nyalog/web exec wrangler secret delete INITIAL_REGISTRATION_TOKEN
 ```
 
-`INITIAL_REGISTRATION_TOKEN` が未設定の状態では `/api/auth/register/begin` が 403 (`registration_closed`) を返すので、招待制が壊れない。
+`INITIAL_REGISTRATION_TOKEN` が未設定の状態では `/api/auth/register/begin` の初回登録経路が
+403 (`registration_closed`) を返す。招待リンク経路はこの secret とは無関係に動く。
 
 ### 追加デバイスのパスキー登録
 
 既存ユーザが別のデバイス (スマホ / 別 PC) を使えるようにする場合は、トークン不要:
 
 1. 既にパスキー登録済みのデバイスでログイン
-2. ヘッダの「パスキー管理」を開く
+2. ヘッダのメニュー →「パスキー管理」
 3. 「このデバイスのパスキーを追加」ボタン → そのデバイスの OS パスキー UI で登録
 
-### パスキー紛失時
+### パスキー紛失時 / ドメイン変更時
 
-最後の 1 つのパスキーを削除しようとするとサーバが 409 (`last_credential`) を返してブロックする。万一全てのパスキーを失った場合、**旧 `users` 行は削除しない**: `cats` / `toilet_records` / `weight_records` / `medical_records` / `cat_tasks` / `cat_task_completions` の `created_by` / `completed_by` が audit 用に参照しており ([ADR-004](./docs/adr/004-family-shared-with-created-by.md))、削除すると FK 制約違反になるか監査情報が壊れる。代わりに新規ユーザとして登録し直し、既存スペースに再紐付けする ([ADR-005](./docs/adr/005-per-space-membership.md) — 猫・記録はユーザではなくスペースに属するため、新ユーザをスペースに加えるだけで既存データにアクセスできる):
+最後の 1 つのパスキーを削除しようとするとサーバが 409 (`last_credential`) を返してブロックする。
+全てのパスキーを失った場合や、RP_ID を変えて既存パスキーが全滅した場合は、**旧 `users` 行は
+削除せず**、新規ユーザとして登録し直して既存スペースに入り直す。`cats` / `toilet_records` /
+`weight_records` / `medical_records` / `cat_tasks` / `cat_task_completions` の `created_by` /
+`completed_by` が audit 用に旧行を参照しているため ([ADR-004](./docs/adr/004-family-shared-with-created-by.md))。
+
+- **オーナーが 1 人でも生きているなら**: 上の「家族を招待する」で招待リンクを送るだけでよい。
+  猫・記録はユーザではなくスペースに属するので、新ユーザをスペースに入れれば全データが見える
+  ([ADR-005](./docs/adr/005-per-space-membership.md))
+- **オーナーが全員ログインできなくなったら**: `INITIAL_REGISTRATION_TOKEN` で登録し直した上で、
+  既存スペースへの紐付けを SQL でやる (INSERT のみ = cascade リスクなし):
 
 ```bash
-# 1. 招待トークンを払い出す (上の「新規アカウント作成」と同じ手順)
-openssl rand -hex 32 | pnpm --filter @nyalog/web exec wrangler secret put INITIAL_REGISTRATION_TOKEN
-
-# 2. 本人が本番 URL の「新規登録」からトークンでパスキーを再登録する
-#    (まだどのスペースにも属していないため、この時点では猫が何も見えないのが正常)
-
-# 3. 新しい user id と既存 space id を確認して再紐付け (INSERT のみ = cascade リスクなし)
 pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "SELECT id, display_name, created_at FROM users ORDER BY created_at DESC LIMIT 5;"
 pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "SELECT id, name FROM spaces;"
-pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "INSERT INTO space_members (space_id, user_id, role, created_at) VALUES ('<SPACE_ID>', '<NEW_USER_ID>', 'member', '<NOW ISO8601>');"
+pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "INSERT INTO space_members (space_id, user_id, role, created_at) VALUES ('<SPACE_ID>', '<NEW_USER_ID>', 'owner', '<NOW ISO8601>');"
+```
 
-# 4. トークンを削除 (リプレイ防止)
-pnpm --filter @nyalog/web exec wrangler secret delete INITIAL_REGISTRATION_TOKEN
+使えなくなった旧 credential だけ消したい場合 (旧 `users` 行は残す):
 
-# 5. (任意) 使えなくなった旧 credential だけ削除 (旧 users 行は残す)
+```bash
 pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "DELETE FROM credentials WHERE user_id = '<lost-user-id>';"
 ```
 

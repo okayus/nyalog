@@ -31,7 +31,7 @@ export function AuthView({ onAuthenticated }: Props) {
     setError(null);
     const result = await authApi.register(
       displayName.trim(),
-      token.trim(),
+      { kind: "initial", initialRegistrationToken: token.trim() },
       deviceName.trim() || null,
     );
     result.match(

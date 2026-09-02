@@ -140,3 +140,41 @@ PR #37 の計画時に `cats` を rebuild するとは書いたが、「rebuild 
 ### 結論
 
 事故は D1 固有の挙動だが、教訓は汎用。「ローカルと本番の差分」「テストで守れない領域」「波及の読み違い」の 3 つは、次に触るテーブル（`toilet_records`, `cats.created_by`, あるいは別機能の schema）で別の形で再現しうる。runbook だけでなく上記 meta-level チェックを PR 計画段階で走らせる。
+
+## Addendum (2026-09-02): 招待リンクによるメンバー追加
+
+bootstrap SQL に残していた「招待機能を入れる時に owner-only 権限を見直す」の宿題を解いた。
+skill `cloudflare-workers-space-membership-invite` (0.2.0) と、その最初の実装者である
+matatabetai (ADR-002) をなぞっている。
+
+### 決めたこと
+
+- **URL に `:spaceId` を出す**。招待だけ `/api/spaces/:spaceId/invites` に置き、`spaceMiddleware`
+  が所属を 1 回確かめる (壊れた id・未存在・所属外はすべて 404。403 は存在が漏れる)。既存の
+  `/api/cats` 系は `WHERE space_id IN memberSpaceIds` のまま触っていない — 招待に必要なのは
+  「どのスペースの招待か」の 1 点だけで、全ルートの URL 設計を変える理由にはならない
+- **owner 判定は handler の中**。同じ prefix に member でも通したい GET が同居しうるため、
+  middleware で締めない
+- **招待から owner は生えない**。`invites.role` は `'member'` 固定 + CHECK 制約。owner を増やす
+  のは ops の SQL の仕事
+- **トークンは平文で保存しない**。DB は sha256 hex のみ。平文は発行レスポンスと招待リンクにしか
+  存在せず、リンクでは**フラグメント**に置く (observability の head_sampling_rate=1 なので、
+  クエリに置くとアクセスログに全部残る)。`console.log` に出すのは `inviteId` まで
+- **消費は D1 batch の最後に置いた `UPDATE ... WHERE consumed_at IS NULL`** で判定する。
+  batch は原子的だが 0 行 UPDATE はエラーにならないので、`meta.changes === 0` を負けとみなして
+  入れた行を逆順に削除し `409 invite_race` を返す
+- **登録経路の状態は署名済み challenge cookie にだけ持つ**。`register/begin` が返すのは
+  `{ options }` だけで、`inviteId` / `spaceId` / `uid` / `displayName` はクライアントを一切
+  経由しない。レスポンスに載せて verify で信じ直すと、未消費の inviteId を知った人が
+  トークン無しで参加できてしまう
+- **初回登録がスペースを作るようになった**。従来の `INITIAL_REGISTRATION_TOKEN` 経路は
+  `users` と `credentials` しか作らず、`space_members` への INSERT が手作業だった。この穴が
+  サブドメイン改名 (#67) 後の家族再招待で毎回オペを要求していた原因。今は
+  users + spaces + space_members(owner) + credentials を 1 batch で作る
+
+### 運用への影響
+
+- 家族追加に wrangler は要らない。オーナーがアプリ内で招待リンクを作って渡すだけ
+- `INITIAL_REGISTRATION_TOKEN` は「新しい環境の最初の 1 人」専用に縮小した
+- 本番の既存ユーザは bootstrap SQL で全員 `owner`。招待から入った人は `member` なので、
+  その人はさらに招待できない

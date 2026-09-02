@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { type AuthUser, authApi } from "./api";
 import { AuthView } from "./components/AuthView";
 import { CredentialsView } from "./components/CredentialsView";
+import { InviteView } from "./components/InviteView";
+import { SpaceInvitesView } from "./components/SpaceInvitesView";
+import { clearInviteLocation, readInviteToken } from "./invite-link";
 import { MedicalRecordsView } from "./components/MedicalRecordsView";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
@@ -16,7 +19,8 @@ type View =
   | { kind: "medical"; catId: string; catName: string; themeColor: string }
   | { kind: "weight"; catId: string; catName: string; themeColor: string }
   | { kind: "tasks" }
-  | { kind: "credentials" };
+  | { kind: "credentials" }
+  | { kind: "invites" };
 
 type AuthState =
   | { status: "loading" }
@@ -24,8 +28,10 @@ type AuthState =
   | { status: "authenticated"; user: AuthUser };
 
 // 固有の文脈を先頭に置く (accessibility ガイド「Front-load unique context」)。
-function pageTitle(auth: AuthState, view: View): string {
+function pageTitle(auth: AuthState, view: View, onInvitePage: boolean): string {
   if (auth.status === "loading") return "nyalog";
+  // 招待の着地は view の外にいる (URL を消したあとも招待画面のまま)
+  if (onInvitePage) return "招待 | nyalog";
   if (auth.status === "unauthenticated") return "サインイン | nyalog";
   switch (view.kind) {
     case "today":
@@ -34,6 +40,8 @@ function pageTitle(auth: AuthState, view: View): string {
       return "タスク管理 | nyalog";
     case "credentials":
       return "パスキー管理 | nyalog";
+    case "invites":
+      return "メンバーを招待 | nyalog";
     case "toilet":
       return `${view.catName} のトイレ記録 | nyalog`;
     case "medical":
@@ -53,6 +61,15 @@ function focusViewHeading(): void {
 export function App() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [view, setView] = useState<View>({ kind: "today" });
+  // 起動時に 1 回だけ読む。router は入れない — 招待リンクは一度きりの入口で、
+  // 着地したら通常の画面に戻る。
+  const [inviteToken, setInviteToken] = useState<string | null>(() => readInviteToken());
+
+  // トークンをアドレスバーから消す (履歴・スクショ・共有に残さない)。
+  useEffect(() => {
+    if (inviteToken !== null) clearInviteLocation();
+    // 起動直後に 1 回だけ。以降 inviteToken を null にしても URL は既に消えている。
+  }, []);
 
   useEffect(() => {
     authApi.me().then((result) => {
@@ -64,8 +81,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    document.title = pageTitle(auth, view);
-  }, [auth, view]);
+    document.title = pageTitle(auth, view, inviteToken !== null);
+  }, [auth, view, inviteToken]);
 
   function goTo(next: View) {
     withViewTransition(() => setView(next), focusViewHeading);
@@ -84,6 +101,23 @@ export function App() {
       <main>
         <h1>nyalog</h1>
         <p>読み込み中...</p>
+      </main>
+    );
+  }
+
+  if (inviteToken !== null) {
+    return (
+      <main>
+        <h1>nyalog</h1>
+        <InviteView
+          token={inviteToken}
+          user={auth.status === "authenticated" ? auth.user : null}
+          onJoined={(user) => {
+            setAuth({ status: "authenticated", user });
+            setInviteToken(null);
+          }}
+          onCancel={() => setInviteToken(null)}
+        />
       </main>
     );
   }
@@ -130,6 +164,14 @@ export function App() {
             onClick={() => goTo({ kind: "credentials" })}
           >
             パスキー管理
+          </button>
+          <button
+            type="button"
+            popoverTarget="account-menu"
+            popoverTargetAction="hide"
+            onClick={() => goTo({ kind: "invites" })}
+          >
+            メンバーを招待
           </button>
           <button
             type="button"
@@ -202,6 +244,7 @@ export function App() {
       {view.kind === "credentials" ? (
         <CredentialsView onBack={() => goTo({ kind: "today" })} />
       ) : null}
+      {view.kind === "invites" ? <SpaceInvitesView onBack={() => goTo({ kind: "today" })} /> : null}
     </main>
   );
 }

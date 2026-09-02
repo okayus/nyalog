@@ -31,7 +31,8 @@ type UpdateToiletRecordInput =
 
 export type ApiError =
   | { kind: "network"; message: string }
-  | { kind: "http"; status: number; message: string };
+  // type はサーバの AuthError["type"]。招待の失敗理由を文言に落とすのに使う。
+  | { kind: "http"; status: number; message: string; type?: string };
 
 function toNetworkError(e: unknown): ApiError {
   return { kind: "network", message: e instanceof Error ? e.message : String(e) };
@@ -52,12 +53,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<Result<T, A
   const res = fetchResult.value;
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {
-      error?: { message?: string };
+      error?: { message?: string; type?: string };
     };
     return err({
       kind: "http",
       status: res.status,
       message: body.error?.message ?? `HTTP ${res.status}`,
+      type: body.error?.type,
     });
   }
   return ResultAsync.fromPromise(res.json() as Promise<T>, toNetworkError);
@@ -443,6 +445,10 @@ export function deleteBloodTestValue(
 
 export type AuthUser = { id: string; displayName: string };
 
+export type RegisterIntent =
+  | { kind: "initial"; initialRegistrationToken: string }
+  | { kind: "invite"; inviteToken: string };
+
 export type CredentialSummary = {
   id: string;
   deviceName: string | null;
@@ -456,18 +462,21 @@ export const authApi = {
     return request<AuthUser>("/api/auth/me");
   },
 
+  // 登録の入口は 2 本。初回 owner (INITIAL_REGISTRATION_TOKEN) と、招待リンク。
+  // verify に displayName は送らない — サーバが begin で署名した cookie 側の値を使う。
   async register(
     displayName: string,
-    initialRegistrationToken: string,
+    intent: RegisterIntent,
     deviceName: string | null,
   ): Promise<Result<AuthUser, ApiError>> {
-    const begin = await request<{
-      options: PublicKeyCredentialCreationOptionsJSON;
-      userId: string;
-    }>("/api/auth/register/begin", {
-      method: "POST",
-      body: JSON.stringify({ displayName, initialRegistrationToken }),
-    });
+    const credentials =
+      intent.kind === "invite"
+        ? { inviteToken: intent.inviteToken }
+        : { initialRegistrationToken: intent.initialRegistrationToken };
+    const begin = await request<{ options: PublicKeyCredentialCreationOptionsJSON }>(
+      "/api/auth/register/begin",
+      { method: "POST", body: JSON.stringify({ displayName, ...credentials }) },
+    );
     if (begin.isErr()) return err(begin.error);
     const attResp = await ResultAsync.fromPromise(
       startRegistration({ optionsJSON: begin.value.options }),
@@ -476,7 +485,7 @@ export const authApi = {
     if (attResp.isErr()) return err(attResp.error);
     return request<AuthUser>("/api/auth/register/verify", {
       method: "POST",
-      body: JSON.stringify({ displayName, response: attResp.value, deviceName }),
+      body: JSON.stringify({ response: attResp.value, deviceName }),
     });
   },
 
@@ -528,3 +537,75 @@ export const authApi = {
     });
   },
 };
+
+// --- Space / Invite API ---
+
+export type SpaceSummary = {
+  id: string;
+  name: string;
+  role: "owner" | "member";
+  joinedAt: string;
+};
+
+// 発行直後だけ手に入る招待リンク。以後サーバは hash しか持たないので再表示できない。
+export type IssuedInvite = { inviteId: string; expiresAt: string; url: string };
+
+export type PendingInvite = {
+  id: string;
+  expiresAt: string;
+  createdByUserId: string;
+  createdAt: string;
+};
+
+export const spaceApi = {
+  list(): Promise<Result<SpaceSummary[], ApiError>> {
+    return request<SpaceSummary[]>("/api/spaces");
+  },
+
+  issueInvite(spaceId: string): Promise<Result<IssuedInvite, ApiError>> {
+    return request<IssuedInvite>(`/api/spaces/${spaceId}/invites`, { method: "POST" });
+  },
+
+  listInvites(spaceId: string): Promise<Result<PendingInvite[], ApiError>> {
+    return request<PendingInvite[]>(`/api/spaces/${spaceId}/invites`);
+  },
+
+  revokeInvite(
+    spaceId: string,
+    inviteId: string,
+  ): Promise<Result<Record<string, never>, ApiError>> {
+    return request(`/api/spaces/${spaceId}/invites/${encodeURIComponent(inviteId)}`, {
+      method: "DELETE",
+    });
+  },
+
+  accept(token: string): Promise<Result<{ spaceId: string }, ApiError>> {
+    return request<{ spaceId: string }>("/api/invites/accept", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  },
+};
+
+// サーバの AuthError["type"] を家族に見せる日本語にする。
+export function describeApiError(e: ApiError): string {
+  if (e.kind === "network") return e.message;
+  switch (e.type) {
+    case "invite_invalid":
+      return "この招待リンクは使えません。リンク全体をコピーして開き直してください。";
+    case "invite_consumed":
+      return "この招待リンクは使用済みです。新しいリンクを送ってもらってください。";
+    case "invite_expired":
+      return "この招待リンクは期限切れです。新しいリンクを送ってもらってください。";
+    case "invite_race":
+      return "ほぼ同時に他の人が使いました。新しいリンクを送ってもらってください。";
+    case "already_member":
+      return "すでにこのスペースに参加しています。";
+    case "forbidden":
+      return "この操作はスペースのオーナーだけができます。";
+    case "registration_closed":
+      return "現在このトークンでの新規登録は受け付けていません。";
+    default:
+      return e.message;
+  }
+}
