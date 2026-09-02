@@ -12,7 +12,12 @@ import type {
   AuthenticatorTransportFuture,
   RegistrationResponseJSON,
 } from "@simplewebauthn/server";
-import { credentials as credentialsTable, users } from "../db/schema";
+import {
+  credentials as credentialsTable,
+  users,
+  type NewCredential,
+  type NewUser,
+} from "../db/schema";
 import {
   type AuthError,
   UserId,
@@ -24,9 +29,15 @@ import {
   parseVerifyLogin,
   parseVerifyRegistration,
 } from "../domain/auth";
-import { consumeChallenge, issueChallenge } from "../middleware/challenge-cookie";
+import { secretEquals } from "../lib/token";
+import {
+  consumeChallenge,
+  issueChallenge,
+  type ChallengeState,
+} from "../middleware/challenge-cookie";
 import { authRateLimit } from "../middleware/rate-limit";
 import { issueSession, revokeSession, sessionMiddleware } from "../middleware/session";
+import { registerInitialUser, registerInvitedUser, validateInvite } from "../spaces/registration";
 import type { Env } from "../types";
 
 function errJson(error: AuthError) {
@@ -49,6 +60,29 @@ function fromBase64Url(s: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
+type RegistrationInfo = NonNullable<
+  Awaited<ReturnType<typeof verifyRegistrationResponse>>["registrationInfo"]
+>;
+
+function credentialFrom(
+  info: RegistrationInfo,
+  userId: string,
+  deviceName: string | null,
+  now: string,
+): NewCredential {
+  return {
+    id: info.credential.id,
+    userId,
+    publicKey: toBase64Url(info.credential.publicKey),
+    counter: info.credential.counter,
+    transports: info.credential.transports ? JSON.stringify(info.credential.transports) : null,
+    deviceName,
+    backedUp: info.credentialBackedUp,
+    createdAt: now,
+    lastUsedAt: now,
+  };
+}
+
 function userIdToHandle(userId: string): Uint8Array<ArrayBuffer> {
   const src = new TextEncoder().encode(userId);
   const out = new Uint8Array(new ArrayBuffer(src.byteLength));
@@ -58,36 +92,49 @@ function userIdToHandle(userId: string): Uint8Array<ArrayBuffer> {
 
 export const authRoutes = new Hono<Env>()
   .post("/register/begin", authRateLimit, async (c) => {
-    const token = c.env.INITIAL_REGISTRATION_TOKEN;
-    if (!token) {
-      const { body, status } = errJson({
-        type: "registration_closed",
-        message: "Registration is currently closed",
-      });
-      return c.json(body, status);
-    }
-    const parsed = parseBeginRegistration(await c.req.json());
+    const parsed = parseBeginRegistration(await c.req.json().catch(() => undefined));
     if (parsed.isErr()) {
       const { body, status } = errJson(parsed.error);
       return c.json(body, status);
     }
-    if (parsed.value.initialRegistrationToken !== token) {
-      const { body, status } = errJson({
-        type: "registration_closed",
-        message: "Invalid registration token",
-      });
-      return c.json(body, status);
-    }
+    const intent = parsed.value;
+    // users.id はここで採番して challenge cookie に署名する。verify が同じ id で INSERT
+    // するので、verify を再送されても 2 人はできない。
+    const pendingUserId = crypto.randomUUID();
 
-    const { displayName } = parsed.value;
-    const userId = crypto.randomUUID();
+    let state: ChallengeState;
+    if (intent.kind === "invite") {
+      const invite = await validateInvite(c.env.DB, intent.inviteToken, new Date());
+      if (invite.isErr()) {
+        const { body, status } = errJson(invite.error);
+        return c.json(body, status);
+      }
+      state = {
+        kind: "invite",
+        uid: pendingUserId,
+        displayName: intent.displayName,
+        inviteId: invite.value.id,
+        spaceId: invite.value.spaceId,
+      };
+    } else {
+      // secret が未設定なら登録は閉じている (deploy 直後の空白時間も含めて)
+      const secret = c.env.INITIAL_REGISTRATION_TOKEN;
+      if (!secret || !(await secretEquals(intent.initialRegistrationToken, secret))) {
+        const { body, status } = errJson({
+          type: "registration_closed",
+          message: "Registration is currently closed",
+        });
+        return c.json(body, status);
+      }
+      state = { kind: "initial", uid: pendingUserId, displayName: intent.displayName };
+    }
 
     const options = await generateRegistrationOptions({
       rpName: "nyalog",
       rpID: c.env.RP_ID,
-      userName: displayName,
-      userDisplayName: displayName,
-      userID: userIdToHandle(userId),
+      userName: intent.displayName,
+      userDisplayName: intent.displayName,
+      userID: userIdToHandle(pendingUserId),
       attestationType: "none",
       authenticatorSelection: {
         residentKey: "required",
@@ -95,31 +142,26 @@ export const authRoutes = new Hono<Env>()
       },
     });
 
-    await issueChallenge(c, options.challenge, "registration", userId);
-    return c.json({ options, userId });
+    await issueChallenge(c, options.challenge, state);
+    // 返すのは options だけ。招待の inviteId / spaceId も uid もクライアントには渡さない。
+    return c.json({ options });
   })
   .post("/register/verify", authRateLimit, async (c) => {
-    const token = c.env.INITIAL_REGISTRATION_TOKEN;
-    if (!token) {
-      const { body, status } = errJson({
-        type: "registration_closed",
-        message: "Registration is currently closed",
-      });
-      return c.json(body, status);
-    }
-    const parsed = parseVerifyRegistration(await c.req.json());
+    const parsed = parseVerifyRegistration(await c.req.json().catch(() => undefined));
     if (parsed.isErr()) {
       const { body, status } = errJson(parsed.error);
       return c.json(body, status);
     }
-    const ch = await consumeChallenge(c, "registration");
-    if (!ch || !ch.uid) {
+    // displayName も uid も招待も、begin で署名した cookie 側の値だけを使う。
+    const ch = await consumeChallenge(c);
+    if (!ch || (ch.state.kind !== "initial" && ch.state.kind !== "invite")) {
       const { body, status } = errJson({
         type: "challenge_mismatch",
         message: "No registration challenge",
       });
       return c.json(body, status);
     }
+    const state = ch.state;
 
     let verification;
     try {
@@ -145,29 +187,31 @@ export const authRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    const info = verification.registrationInfo;
-    const db = drizzle(c.env.DB);
     const now = new Date().toISOString();
+    const user: NewUser = { id: state.uid, displayName: state.displayName, createdAt: now };
+    const cred = credentialFrom(
+      verification.registrationInfo,
+      user.id,
+      parsed.value.deviceName,
+      now,
+    );
 
-    await db.insert(users).values({
-      id: ch.uid,
-      displayName: parsed.value.displayName,
-      createdAt: now,
-    });
-    await db.insert(credentialsTable).values({
-      id: info.credential.id,
-      userId: ch.uid,
-      publicKey: toBase64Url(info.credential.publicKey),
-      counter: info.credential.counter,
-      transports: info.credential.transports ? JSON.stringify(info.credential.transports) : null,
-      deviceName: parsed.value.deviceName,
-      backedUp: info.credentialBackedUp,
-      createdAt: now,
-      lastUsedAt: now,
-    });
+    // どちらの経路でも users / credentials / space_members は 1 batch で入る。
+    // 「登録できたがどのスペースにも属していない」中途半端な状態を作らない。
+    let spaceId: string;
+    if (state.kind === "initial") {
+      spaceId = (await registerInitialUser(c.env.DB, user, cred)).spaceId;
+    } else {
+      const joined = await registerInvitedUser(c.env.DB, state, user, cred);
+      if (joined.isErr()) {
+        const { body, status } = errJson(joined.error);
+        return c.json(body, status);
+      }
+      spaceId = joined.value.spaceId;
+    }
 
-    await issueSession(c, UserId.parse(ch.uid));
-    return c.json({ id: ch.uid, displayName: parsed.value.displayName });
+    await issueSession(c, UserId.parse(user.id));
+    return c.json({ id: user.id, displayName: user.displayName, spaceId }, 201);
   })
   .post("/login/begin", authRateLimit, async (c) => {
     const options = await generateAuthenticationOptions({
@@ -175,7 +219,7 @@ export const authRoutes = new Hono<Env>()
       userVerification: "preferred",
       allowCredentials: [],
     });
-    await issueChallenge(c, options.challenge, "authentication");
+    await issueChallenge(c, options.challenge, { kind: "authentication" });
     return c.json({ options });
   })
   .post("/login/verify", authRateLimit, async (c) => {
@@ -184,8 +228,8 @@ export const authRoutes = new Hono<Env>()
       const { body, status } = errJson(parsed.error);
       return c.json(body, status);
     }
-    const ch = await consumeChallenge(c, "authentication");
-    if (!ch) {
+    const ch = await consumeChallenge(c);
+    if (!ch || ch.state.kind !== "authentication") {
       const { body, status } = errJson({
         type: "challenge_mismatch",
         message: "No authentication challenge",
@@ -307,7 +351,7 @@ export const authRoutes = new Hono<Env>()
       },
     });
 
-    await issueChallenge(c, options.challenge, "add-credential", userId);
+    await issueChallenge(c, options.challenge, { kind: "add-credential", uid: userId });
     return c.json({ options });
   })
   .post("/credentials/add/verify", sessionMiddleware(), async (c) => {
@@ -316,8 +360,8 @@ export const authRoutes = new Hono<Env>()
       const { body, status } = errJson(parsed.error);
       return c.json(body, status);
     }
-    const ch = await consumeChallenge(c, "add-credential");
-    if (!ch || ch.uid !== c.get("userId")) {
+    const ch = await consumeChallenge(c);
+    if (!ch || ch.state.kind !== "add-credential" || ch.state.uid !== c.get("userId")) {
       const { body, status } = errJson({
         type: "challenge_mismatch",
         message: "No add-credential challenge",

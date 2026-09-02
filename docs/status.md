@@ -15,7 +15,10 @@
 1. **フロントエンド改善** — [plans/frontend-improvements.md](./plans/frontend-improvements.md) を上から順に PR 化する。計画 1 (base layer のフォームコントロール根治) は [#74](https://github.com/okayus/nyalog/pull/74)、計画 2 (a11y/UX 小束) は [#76](https://github.com/okayus/nyalog/pull/76)、計画 3 (全件フェッチ / 全件レンダリング解消) は [#78](https://github.com/okayus/nyalog/pull/78) で完了。**次: 計画 4「`<Activity>` で TodayView の状態保持」**(view 切替のたびに全再フェッチしているのを React 19 の `<Activity mode>` で hidden 保持に)
 2. **セキュリティ残タスク** — [plans/security-remaining.md](./plans/security-remaining.md)(予算アラート / rate limit 再検証 / `/security-review` / 運用 TODO)
 3. **血液検査解析 (gemma-4) の本番確認** — 旧 default `gemma-3-12b-it` が 2026-05-30 に deprecated になっていたため `gemma-4-26b-a4b-it` へ移行した ([ADR-007 Addendum](./adr/007-blood-test-vision-analysis.md#addendum-2026-08-05-gemma-3-12b-の-deprecation-と-gemma-4-への移行))。dev は mock 固定で呼び出し規約を検証できないので、**デプロイ後に画像を 1 枚上げて `blood_test_analyses.status=succeeded` を確認**する
-4. **機能候補 (順序流動)** — 猫タスクの月カレンダー表示 (`enumerateDueDates` 実装済み、UI のみ) / ご飯・カロリー管理 (スキーマ設計から) / ADR-004 phase 2 の `created_by` NOT NULL 化(**cats rebuild で D1 CASCADE 再発リスク — [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリスト必須**)
+4. **スペース招待のデプロイ後確認** — アプリ内招待リンク (`/api/spaces/:spaceId/invites` + `/invite`) を実装済み。
+   migration `0012_invites.sql` は新規テーブルのみ (rebuild なし) だが merge = 本番適用なので人間 merge。
+   デプロイ後に「メンバーを招待」から 1 本発行し、別端末で開いて参加まで通ることを確認する
+5. **機能候補 (順序流動)** — 猫タスクの月カレンダー表示 (`enumerateDueDates` 実装済み、UI のみ) / ご飯・カロリー管理 (スキーマ設計から) / ADR-004 phase 2 の `created_by` NOT NULL 化(**cats rebuild で D1 CASCADE 再発リスク — [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリスト必須**)
 
 ## 後回し (Backlog)
 
@@ -23,7 +26,6 @@
 - 薬・動物病院の予定管理 / ご飯・カロリー管理 — リリース後に着手
 - e2e Phase 2 (WebAuthn + 認可横流れ) — 設計メモ: [plans/e2e-phase2.md](./plans/e2e-phase2.md)
 - 医療記録の e2e 1 本 — 次に医療記録周辺を触る PR で(記録作成 → upload → 表示 → 削除 → R2/DB 両方から消える)
-- スペース招待 API (`/api/spaces/:id/invites`) — 家族追加の再需要が出たら
 
 ## 完了済みフェーズ (詳細は PR / ADR)
 
@@ -46,5 +48,5 @@
 - Worker 名: `nyalog`
 - RP_ID: `nyalog.shiraoka.workers.dev`
 - 現在投入済みの secret: `SESSION_SECRET` (HS256 JWT 用)
-- `INITIAL_REGISTRATION_TOKEN` は失効済み (家族追加時のみ再投入)
+- `INITIAL_REGISTRATION_TOKEN` は初回 owner 専用。家族追加はアプリ内の招待リンクで済むので、通常は投入しない (README「認証運用 (パスキー)」)
 - 手動デプロイ経路は今も生きている: `pnpm run deploy` (`packages/web` から)

@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   sqliteTable,
   text,
   index,
@@ -71,6 +73,37 @@ export const spaceMembers = sqliteTable(
     pk: primaryKey({ columns: [t.spaceId, t.userId] }),
     userIdIdx: index("space_members_user_id_idx").on(t.userId),
   }),
+);
+
+// スペースへの招待。平文トークンは発行レスポンスと招待リンクにしか存在せず、
+// DB には sha256 hex だけを置く (漏洩しても DB からは復元できない)。
+// role は 'member' 固定 — 招待から owner は生えない (昇格が要るなら ops の SQL でやる)。
+export const invites = sqliteTable(
+  "invites",
+  {
+    id: text("id").primaryKey(),
+    spaceId: text("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    role: text("role", { enum: ["member"] }).notNull(),
+    expiresAt: text("expires_at").notNull(),
+    consumedAt: text("consumed_at"),
+    // 使った人が消えても「使われた」事実は監査として残す
+    consumedByUserId: text("consumed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("invites_token_hash_uniq").on(t.tokenHash),
+    index("invites_space_id_idx").on(t.spaceId),
+    // text(..., { enum }) は型だけの制約で SQL には出ない。DB 側でも縛る。
+    check("invites_role_check", sql`${t.role} = 'member'`),
+  ],
 );
 
 export const cats = sqliteTable(
@@ -296,3 +329,7 @@ export const catTaskCompletions = sqliteTable(
     taskDueIdx: index("cat_task_completions_task_due_idx").on(t.taskId, t.dueDate),
   }),
 );
+
+// 登録 batch (worker/spaces/registration.ts) が生の D1 に bind するための行の型。
+export type NewUser = typeof users.$inferInsert;
+export type NewCredential = typeof credentials.$inferInsert;
