@@ -77,11 +77,11 @@ type: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`
 third-party skill は `.claude/skills/` に **実体を vendoring する（symlink にしない）**。追加・更新はサンドボックス内で実行する（ADR-008: npm パッケージをホストで走らせない）:
 
 ```bash
-docker compose exec dev npx -y skills@latest add <owner>/<repo> -y -s <skill> --copy
-docker compose exec dev npx -y skills@latest update -y -p    # 更新 (project スコープ)
+docker compose exec dev npx -y skills@latest add <owner>/<repo> -y -s <skill> --copy    # 追加も更新もこれ
 ```
 
 - **`--copy` 必須。** 既定の symlink は gitignore 済みの `.agents/` を指すため clone 先で必ず壊れる。しかも壊れても警告が出ず、同名の user-scope skill があるとそちらが解決して「使えているように見える」。実際 `vercel-react-best-practices` はこれで 2 ヶ月壊れたまま気づかなかった（PR #70 で修正）
+- **更新も `add … --copy` を打ち直す（`skills update` は使わない）。** `update -y -p` は `.claude/skills/<skill>` を `.agents/` への symlink に作り替え、上と同じ壊れ方をする（skills 1.5.24 / 1.5.26 で確認、2026-09-14）
 - **更新は単独 PR で。** 差分が数万行になるので他の変更と混ぜない
 - `--copy` は `.agents/skills/` と `.claude/skills/` の両方に置き、`skills list` は前者を表示する。**git が追うのは後者**なので、更新後は `git status` に `.claude/skills/` の差分が出ていることを必ず確認する
 - `skills-lock.json` は commit する。skill を捨てる時はエントリも一緒に消す（壊れたまま残さない）
