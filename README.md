@@ -110,8 +110,11 @@ ADR-003 のとおり、本アプリはパスキーのみ + 招待制。登録の
 ### 初回 owner の登録 (新しい環境を建てた直後だけ)
 
 ```bash
-# 1. ランダムトークンを払い出して secret に投入
-openssl rand -hex 32 | pnpm --filter @nyalog/web exec wrangler secret put INITIAL_REGISTRATION_TOKEN
+# 1. ランダムトークンを作り、表示された値を控えてから secret に投入する (プロンプトに貼り付ける)。
+#    `openssl … | wrangler secret put …` と直接つなぐと値が一度も画面に出ず、2 で入力できない
+#    (2026-08-01 / kokemusu 09-01 / routine-tasks 09-09 で同じ罠を踏んだ)。
+openssl rand -hex 32
+pnpm --filter @nyalog/web exec wrangler secret put INITIAL_REGISTRATION_TOKEN
 
 # 2. 本番 URL の「新規登録」タブで、表示名 + そのトークンを入れてパスキーを登録
 #    (この経路は users + spaces + space_members(owner) + credentials を 1 batch で作る)

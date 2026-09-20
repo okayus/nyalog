@@ -67,9 +67,12 @@ sessions     (id, user_id FK, expires_at, created_at)
 想定ユーザは最大 4 名 (自分 + 家族 + テストアカウント) 程度なので、各ユーザ登録ごとに以下のサイクルを回す:
 
 ```bash
-# 1. ランダムトークン生成 + secret 登録
-openssl rand -hex 32 | pnpm exec wrangler secret put INITIAL_REGISTRATION_TOKEN
-# 2. 表示された値を登録者に渡し、登録画面で入力してもらう
+# 1. ランダムトークン生成 → 表示された値を控える → secret 登録 (プロンプトに貼り付ける)
+#    (2026-09-20 訂正: 当初は `openssl … | wrangler secret put …` と直接つないでいたが、
+#     それでは値が一度も表示されず 2 ができない)
+openssl rand -hex 32
+pnpm exec wrangler secret put INITIAL_REGISTRATION_TOKEN
+# 2. 控えた値を登録者に渡し、登録画面で入力してもらう
 # 3. 登録完了後 secret を削除 (リプレイ防止)
 pnpm exec wrangler secret delete INITIAL_REGISTRATION_TOKEN
 ```
