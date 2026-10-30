@@ -9,7 +9,8 @@ import { weightRoutes } from "./routes/weight-records";
 import { inviteAcceptRoutes } from "./routes/invite-accept";
 import { spaceInviteRoutes } from "./routes/space-invites";
 import { spaceRoutes } from "./routes/spaces";
-import { sessionMiddleware } from "./middleware/session";
+import { tokenRoutes } from "./routes/tokens";
+import { authMiddleware } from "./middleware/session";
 import { spaceMiddleware } from "./middleware/space";
 import type { Env, SpaceEnv } from "./types";
 
@@ -43,7 +44,10 @@ const api = new Hono<Env>();
 api.route("/auth", authRoutes);
 
 const protectedApi = new Hono<Env>();
-protectedApi.use("/*", sessionMiddleware());
+// PAT (Bearer) か cookie セッション。PAT で呼べるルートは domain/pat.ts の表で既定拒否 (ADR-009)。
+protectedApi.use("/*", authMiddleware());
+// トークン管理はセッション限定 (tokenRoutes の中で sessionMiddleware)
+protectedApi.route("/tokens", tokenRoutes);
 protectedApi.route("/cats", catRoutes);
 protectedApi.route("/cats/:catId/toilet-records", toiletRoutes);
 protectedApi.route("/cats/:catId/medical-records", medicalRecordRoutes);

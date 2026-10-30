@@ -106,6 +106,30 @@ export const invites = sqliteTable(
   ],
 );
 
+// 機械呼び出し用の personal access token (ADR-009)。平文は発行レスポンスにしか存在せず、
+// DB には sha256(token + PAT_PEPPER) だけ置く。失効は行を残して revoked_at を立てる
+// (いつ死んだかを一覧で見せる)。scopes は JSON 配列の TEXT (domain/pat.ts の parseScopes で読む)。
+export const personalAccessTokens = sqliteTable(
+  "personal_access_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    scopes: text("scopes").notNull(),
+    createdAt: text("created_at").notNull(),
+    lastUsedAt: text("last_used_at"),
+    expiresAt: text("expires_at"),
+    revokedAt: text("revoked_at"),
+  },
+  (t) => [
+    uniqueIndex("personal_access_tokens_token_hash_uniq").on(t.tokenHash),
+    index("personal_access_tokens_user_id_revoked_at_idx").on(t.userId, t.revokedAt),
+  ],
+);
+
 export const cats = sqliteTable(
   "cats",
   {
