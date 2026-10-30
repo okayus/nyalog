@@ -538,6 +538,44 @@ export const authApi = {
   },
 };
 
+// --- Personal Access Token API (ADR-009) ---
+
+export type TokenSummary = {
+  id: string;
+  name: string;
+  scopes: string[];
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+};
+
+// 発行直後だけ手に入る平文。サーバは hash しか持たないので再表示できない。
+export type IssuedToken = {
+  id: string;
+  name: string;
+  token: string;
+  scopes: string[];
+  createdAt: string;
+};
+
+export const tokenApi = {
+  list(): Promise<Result<TokenSummary[], ApiError>> {
+    return request<TokenSummary[]>("/api/tokens");
+  },
+
+  create(name: string): Promise<Result<IssuedToken, ApiError>> {
+    return request<IssuedToken>("/api/tokens", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  revoke(id: string): Promise<Result<Record<string, never>, ApiError>> {
+    return request(`/api/tokens/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+};
+
 // --- Space / Invite API ---
 
 export type SpaceSummary = {
@@ -605,6 +643,10 @@ export function describeApiError(e: ApiError): string {
       return "この操作はスペースのオーナーだけができます。";
     case "registration_closed":
       return "現在このトークンでの新規登録は受け付けていません。";
+    case "pat_unavailable":
+      return "サーバに PAT_PEPPER が設定されていないため発行できません (wrangler secret put PAT_PEPPER)。";
+    case "session_required":
+      return "この操作はブラウザでログインしたセッションからだけできます。";
     default:
       return e.message;
   }
