@@ -76,6 +76,23 @@ test("GET /api/tasks/due enumerates (task × cat × dueDate) with completion sta
   expect((await viaPat.json()).some((i: { taskId: string }) => i.taskId === taskId)).toBe(true);
   expect((await request.get("/api/tasks", { headers })).status()).toBe(403);
 
+  // 完了と取り消しも PAT で (tasks:write)。同じ (task, cat, dueDate) の再送は既存を 200
+  const c1 = await request.post(`/api/tasks/${taskId}/completions`, {
+    headers,
+    data: { catId, dueDate: "2026-10-05", completedAt: "2026-10-05T00:00:00Z" },
+  });
+  expect(c1.status()).toBe(201);
+  const c2 = await request.post(`/api/tasks/${taskId}/completions`, {
+    headers,
+    data: { catId, dueDate: "2026-10-05", completedAt: "2026-10-05T01:00:00Z" },
+  });
+  expect(c2.status()).toBe(200);
+  expect((await c2.json()).id).toBe((await c1.json()).id);
+  const undo = await request.delete(`/api/tasks/${taskId}/completions/${(await c1.json()).id}`, {
+    headers,
+  });
+  expect(undo.status()).toBe(200);
+
   await request.delete(`/api/tasks/${taskId}`);
   await request.delete(`/api/cats/${catId}`);
   await request.delete(`/api/tokens/${tokenId}`);

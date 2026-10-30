@@ -93,7 +93,7 @@ ADR-003 のとおり、本アプリはパスキーのみ + 招待制。登録の
 
 ### API トークン (PAT) を発行する (機械呼び出し用)
 
-ochanoma のような機械が本人として記録を書く経路 ([ADR-009](./docs/adr/009-machine-callers-pat-idempotency-due.md))。アカウントメニュー「API トークン」で名前を付けて発行し、一度だけ表示される `nyalog_pat_…` を呼び出し側に渡す。呼べるルートと scope は `worker/domain/pat.ts` の表が正。
+ochanoma のような機械が本人として記録を書く経路 ([ADR-009](./docs/adr/009-machine-callers-pat-idempotency-due.md))。アカウントメニュー「API トークン」で名前を付けて発行し、一度だけ表示される `nyalog_pat_…` を呼び出し側に渡す。呼べるルートと scope は `worker/domain/pat.ts` の表が正。呼び出し側向けの契約は [docs/senders.md](./docs/senders.md)。
 
 発行の前に 1 回だけ pepper を投入する (後から入れると既発行が全部死ぬ。未設定の間は発行が 503 で止まる):
 

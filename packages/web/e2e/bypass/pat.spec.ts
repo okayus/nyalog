@@ -89,6 +89,19 @@ test("PAT: toilet-records POST passes with toilet:write and is attributed to the
   expect(listBySession.status()).toBe(200);
   expect((await listBySession.json()).map((r: { id: string }) => r.id)).toContain(record.id);
 
+  // 取り消し: 自分で作った記録は PAT で消せる。PUT は表に無い
+  const put = await request.put(`/api/cats/${catId}/toilet-records/${record.id}`, {
+    headers: bearer(issued.token),
+    data: { type: "urination" },
+  });
+  expect(put.status()).toBe(403);
+  const del = await request.delete(`/api/cats/${catId}/toilet-records/${record.id}`, {
+    headers: bearer(issued.token),
+  });
+  expect(del.status()).toBe(200);
+  const afterDelete = await request.get(`/api/cats/${catId}/toilet-records`);
+  expect((await afterDelete.json()).map((r: { id: string }) => r.id)).not.toContain(record.id);
+
   await request.delete(`/api/cats/${catId}`);
   await request.delete(`/api/tokens/${issued.id}`);
 });

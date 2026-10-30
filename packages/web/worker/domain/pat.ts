@@ -120,8 +120,19 @@ type PatRoute = { method: string; pattern: RegExp; scope: Scope | null };
 const PAT_ROUTES: readonly PatRoute[] = [
   { method: "GET", pattern: /^\/api\/auth\/me$/, scope: null },
   { method: "POST", pattern: /^\/api\/cats\/[^/]+\/toilet-records$/, scope: "toilet:write" },
+  // 取り消し (kakitome docs/06 §4): 送信側が自分で作った記録を id で消す
+  {
+    method: "DELETE",
+    pattern: /^\/api\/cats\/[^/]+\/toilet-records\/[^/]+$/,
+    scope: "toilet:write",
+  },
   { method: "GET", pattern: /^\/api\/tasks\/due$/, scope: "tasks:read" },
   { method: "POST", pattern: /^\/api\/tasks\/[^/]+\/completions$/, scope: "tasks:write" },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/tasks\/[^/]+\/completions\/[^/]+$/,
+    scope: "tasks:write",
+  },
 ];
 
 // 資格情報そのものを変える領域。PAT には「表に無い」ではなく「ブラウザのセッションで」と返す。
