@@ -130,6 +130,27 @@ export const personalAccessTokens = sqliteTable(
   ],
 );
 
+// toilet-records POST の Idempotency-Key (ADR-009 §2)。同じ利用者が同じ key で再送したら、
+// 保存した応答をそのまま返す。記録の INSERT と同じ batch で入れるので、同時到着は PK 衝突で
+// 片方だけが記録を作る。30 日より古い行は次の書き込みのついでに消す。
+export const idempotencyKeys = sqliteTable(
+  "idempotency_keys",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    responseStatus: integer("response_status").notNull(),
+    responseBody: text("response_body").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.key] }),
+    index("idempotency_keys_user_id_created_at_idx").on(t.userId, t.createdAt),
+  ],
+);
+
 export const cats = sqliteTable(
   "cats",
   {

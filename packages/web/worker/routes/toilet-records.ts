@@ -13,6 +13,20 @@ import {
   parseCreateToiletRecord,
   parseUpdateToiletRecord,
 } from "../domain/toilet-record";
+import {
+  IDEMPOTENCY_KEY_HEADER,
+  canonicalJson,
+  idempotencyErrorResponse,
+  parseIdempotencyKey,
+  replayDecision,
+} from "../domain/idempotency";
+import {
+  findStoredResponse,
+  isUniqueViolation,
+  purgeExpiredStatement,
+  storeResponseStatement,
+} from "../lib/idempotency";
+import { sha256Hex } from "../lib/token";
 import type { Env } from "../types";
 
 function errorResponse(error: ToiletRecordError) {
@@ -44,6 +58,13 @@ function errorResponse(error: ToiletRecordError) {
 
 function toRecord(row: typeof toiletRecords.$inferSelect): ToiletRecord {
   return ToiletRecordRowSchema.parse(row);
+}
+
+function mismatchResponse() {
+  return idempotencyErrorResponse({
+    type: "idempotency_key_mismatch",
+    message: "Idempotency-Key was already used with a different request",
+  });
 }
 
 async function resolveCatId(
@@ -141,6 +162,13 @@ export const toiletRoutes = new Hono<Env>()
     return c.json(toRecord(rows[0]));
   })
   .post("/", async (c) => {
+    // Idempotency-Key (ADR-009 §2)。ヘッダ無しなら従来どおり毎回 201。
+    const keyResult = parseIdempotencyKey(c.req.header(IDEMPOTENCY_KEY_HEADER));
+    if (keyResult.isErr()) {
+      const { body, status } = idempotencyErrorResponse(keyResult.error);
+      return c.json(body, status);
+    }
+
     const db = drizzle(c.env.DB);
     const cat = await resolveCatId(db, c.req.param("catId") ?? "", c.get("memberSpaceIds"));
     if (!cat.ok) {
@@ -154,24 +182,55 @@ export const toiletRoutes = new Hono<Env>()
       return c.json(body, status);
     }
 
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const now = new Date();
     const input = parsed.value;
     const userId = c.get("userId");
-
-    await db.insert(toiletRecords).values({
-      id,
+    const row = {
+      id: crypto.randomUUID(),
       catId: cat.catId,
       type: input.type,
       timestamp: input.timestamp,
       condition: input.type === "defecation" ? input.condition : null,
       createdBy: userId,
-      createdAt: now,
-      updatedAt: now,
-    });
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+    // 応答は INSERT する値から作る (再 select しない)。冪等キーと同じ batch で入れるため。
+    const record = toRecord(row);
 
-    const rows = await db.select().from(toiletRecords).where(eq(toiletRecords.id, id));
-    return c.json(toRecord(rows[0]), 201);
+    const key = keyResult.value;
+    if (key === null) {
+      await db.insert(toiletRecords).values(row);
+      return c.json(record, 201);
+    }
+
+    // 同じ key でも cat や本文が違えば別のリクエスト。検証後の値で hash する。
+    const requestHash = await sha256Hex(canonicalJson({ catId: cat.catId, body: input }));
+    const first = replayDecision(await findStoredResponse(db, userId, key), requestHash, now);
+    if (first.kind === "replay") return c.json(first.body, first.status);
+    if (first.kind === "mismatch") {
+      const { body, status } = mismatchResponse();
+      return c.json(body, status);
+    }
+
+    try {
+      await db.batch([
+        purgeExpiredStatement(db, userId, now),
+        db.insert(toiletRecords).values(row),
+        storeResponseStatement(db, { userId, key, requestHash, status: 201, body: record, now }),
+      ]);
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e;
+      // 同時到着で負けた側。batch は丸ごと巻き戻っているので記録は作られていない。
+      const again = replayDecision(await findStoredResponse(db, userId, key), requestHash, now);
+      if (again.kind === "replay") return c.json(again.body, again.status);
+      if (again.kind === "mismatch") {
+        const { body, status } = mismatchResponse();
+        return c.json(body, status);
+      }
+      throw e;
+    }
+    return c.json(record, 201);
   })
   .put("/:id", async (c) => {
     const db = drizzle(c.env.DB);
