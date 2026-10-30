@@ -34,6 +34,7 @@ PR #49 deploy 後、本番 `/api/auth/login/begin` に **35 req 順次 / 60 req 
 
 ### その他
 
+- PAT (Bearer) で届くルート (`POST /api/cats/:catId/toilet-records` / `GET /api/tasks/due` / `POST /api/tasks/:id/completions`) の IP 単位 rate limit。prefix 検査で雑なスキャンは D1 に届かないが、`nyalog_pat_` 形式の総当たりは 1 req = sha256 + D1 read 1 回。`AUTH_RATE_LIMITER` (30 req/60s) を流用すると ochanoma の再送バーストでログインまで巻き込むので、別 binding (`API_RATE_LIMITER`、namespace_id を分ける) を足す。[ADR-009](../adr/009-machine-callers-pat-idempotency-due.md)
 - Cloudflare Dashboard で Workers の月次予算アラート (Notifications) を設定 — UI 操作のみ
 - `/security-review` skill による広域レビュー (別 PR)
 - (任意) Bot Fight Mode (Free プラン可) 有効化、または WAF Custom Rule で AI クローラー UA に Managed Challenge — robots.txt を無視する bot への追加層。誤検知リスクと比較して保留中

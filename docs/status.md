@@ -10,15 +10,18 @@
 
 開発基盤はサンドボックス開発 + ホストリレー + キーレスデプロイ ([ADR-008](./adr/008-sandboxed-development-and-credential-free-pipeline.md)) が稼働中。
 
+**機械呼び出し用 API (2026-10-30 開始)**。家のシステム (横断リポジトリ yane の段 A) の送信側 ochanoma が nyalog に書けるようにする。決定は [ADR-009](./adr/009-machine-callers-pat-idempotency-due.md)。
+
 ## 次にやること (次セッションの出発点)
 
-1. **フロントエンド改善** — [plans/frontend-improvements.md](./plans/frontend-improvements.md) を上から順に PR 化する。計画 1 (base layer のフォームコントロール根治) は [#74](https://github.com/okayus/nyalog/pull/74)、計画 2 (a11y/UX 小束) は [#76](https://github.com/okayus/nyalog/pull/76)、計画 3 (全件フェッチ / 全件レンダリング解消) は [#78](https://github.com/okayus/nyalog/pull/78) で完了。**次: 計画 4「`<Activity>` で TodayView の状態保持」**(view 切替のたびに全再フェッチしているのを React 19 の `<Activity mode>` で hidden 保持に)
-2. **セキュリティ残タスク** — [plans/security-remaining.md](./plans/security-remaining.md)(予算アラート / rate limit 再検証 / `/security-review` / 運用 TODO)
-3. **血液検査解析 (gemma-4) の本番確認** — 旧 default `gemma-3-12b-it` が 2026-05-30 に deprecated になっていたため `gemma-4-26b-a4b-it` へ移行した ([ADR-007 Addendum](./adr/007-blood-test-vision-analysis.md#addendum-2026-08-05-gemma-3-12b-の-deprecation-と-gemma-4-への移行))。dev は mock 固定で呼び出し規約を検証できないので、**デプロイ後に画像を 1 枚上げて `blood_test_analyses.status=succeeded` を確認**する
-4. **スペース招待のデプロイ後確認** — アプリ内招待リンク (`/api/spaces/:spaceId/invites` + `/invite`) を実装済み。
+1. **機械呼び出し用 API ([ADR-009](./adr/009-machine-callers-pat-idempotency-due.md))** — PR の順: ADR → PAT (migration、人間 merge) → `Idempotency-Key` (migration、人間 merge) → due 一覧 + timestamp 正規化 → `docs/senders.md` + schema。**人手**: migration PR を順に merge → `wrangler secret put PAT_PEPPER` → 設定 UI で ochanoma 用トークンを 1 本発行 (pepper より先に発行しない)。check.yml に `pnpm test` が無いので schema のスナップショットは CI で固定されていない (workflow は relay が push できないので人手)
+2. **フロントエンド改善** — [plans/frontend-improvements.md](./plans/frontend-improvements.md) を上から順に PR 化する。計画 1 (base layer のフォームコントロール根治) は [#74](https://github.com/okayus/nyalog/pull/74)、計画 2 (a11y/UX 小束) は [#76](https://github.com/okayus/nyalog/pull/76)、計画 3 (全件フェッチ / 全件レンダリング解消) は [#78](https://github.com/okayus/nyalog/pull/78) で完了。**次: 計画 4「`<Activity>` で TodayView の状態保持」**(view 切替のたびに全再フェッチしているのを React 19 の `<Activity mode>` で hidden 保持に)
+3. **セキュリティ残タスク** — [plans/security-remaining.md](./plans/security-remaining.md)(予算アラート / rate limit 再検証 / `/security-review` / 運用 TODO)
+4. **血液検査解析 (gemma-4) の本番確認** — 旧 default `gemma-3-12b-it` が 2026-05-30 に deprecated になっていたため `gemma-4-26b-a4b-it` へ移行した ([ADR-007 Addendum](./adr/007-blood-test-vision-analysis.md#addendum-2026-08-05-gemma-3-12b-の-deprecation-と-gemma-4-への移行))。dev は mock 固定で呼び出し規約を検証できないので、**デプロイ後に画像を 1 枚上げて `blood_test_analyses.status=succeeded` を確認**する
+5. **スペース招待のデプロイ後確認** — アプリ内招待リンク (`/api/spaces/:spaceId/invites` + `/invite`) を実装済み。
    migration `0012_invites.sql` は新規テーブルのみ (rebuild なし) だが merge = 本番適用なので人間 merge。
    デプロイ後に「メンバーを招待」から 1 本発行し、別端末で開いて参加まで通ることを確認する
-5. **機能候補 (順序流動)** — 猫タスクの月カレンダー表示 (`enumerateDueDates` 実装済み、UI のみ) / ご飯・カロリー管理 (スキーマ設計から) / ADR-004 phase 2 の `created_by` NOT NULL 化(**cats rebuild で D1 CASCADE 再発リスク — [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリスト必須**)
+6. **機能候補 (順序流動)** — 猫タスクの月カレンダー表示 (`enumerateDueDates` 実装済み、UI のみ) / ご飯・カロリー管理 (スキーマ設計から) / ADR-004 phase 2 の `created_by` NOT NULL 化(**cats rebuild で D1 CASCADE 再発リスク — [ADR-005 Addendum](./adr/005-per-space-membership.md#addendum-2026-04-22-pr-4-で踏んだ-d1-cascade-事故) のチェックリスト必須**)
 
 ## 後回し (Backlog)
 
