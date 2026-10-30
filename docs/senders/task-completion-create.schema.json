@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/okayus/nyalog/main/docs/senders/task-completion-create.schema.json",
+  "title": "POST /api/tasks/{taskId}/completions の body",
+  "description": "タスクをその日・その猫について完了にする。同じ (task, cat, dueDate) は既存の完了を 200 で返す (冪等)",
+  "type": "object",
+  "properties": {
+    "catId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "猫の UUID。タスクに紐づいていなければ 404"
+    },
+    "dueDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "予定日 (YYYY-MM-DD)。GET /api/tasks/due の dueDate をそのまま",
+      "format": "date"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339。オフセット付き可。未来は 60 秒まで。保存と応答は UTC の Z 表記 (ミリ秒付き)"
+    }
+  },
+  "required": [
+    "catId",
+    "dueDate",
+    "completedAt"
+  ],
+  "additionalProperties": false
+}

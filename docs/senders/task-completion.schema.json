@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/okayus/nyalog/main/docs/senders/task-completion.schema.json",
+  "title": "completions の応答 (201 / 200)",
+  "description": "完了の記録。取り消しは id で DELETE する",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "完了の UUID。DELETE /api/tasks/{taskId}/completions/{id} に使う"
+    },
+    "taskId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "タスクの UUID"
+    },
+    "catId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "猫の UUID"
+    },
+    "dueDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "予定日 (YYYY-MM-DD)",
+      "format": "date"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC Z 表記に正規化済み"
+    },
+    "completedBy": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "完了した利用者の UUID。PAT なら発行者"
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "作成時刻 (UTC Z)"
+    }
+  },
+  "required": [
+    "id",
+    "taskId",
+    "catId",
+    "dueDate",
+    "completedAt",
+    "completedBy",
+    "createdAt"
+  ],
+  "additionalProperties": false
+}
