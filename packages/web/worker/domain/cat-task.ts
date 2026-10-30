@@ -47,7 +47,8 @@ export const TaskNotes = z
   .max(2000)
   .transform((v) => v as TaskNotes);
 
-// 完了時刻 (ISO datetime)。toilet-record の Timestamp と同じく未来 60s まで許容。
+// 完了時刻 (ISO datetime)。toilet-record の Timestamp と同じく未来 60s まで許容し、
+// 受信時に UTC の Z 表記へ正規化する (ADR-009 §4。オフセット付きで送る機械呼び出しが混ざる)。
 export type CompletedAt = string & { readonly __brand: unique symbol };
 export const CompletedAt = z
   .string()
@@ -55,7 +56,7 @@ export const CompletedAt = z
   .refine((v) => Date.parse(v) <= Date.now() + 60_000, {
     message: "completedAt must not be in the future",
   })
-  .transform((v) => v as CompletedAt);
+  .transform((v) => new Date(v).toISOString() as CompletedAt);
 
 // --- Recurrence (Discriminated Union) ---
 //
@@ -143,6 +144,30 @@ export const UpdateCatTaskSchema = z.object({
   catIds: z.array(CatId).min(1).max(50).optional(),
 });
 export type UpdateCatTaskInput = z.infer<typeof UpdateCatTaskSchema>;
+
+// GET /api/tasks/due の期間 (ADR-009 §3)。両端含めて 62 日 (暦の 2 か月) まで。
+export const MAX_DUE_RANGE_DAYS = 62;
+
+export const DueRangeSchema = z
+  .object({ from: DateOnly, to: DateOnly })
+  .refine((r) => r.from <= r.to, { message: "from must be on or before to", path: ["to"] })
+  .refine((r) => dayDiff(r.to, r.from) + 1 <= MAX_DUE_RANGE_DAYS, {
+    message: `Range must span at most ${MAX_DUE_RANGE_DAYS} days`,
+    path: ["to"],
+  });
+export type DueRange = z.infer<typeof DueRangeSchema>;
+
+// GET /api/tasks/due の 1 要素。(task × cat × dueDate) ごとに 1 件。
+// 応答もこのスキーマで parse してから返す (senders の schema をここから生成するため)。
+export const DueItemSchema = z.object({
+  taskId: CatTaskId,
+  title: TaskTitle,
+  catId: CatId,
+  catName: z.string().min(1),
+  dueDate: DateOnly,
+  completed: z.boolean(),
+});
+export type DueItem = z.infer<typeof DueItemSchema>;
 
 export const CreateCompletionSchema = z.object({
   catId: CatId,
@@ -266,6 +291,17 @@ export function parseUpdateCatTask(input: unknown): Result<UpdateCatTaskInput, C
   const r = UpdateCatTaskSchema.safeParse(input);
   if (!r.success) {
     return err({ type: "validation_error", message: "Invalid task data", issues: r.error.issues });
+  }
+  return ok(r.data);
+}
+
+export function parseDueRange(input: {
+  from: string | undefined;
+  to: string | undefined;
+}): Result<DueRange, CatTaskError> {
+  const r = DueRangeSchema.safeParse(input);
+  if (!r.success) {
+    return err({ type: "validation_error", message: "Invalid due range", issues: r.error.issues });
   }
   return ok(r.data);
 }

@@ -79,6 +79,7 @@ describe("PAT route table (default deny)", () => {
       allowed: true,
       scope: "toilet:write",
     });
+    expect(patRouteScope("GET", "/api/tasks/due")).toEqual({ allowed: true, scope: "tasks:read" });
     expect(patRouteScope("POST", `/api/tasks/${CAT}/completions`)).toEqual({
       allowed: true,
       scope: "tasks:write",
@@ -91,6 +92,8 @@ describe("PAT route table (default deny)", () => {
       allowed: false,
     });
     expect(patRouteScope("GET", "/api/cats")).toEqual({ allowed: false });
+    expect(patRouteScope("GET", "/api/tasks")).toEqual({ allowed: false });
+    expect(patRouteScope("GET", "/api/tasks/today")).toEqual({ allowed: false });
     expect(patRouteScope("POST", "/api/tokens")).toEqual({ allowed: false });
     expect(patRouteScope("POST", "/api/auth/logout")).toEqual({ allowed: false });
     expect(patRouteScope("GET", "/api/auth/me/")).toEqual({ allowed: false });

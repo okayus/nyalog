@@ -16,7 +16,12 @@ export type ListQueryError = {
 
 export const ListQuerySchema = z
   .object({
-    since: z.string().datetime({ offset: true }).optional(),
+    // 保存値 (UTC Z) との文字列比較に使うので、同じ形に揃える (ADR-009 §4)
+    since: z
+      .string()
+      .datetime({ offset: true })
+      .transform((v) => new Date(v).toISOString())
+      .optional(),
     limit: z.coerce.number().int().min(1).max(MAX_LIST_LIMIT).optional(),
     offset: z.coerce.number().int().min(0).optional(),
   })
