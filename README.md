@@ -42,8 +42,8 @@ dev 環境でパスキー認証を丸ごとバイパスしたい (別マシン�
 pnpm dev                   # 開発サーバー
 pnpm build                 # プロダクションビルド
 pnpm --filter @nyalog/web exec vp check       # format / lint
-pnpm --filter @nyalog/web exec tsc --noEmit -p packages/web/tsconfig.json         # フロント型チェック
-pnpm --filter @nyalog/web exec tsc --noEmit -p packages/web/tsconfig.worker.json  # Worker 型チェック
+pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.json         # フロント型チェック
+pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.worker.json  # Worker 型チェック
 
 pnpm db:generate           # スキーマからマイグレーション生成
 pnpm db:migrate            # ローカル D1 適用
@@ -52,28 +52,14 @@ pnpm db:migrate:prod       # 本番 D1 適用
 
 ## CI/CD
 
-GitHub Actions で 2 本の workflow が走る:
-
-- **`.github/workflows/check.yml`** — PR / main push に対して `vp check` / `tsc` ×2 / `pnpm build` を実行。main branch protection で必須 status check にしている
-- **`.github/workflows/deploy.yml`** — main push で `wrangler d1 migrations apply --remote` → `wrangler deploy` を実行し、自動で本番反映する
-
-### GitHub Repository secrets
-
-deploy workflow が必要とする secret は 2 つ:
-
-- `CLOUDFLARE_API_TOKEN` — Account 権限: `Workers Scripts:Edit` / `D1:Edit` / `Workers R2 Storage:Edit` (Assets 用) を持つ API トークン
-- `CLOUDFLARE_ACCOUNT_ID` — `b206ff3a1f57cd57469b20adaf8be123` (dashboard → Workers & Pages から確認)
-
-設定手順:
-
-1. Cloudflare dashboard → My Profile → API Tokens → Create Token → `Edit Cloudflare Workers` テンプレートから作成
-2. GitHub リポジトリ → Settings → Secrets and variables → Actions → New repository secret で上記 2 つを登録
+- **`.github/workflows/check.yml`** — PR / main push に対して `vp check` / `tsc` ×2 / `pnpm build` / e2e (smoke) を実行。docs だけの変更では重いステップを飛ばす。main の ruleset で必須 status check (`check`) にしている
+- **デプロイは Cloudflare Workers Builds** — main への merge で、Cloudflare 側のビルドが本番 D1 への migration 適用とデプロイを行う ([ADR-008](./docs/adr/008-sandboxed-development-and-credential-free-pipeline.md) §3)。GitHub には Cloudflare の資格情報を置かない (Repository secrets は空)
 
 ## デプロイ
 
 **通常**: main への merge で自動デプロイされる。手動デプロイは不要。
 
-**非常時 (CI が壊れた / ロールバックしたい等)**:
+**非常時 (Workers Builds が動かない / ロールバックしたい等)**:
 
 ```bash
 pnpm db:migrate:prod       # 未適用のマイグレーションを本番に当てる

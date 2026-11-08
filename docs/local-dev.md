@@ -210,8 +210,8 @@ CI と同じ順序で手元で走らせるには:
 
 ```bash
 pnpm --filter @nyalog/web exec vp check                                              # format + lint
-pnpm --filter @nyalog/web exec tsc --noEmit -p packages/web/tsconfig.json            # フロント
-pnpm --filter @nyalog/web exec tsc --noEmit -p packages/web/tsconfig.worker.json     # Worker
+pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.json                          # フロント
+pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.worker.json                   # Worker
 pnpm --filter @nyalog/web build                                                       # 実ビルド
 ```
 
