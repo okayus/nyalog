@@ -52,7 +52,7 @@ pnpm db:migrate:prod       # 本番 D1 適用
 
 ## CI/CD
 
-- **`.github/workflows/check.yml`** — PR / main push に対して `vp check` / `tsc` ×2 / `pnpm build` / e2e (smoke) を実行。main の ruleset で必須 status check (`check`) にしている
+- **`.github/workflows/check.yml`** — PR / main push に対して `vp check` / `tsc` ×2 / vitest / `pnpm build` / e2e (smoke) を実行 (`*.md`・`docs/`・`.claude/` だけの変更では飛ばす)。main の ruleset で必須 status check (`check`) にしている
 - **デプロイは Cloudflare Workers Builds** — main への merge で、Cloudflare 側のビルドが本番 D1 への migration 適用とデプロイを行う ([ADR-008](./docs/adr/008-sandboxed-development-and-credential-free-pipeline.md) §3)。GitHub には Cloudflare の資格情報を置かない (Repository secrets は空)
 
 ## デプロイ

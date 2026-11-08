@@ -21,9 +21,9 @@ CI（`.github/workflows/check.yml`）と同じ検査を、コンテナのリポ�
 pnpm --filter @nyalog/web exec vp check                              # format と lint（--fix で直す）
 pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.json         # フロント
 pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.worker.json  # Worker
+pnpm --filter @nyalog/web test                                       # 単体（vitest）
 pnpm build
 pnpm --filter @nyalog/web test:e2e                                   # e2e（Playwright）
-pnpm --filter @nyalog/web test                                       # 単体（vitest）。CI では走らない
 ```
 
 - e2e はローカル dev の猫と記録を消す（`e2e/global-setup.ts`）。画面で確かめている途中なら、撮り終えてから回す。戻すには `pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --local --file scripts/dev-seed.sql` を打つ。
