@@ -11,7 +11,7 @@
 - ホストで開いたセッションでも、編集と commit はそのまま行う。pnpm・npx・vp・tsc・vitest・playwright・wrangler はホストで走らせず、`docker compose exec -T dev sh -c 'cd packages/web && ./node_modules/.bin/vp check'` の形でコンテナに投げる。pnpm はイメージに無く、コンテナの起動時に入れる。見つからないときは `.bin` を直に叩くか、コンテナを起動し直す（e2e は中で pnpm を呼ぶ）。
 - ホストの gh は持ち主の認証で動く。PR はリレーが作るので、`gh pr create` は打たない。
 - dev サーバーはコンテナで `pnpm dev -- --host 0.0.0.0` と起動する。コンテナからは 5173、ホストのブラウザと Playwright MCP からは http://localhost:5473 で開く。
-- 持ち主に頼むのは、資格情報が要る操作だけにする（`wrangler login` などのログイン、`wrangler secret put`、本番 D1 への SQL、手動デプロイ）。対話式の TUI や設定の変更は、設定ファイルや CLI のフラグで自分で済ませる。
+- 持ち主に頼むのは、資格情報が要る操作（`wrangler login` などのログイン、`wrangler secret put`、本番 D1 への SQL、手動デプロイ）と merge の判断だけにする。wrangler は、ホストの `packages/web` で `./node_modules/.bin/wrangler …` と打ってもらう（ホストの pnpm 11 は store の食い違いで入れ直し、コンテナの node_modules を壊す）。対話式の TUI や設定の変更は、設定ファイルや CLI のフラグで自分で済ませる。
 
 ## 確かめる
 
@@ -28,7 +28,7 @@ pnpm --filter @nyalog/web test:e2e                                   # e2e（Pla
 
 - e2e はローカル dev の猫と記録を消す（`e2e/global-setup.ts`）。画面で確かめている途中なら、撮り終えてから回す。戻すには `pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --local --file scripts/dev-seed.sql` を打つ。
 - CI の結果は `scripts/ci-status.sh` で見る（`--watch` で決着まで待つ）。branch 名で引くと、リレーが push する前の古い sha の結果を掴む。未認証の REST は 1 時間に 60 回までなので、`--watch` を長く回さない。
-- merge 後の本番反映は GitHub から見えない（Workers Builds は commit status を出さない）。`scripts/deploy-status.sh --build --watch` が、本番のアセットのハッシュをローカルビルドと照合する。作業ツリーをビルドするので、main を checkout してから打つ。
+- merge 後の本番反映は、merge commit に付く check-run `Workers Builds: nyalog` で見る（`git fetch origin main` の後に `scripts/ci-status.sh origin/main`）。この check-run はビルドが終わったときに結果つきで付き、走っている間は無いので、出るまで間を置いて引き直す。success なら migration の適用と deploy まで済んでいる。`scripts/deploy-status.sh --build --watch` は、本番のアセットのハッシュを作業ツリーのビルドと照合する補助で、フロントを変えない merge では反映の前から一致と出る。
 - 血液検査の解析は、dev と e2e では mock になる（`wrangler.local.jsonc`）。実モデルは本番デプロイの後にしか確かめられない。
 - CSS・a11y・フェッチ量を変える PR の before/after は `scripts/measure-ab.sh` で撮る。commit する前に、dev サーバーを起動してから打つ。
 
@@ -38,14 +38,15 @@ pnpm --filter @nyalog/web test:e2e                                   # e2e（Pla
 - PR の題は、リレーが PR を作った時点の HEAD commit の題になり、squash 後の main の履歴にも残る。ふつうはブランチの最初の commit なので、本題の commit を最初に置く。
 - push 済みの commit は amend しない。リレーは force push しないので、以後の push が拒否される。CI が落ちたら、直す commit を積む。
 - merge は持ち主が決める。確信のある完成した変更に限り、HEAD の commit に `Relay-Merge: yes` トレーラーを付けてよい。CI が通るとリレーが squash merge する。トレーラーは HEAD にあるときだけ効くので、commit を積んだら出し直す。迷う変更と影響の大きい変更には付けない。
-- 後から merge を頼まれたら、空 commit でトレーラーを出す: `git commit --allow-empty -m "chore: マージを依頼する" -m "Relay-Merge: yes"`。ホストのセッションなら、CI が通ったのを確かめて `gh pr merge <番号> --squash` を打ってもよい。
-- migration（`packages/web/drizzle/`）を含む PR には Relay-Merge を付けない。merge すると、Workers Builds の deploy command が本番 D1 に migration を当てる。持ち主に頼まれたときだけ、ホストのセッションから `gh pr merge` で merge する。
+- 後から merge を頼まれたら、空 commit でトレーラーを出す: `git commit --allow-empty -m "chore: マージを依頼する" -m "Relay-Merge: yes"`。ホストのセッションなら、`gh pr checks <番号>` で CI が通ったのを確かめて `gh pr merge <番号> --squash` を打ってもよい。
+- migration（`packages/web/drizzle/`）を含む PR には、空 commit も含めて Relay-Merge を付けない（hook が止める）。merge すると、Workers Builds の deploy command が本番 D1 に migration を当てる。持ち主に頼まれたときだけ、ホストのセッションから `gh pr merge <番号> --squash` で merge する。コンテナのセッションで頼まれたら、merge は持ち主に返す。
 - トレーラーを出した直後の tick は、CI が回り直すので `405 … Required status check "check" is expected` で空振りする。これは正常で、次の tick 以降に merge される。merge 後はブランチが消えるので、成否はホストの `journalctl --user -u nyalog-relay.service` か、`https://api.github.com/repos/okayus/nyalog/pulls/<番号>` の `merged` で見る。
 - `.github/workflows/**` の変更はリレーが push できない（GitHub App に workflows 権限が無い）。持ち主に push を頼む。
 
 ## D1 migration
 
 - migration は `pnpm db:generate` で作り、`pnpm db:migrate` でローカル D1 に当てる。
+- migration を足す PR が他に開いていたら、番号と `meta/_journal.json` が重なる。作る前に、どの PR の後に merge するかを持ち主に確かめる。その PR の branch から切って積む場合、リレーの PR は base が main なので、base の付け替えはホストで行う。
 - D1 は `PRAGMA foreign_keys=OFF` を無視する。drizzle が親テーブル（`onDelete: "cascade"` で指される側）を table rebuild すると、`DROP TABLE` が子の行を連鎖削除する。ローカルの miniflare では起きない。
 - table rebuild を含む migration は、ADR-005 Addendum の運用チェックリストに従う。merge の前に本番からの export と cascade FK の確認、merge の後に子テーブルの件数の照合を行う。`--remote` の操作は持ち主がホストで行う。
 
