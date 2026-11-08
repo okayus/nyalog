@@ -20,7 +20,7 @@
 
 - Docker + Docker Compose v2（サンドボックス開発）
 - Node.js 22+ / pnpm 10+（コンテナ外でホスト実行する場合のみ）
-- Cloudflare アカウント + `wrangler login` — **ホストでの本番操作**（`pnpm deploy` / `pnpm db:migrate:prod`）**にのみ**必要。dev には不要
+- Cloudflare アカウント + `wrangler login` — **ホストでの本番操作**（secret・本番 D1・非常時のデプロイ）**にのみ**必要。dev には不要。ホストでは pnpm を打たず、`packages/web` で `./node_modules/.bin/wrangler` を直に打つ（ホストの pnpm 11 は store の食い違いで入れ直し、コンテナの node_modules を壊す）
 
 ### セットアップ
 
@@ -47,7 +47,6 @@ pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.worker.json  # Worker �
 
 pnpm db:generate           # スキーマからマイグレーション生成
 pnpm db:migrate            # ローカル D1 適用
-pnpm db:migrate:prod       # 本番 D1 適用
 ```
 
 ## CI/CD
@@ -62,8 +61,10 @@ pnpm db:migrate:prod       # 本番 D1 適用
 **非常時 (Workers Builds が動かない / ロールバックしたい等)**:
 
 ```bash
-pnpm db:migrate:prod       # 未適用のマイグレーションを本番に当てる
-pnpm run deploy            # vp build && wrangler deploy
+docker compose exec -T dev sh -c 'cd packages/web && ./node_modules/.bin/vp build'   # ビルドはコンテナで
+cd packages/web
+./node_modules/.bin/wrangler d1 migrations apply nyalog-db --remote   # 未適用のマイグレーションを本番に当てる
+./node_modules/.bin/wrangler deploy                                   # dist/ のビルドを deploy する
 ```
 
 `SESSION_SECRET` は本番 secret に投入済み。新しい環境にゼロから建てる場合は次の節を参照。
@@ -96,17 +97,19 @@ ADR-003 のとおり、本アプリはパスキーのみ + 招待制。登録の
 ### 初回 owner の登録 (新しい環境を建てた直後だけ)
 
 ```bash
+cd packages/web
+
 # 1. ランダムトークンを作り、表示された値を控えてから secret に投入する (プロンプトに貼り付ける)。
 #    `openssl … | wrangler secret put …` と直接つなぐと値が一度も画面に出ず、2 で入力できない
 #    (2026-08-01 / kokemusu 09-01 / routine-tasks 09-09 で同じ罠を踏んだ)。
 openssl rand -hex 32
-pnpm --filter @nyalog/web exec wrangler secret put INITIAL_REGISTRATION_TOKEN
+./node_modules/.bin/wrangler secret put INITIAL_REGISTRATION_TOKEN
 
 # 2. 本番 URL の「新規登録」タブで、表示名 + そのトークンを入れてパスキーを登録
 #    (この経路は users + spaces + space_members(owner) + credentials を 1 batch で作る)
 
 # 3. 登録できたら secret を即削除 (リプレイ防止)
-pnpm --filter @nyalog/web exec wrangler secret delete INITIAL_REGISTRATION_TOKEN
+./node_modules/.bin/wrangler secret delete INITIAL_REGISTRATION_TOKEN
 ```
 
 `INITIAL_REGISTRATION_TOKEN` が未設定の状態では `/api/auth/register/begin` の初回登録経路が
@@ -135,26 +138,28 @@ pnpm --filter @nyalog/web exec wrangler secret delete INITIAL_REGISTRATION_TOKEN
   既存スペースへの紐付けを SQL でやる (INSERT のみ = cascade リスクなし):
 
 ```bash
-pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "SELECT id, display_name, created_at FROM users ORDER BY created_at DESC LIMIT 5;"
-pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "SELECT id, name FROM spaces;"
-pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "INSERT INTO space_members (space_id, user_id, role, created_at) VALUES ('<SPACE_ID>', '<NEW_USER_ID>', 'owner', '<NOW ISO8601>');"
+cd packages/web
+./node_modules/.bin/wrangler d1 execute nyalog-db --remote --command "SELECT id, display_name, created_at FROM users ORDER BY created_at DESC LIMIT 5;"
+./node_modules/.bin/wrangler d1 execute nyalog-db --remote --command "SELECT id, name FROM spaces;"
+./node_modules/.bin/wrangler d1 execute nyalog-db --remote --command "INSERT INTO space_members (space_id, user_id, role, created_at) VALUES ('<SPACE_ID>', '<NEW_USER_ID>', 'owner', '<NOW ISO8601>');"
 ```
 
 使えなくなった旧 credential だけ消したい場合 (旧 `users` 行は残す):
 
 ```bash
-pnpm --filter @nyalog/web exec wrangler d1 execute nyalog-db --remote --command "DELETE FROM credentials WHERE user_id = '<lost-user-id>';"
+cd packages/web
+./node_modules/.bin/wrangler d1 execute nyalog-db --remote --command "DELETE FROM credentials WHERE user_id = '<lost-user-id>';"
 ```
 
 ## ゼロから本番環境を構築する
 
-新しい Cloudflare アカウント / Worker 名で再デプロイする手順:
+新しい Cloudflare アカウント / Worker 名で再デプロイする手順（2〜4 はホストの `packages/web` で打つ）:
 
 1. `packages/web/wrangler.jsonc` の `name` と `RP_ID` / `ORIGIN` を新しいホスト名に書き換える (パスキーは RP_ID に紐付くため、変更したら全ユーザ再登録になる)
-2. D1 を作成: `pnpm --filter @nyalog/web exec wrangler d1 create nyalog-db` → 出てきた `database_id` を `wrangler.jsonc` に書く
-3. `pnpm db:migrate:prod` でマイグレーション適用
-4. `openssl rand -hex 32 | pnpm --filter @nyalog/web exec wrangler secret put SESSION_SECRET`
-5. `pnpm deploy` で初回デプロイ
+2. D1 を作成: `./node_modules/.bin/wrangler d1 create nyalog-db` → 出てきた `database_id` を `wrangler.jsonc` に書く
+3. `./node_modules/.bin/wrangler d1 migrations apply nyalog-db --remote` でマイグレーション適用
+4. `openssl rand -hex 32 | ./node_modules/.bin/wrangler secret put SESSION_SECRET`
+5. 「デプロイ」の非常時と同じ手順（コンテナでビルドし、ホストで `wrangler deploy`）で初回デプロイ
 6. 上記「新規アカウント作成 (招待)」サイクルで自分のパスキーを登録
 
 ## プロジェクト構成

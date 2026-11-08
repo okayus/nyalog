@@ -69,7 +69,7 @@ UUID は何でもよい (上記はゼロ埋めの v4 形) が、同じマシン�
 
 - `DEV_BYPASS_USER_ID` は `.dev.vars` から読むので、`wrangler secret put` しない限り本番 Worker には絶対反映されない
 - 本番 Worker でこの binding が存在しないことは `sessionMiddleware` のコードを読むと分かる (`c.env.DEV_BYPASS_USER_ID` が undefined なら何もせず従来の JWT 検証に進む)
-- 念のため、本番シークレットに `DEV_BYPASS_USER_ID` を入れてはいけない。`pnpm --filter @nyalog/web exec wrangler secret list` に現れていないことを時々確認する
+- 念のため、本番シークレットに `DEV_BYPASS_USER_ID` を入れてはいけない。ホストの `packages/web` で `./node_modules/.bin/wrangler secret list` を打ち、現れていないことを時々確認する
 
 ## トラブルシューティング
 
