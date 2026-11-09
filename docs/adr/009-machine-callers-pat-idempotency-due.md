@@ -60,6 +60,6 @@ okayus-skills の cloudflare-workers-pat-bearer-auth（mazuoboeru で稼働中�
 
 - migration が 2 本増える（`personal_access_tokens`、`idempotency_keys`）。どちらも新規表で rebuild を伴わない。migration を含む PR は人間が merge する
 - 人手: migration PR の merge → `wrangler secret put PAT_PEPPER` → 設定 UI で ochanoma 用トークンを 1 本発行。NucBox では systemd の `LoadCredential=` で ochanoma に渡す
-- CI（check.yml）は vitest を走らせていない。スナップショットの固定は `pnpm test` を CI に足して初めて効く。relay は workflow ファイルを push できないので人手
+- スナップショットの固定は CI（check.yml）の `pnpm test` で効く。起案の時点の check.yml は vitest を走らせていなかったので、#90（2026-11-09）で足した
 - PAT で届くルートの rate limit は未対応。`AUTH_RATE_LIMITER`（30 req / 60 s）とは別の binding が要る。[plans/security-remaining.md](../plans/security-remaining.md) に積む
 - Worker 同士が同じ zone で `fetch` すると 1042 で届かない罠（skill）は、ochanoma が NucBox 上の Rust なので該当しない
