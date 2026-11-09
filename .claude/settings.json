@@ -1,22 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm install:*)",
-      "Bash(pnpm add:*)",
-      "Bash(pnpm run:*)",
-      "Bash(pnpm test:*)",
-      "Bash(pnpm dev:*)",
-      "Bash(pnpm build:*)",
-      "Bash(pnpm db:*)",
-      "Bash(pnpm exec:*)",
-      "Bash(pnpm -r:*)",
-      "Bash(pnpm --filter:*)",
-      "Bash(node:*)",
-      "Bash(npx:*)",
-      "Bash(tsx:*)",
-      "Bash(wrangler dev:*)",
-      "Bash(wrangler d1:*)",
-      "Bash(wrangler types:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -30,12 +14,13 @@
       "Bash(gh pr view:*)",
       "Bash(gh pr list:*)",
       "Bash(gh pr diff:*)",
+      "Bash(gh pr checks:*)",
       "Bash(gh issue view:*)",
       "Bash(gh issue list:*)",
-      "Bash(gh api:*)",
       "Bash(curl -s https://api.github.com/*)",
       "Bash(curl -s https://nyalog.shiraoka.workers.dev/*)",
-      "Bash(docker compose exec:*)",
+      "Bash(docker compose exec -T dev *)",
+      "Bash(docker compose exec dev *)",
       "Bash(scripts/ci-status.sh:*)",
       "Bash(./scripts/ci-status.sh:*)",
       "mcp__playwright__browser_snapshot",
@@ -61,10 +46,22 @@
       "WebFetch(domain:docs.mcp.cloudflare.com)"
     ],
     "deny": [
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(gh api *)",
+      "Bash(gh auth *)",
+      "Bash(gh pr merge --admin*)",
+      "Bash(gh pr merge * --admin*)"
     ]
   },
   "enableAllProjectMcpServers": false,
+  "skillOverrides": {
+    "sandboxed-agent-github-token-via-1password": "name-only",
+    "cloudflare-d1-weekly-backup-via-pr": "name-only",
+    "cloudflare-api-token-permissions": "name-only",
+    "cloudflare-workers-deploy-skeleton": "name-only",
+    "cloudflare-cron-to-discord": "name-only",
+    "cloudflare-workers-host-synthetic-check": "name-only"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -73,7 +70,23 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/require-container.py",
+            "args": [],
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-relay-merge.py",
+            "args": [],
+            "timeout": 30,
+            "onFailure": "block"
+          },
+          {
+            "type": "command",
+            "if": "Bash(git commit *)",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/check-frontend.sh",
+            "args": [],
+            "timeout": 180
           }
         ]
       }
@@ -84,6 +97,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/check-frontend.sh",
+            "args": [],
             "timeout": 180
           }
         ]
