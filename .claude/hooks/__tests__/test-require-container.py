@@ -26,8 +26,30 @@ CASES: list[tuple[int, str, str]] = [
     (BLOCK, "herestring の後の pnpm", 'jq -r .x <<<"$json" && pnpm build'),
     # heredoc の *終端後* は本物のコマンド位置
     (BLOCK, "heredoc の後の pnpm", "cat <<EOF\nharmless\nEOF\npnpm build"),
+    # ラッパーは剥がす。permission の照合も剥がすので、素通りすると allow に当たる
+    (BLOCK, "timeout で包んだ pnpm", "timeout 600 pnpm install"),
+    (BLOCK, "timeout のオプション付き", "timeout -s KILL 60 vitest run"),
+    (BLOCK, "time", "time pnpm build"),
+    (BLOCK, "nice -n", "nice -n 10 pnpm test"),
+    (BLOCK, "env 経由", "env NODE_ENV=test pnpm test"),
+    (BLOCK, "command 経由", "command pnpm build"),
+    (BLOCK, "xargs -n1", "ls | xargs -n1 tsc --noEmit -p"),
+    (BLOCK, "語に付いた &&", "cd packages/web&&pnpm build"),
+    (BLOCK, "$() の中", "echo $(pnpm --version)"),
+    (BLOCK, "サブシェル", "(cd packages/web && pnpm build)"),
+    (BLOCK, "プロセス置換", "diff <(pnpm list) expected.txt"),
+    (BLOCK, "if の中", "if true; then pnpm build; fi"),
+    (BLOCK, "行の継続", "pnpm \\\n  build"),
+    (BLOCK, "corepack", "corepack pnpm install"),
+    (BLOCK, "tsx", "tsx scripts/seed.ts"),
     # --- 通すべきもの ---
     (PASS, "docker compose exec 経由", "docker compose exec -T dev pnpm --filter @nyalog/web build"),
+    (PASS, "docker compose exec で .bin 直叩き", "docker compose exec -T dev sh -c 'cd packages/web && ./node_modules/.bin/vp check'"),
+    (PASS, "command -v は探すだけ", "command -v pnpm"),
+    (PASS, "timeout で包んだ自前スクリプト", "timeout 900 ./scripts/deploy-status.sh --build --watch"),
+    (PASS, "node はホストの道具にも使う", "node ~/.config/d1-backup/d1-bookmark.mjs nyalog 87"),
+    (PASS, "リダイレクトとパイプ", "git log --oneline 2>&1 | head -5"),
+    (PASS, "引用符の中の括弧", "grep -E '(pnpm|npx)' CLAUDE.md"),
     (PASS, "文字列として言及", 'git commit -m "chore: pnpm install を直す"'),
     (PASS, "grep の引数", "grep -rn pnpm CLAUDE.md"),
     (PASS, "自前スクリプト", "./scripts/ci-status.sh --watch"),
@@ -44,7 +66,7 @@ CASES: list[tuple[int, str, str]] = [
 def run(command: str) -> int:
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
     return subprocess.run(
-        [sys.executable, HOOK], input=payload, capture_output=True, text=True
+        [sys.executable, "-I", HOOK], input=payload, capture_output=True, text=True
     ).returncode
 
 
@@ -62,7 +84,7 @@ def main() -> int:
 
     # Bash 以外のツールには一切干渉しない
     payload = json.dumps({"tool_name": "Edit", "tool_input": {"command": "pnpm build"}})
-    rc = subprocess.run([sys.executable, HOOK], input=payload, capture_output=True, text=True).returncode
+    rc = subprocess.run([sys.executable, "-I", HOOK], input=payload, capture_output=True, text=True).returncode
     ok = rc == 0
     failed += not ok
     print(f"{'ok  ' if ok else 'FAIL'} Bash 以外のツール (expected=0 actual={rc})")

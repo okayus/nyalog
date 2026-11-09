@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
-# main へ merge した後、本番に自分のビルドが載ったかを確認する。
+# main へ merge した後、本番に自分のビルドが載ったかを、本番のアセットで確かめる補助。
 #
-# **GitHub からは見えない。** Workers Builds は commit status を出さないので
-# `commits/<sha>/status` は statuses: [] のまま (CLAUDE.md)。本番 HTML が参照する
-# /assets/index-*.{css,js} のハッシュを、ローカルビルドの
-# packages/web/dist/client/assets/ と照合するのが唯一の確認手段。
+# 反映の判定は、merge commit に付く check-run "Workers Builds: nyalog"（scripts/ci-status.sh）で行う。
+# これは本番 HTML が参照する /assets/index-*.{css,js} のハッシュを、ローカルビルドの
+# packages/web/dist/client/assets/ と照合する。フロントを変えない commit では、反映の前から一致と出る。
 #
 #   scripts/deploy-status.sh            # 1 回照合
 #   scripts/deploy-status.sh --build    # 先にコンテナでビルドしてから照合
 #   scripts/deploy-status.sh --watch    # 一致するまで 45 秒ごとに引き直す
 #
 # 終了コード:
-#   0  一致 (deploy 完了)
+#   0  一致 (本番のフロントのアセットがローカルビルドと同じ)
 #   1  本番は見えるがハッシュが違う (まだ前のビルド、または別 commit が載っている)
 #   2  ローカルビルドが無い / 本番に届かない
 set -uo pipefail
@@ -28,7 +27,7 @@ for a in "$@"; do
     --watch) watch=1 ;;
     --build) build=1 ;;
     -h | --help)
-      sed -n '2,17p' "$0"
+      sed -n '2,15p' "$0"
       exit 0
       ;;
     *)

@@ -21,6 +21,8 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          # 既定の 'some' は '**' に当たった時点で code にし、'!' の除外を見ない。
+          predicate-quantifier: 'every'
           filters: |
             code:
               - '**'
@@ -56,6 +58,10 @@ jobs:
       - name: Type check (worker)
         if: steps.filter.outputs.code == 'true'
         run: pnpm --filter @nyalog/web exec tsc --noEmit -p tsconfig.worker.json
+
+      - name: Unit test (vitest)
+        if: steps.filter.outputs.code == 'true'
+        run: pnpm --filter @nyalog/web test
 
       - name: Build
         if: steps.filter.outputs.code == 'true'
