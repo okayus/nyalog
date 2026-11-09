@@ -7,6 +7,7 @@ import {
   parseUpdateCatTask,
   parseCreateCompletion,
   parseDateOnly,
+  parseDueRange,
   parseCatTaskId,
   recurrenceToColumns,
   rowToRecurrence,
@@ -392,5 +393,39 @@ describe("rowToRecurrence / recurrenceToColumns 往復", () => {
       recurrenceType: "interval_months",
       recurrenceValue: 6,
     });
+  });
+});
+
+describe("parseDueRange (ADR-009 §3)", () => {
+  test("from <= to で 62 日以内なら通る (両端含む)", () => {
+    expect(parseDueRange({ from: "2026-10-01", to: "2026-10-01" }).isOk()).toBe(true);
+    expect(parseDueRange({ from: "2026-10-01", to: "2026-12-01" }).isOk()).toBe(true); // 62 日
+  });
+
+  test("63 日、逆順、欠け、形違いは validation_error", () => {
+    for (const input of [
+      { from: "2026-10-01", to: "2026-12-02" },
+      { from: "2026-10-02", to: "2026-10-01" },
+      { from: "2026-10-01", to: undefined },
+      { from: undefined, to: "2026-10-01" },
+      { from: "2026/10/01", to: "2026-10-31" },
+      { from: "2026-02-30", to: "2026-03-01" },
+    ]) {
+      expect(parseDueRange(input)._unsafeUnwrapErr().type).toBe("validation_error");
+    }
+  });
+});
+
+describe("completedAt の正規化 (ADR-009 §4)", () => {
+  test("オフセット付きは UTC Z に直す。Z 表記はそのまま", () => {
+    const base = { catId: CAT_A, dueDate: "2026-10-30" };
+    expect(
+      parseCreateCompletion({ ...base, completedAt: "2026-10-30T09:00:00+09:00" })._unsafeUnwrap()
+        .completedAt,
+    ).toBe("2026-10-30T00:00:00.000Z");
+    expect(
+      parseCreateCompletion({ ...base, completedAt: "2026-10-30T00:00:00.000Z" })._unsafeUnwrap()
+        .completedAt,
+    ).toBe("2026-10-30T00:00:00.000Z");
   });
 });

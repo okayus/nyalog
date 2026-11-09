@@ -10,6 +10,8 @@ export const ToiletRecordId = z
   .uuid()
   .transform((v) => v as ToiletRecordId);
 
+// 受信時に UTC の Z 表記へ正規化して保存する (ADR-009 §4)。一覧の並びと since は
+// 文字列比較なので、オフセット付きをそのまま保存すると順序が崩れる。
 export type Timestamp = string & { readonly __brand: unique symbol };
 export const Timestamp = z
   .string()
@@ -17,7 +19,7 @@ export const Timestamp = z
   .refine((v) => Date.parse(v) <= Date.now() + 60_000, {
     message: "Timestamp must not be in the future",
   })
-  .transform((v) => v as Timestamp);
+  .transform((v) => new Date(v).toISOString() as Timestamp);
 
 // --- Enum ---
 

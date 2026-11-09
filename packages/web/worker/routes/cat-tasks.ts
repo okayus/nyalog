@@ -7,12 +7,15 @@ import {
   type CatTask,
   type CatTaskError,
   CatTaskRowSchema,
+  DueItemSchema,
   TaskCompletionRowSchema,
+  enumerateDueDates,
   isDueOn,
   parseCatTaskId,
   parseCreateCatTask,
   parseCreateCompletion,
   parseDateOnly,
+  parseDueRange,
   parseTaskCompletionId,
   parseUpdateCatTask,
   recurrenceToColumns,
@@ -222,6 +225,98 @@ export const catTaskRoutes = new Hono<Env>()
         .filter((x): x is NonNullable<typeof x> => x !== null);
     });
 
+    return c.json(items);
+  })
+  // 期間内の予定日を (task × cat × dueDate) で列挙する (ADR-009 §3)。ダッシュボードの
+  // 月表示用。/today と同じく /:id より前に置く。
+  .get("/due", async (c) => {
+    const rangeResult = parseDueRange({ from: c.req.query("from"), to: c.req.query("to") });
+    if (rangeResult.isErr()) {
+      const { body, status } = errorResponse(rangeResult.error);
+      return c.json(body, status);
+    }
+    const { from, to } = rangeResult.value;
+    const memberSpaceIds = c.get("memberSpaceIds");
+    if (memberSpaceIds.length === 0) return c.json([]);
+
+    const db = drizzle(c.env.DB);
+    // 期間と重なるタスクだけ DB で絞る: start <= to AND (end IS NULL OR end >= from)
+    const taskRows = await db
+      .select()
+      .from(catTasks)
+      .where(
+        and(
+          inArray(catTasks.spaceId, memberSpaceIds),
+          lte(catTasks.startDate, to),
+          or(isNull(catTasks.endDate), gte(catTasks.endDate, from)),
+        ),
+      );
+    const scheduled = taskRows
+      .map((row) => CatTaskRowSchema.parse(row))
+      .map((row) => ({
+        row,
+        dates: enumerateDueDates(
+          {
+            recurrence: rowToRecurrence(row.recurrenceType, row.recurrenceValue),
+            startDate: row.startDate,
+            endDate: row.endDate,
+          },
+          { from, to },
+        ),
+      }))
+      .filter((t) => t.dates.length > 0);
+    if (scheduled.length === 0) return c.json([]);
+
+    const taskIds = scheduled.map((t) => t.row.id);
+    const catLinks = await loadCatLinks(db, taskIds);
+    const allCatIds = [...new Set([...catLinks.values()].flat())];
+    if (allCatIds.length === 0) return c.json([]);
+    const catRows = await db
+      .select({ id: cats.id, name: cats.name })
+      .from(cats)
+      .where(inArray(cats.id, allCatIds));
+    const catMap = new Map(catRows.map((cat) => [cat.id, cat.name]));
+
+    const completionRows = await db
+      .select({
+        taskId: catTaskCompletions.taskId,
+        catId: catTaskCompletions.catId,
+        dueDate: catTaskCompletions.dueDate,
+      })
+      .from(catTaskCompletions)
+      .where(
+        and(
+          inArray(catTaskCompletions.taskId, taskIds),
+          gte(catTaskCompletions.dueDate, from),
+          lte(catTaskCompletions.dueDate, to),
+        ),
+      );
+    const completed = new Set(completionRows.map((r) => `${r.taskId}|${r.catId}|${r.dueDate}`));
+
+    const items = scheduled.flatMap(({ row, dates }) =>
+      dates.flatMap((dueDate) =>
+        (catLinks.get(row.id) ?? []).flatMap((catId) => {
+          const catName = catMap.get(catId);
+          if (catName === undefined) return [];
+          return [
+            DueItemSchema.parse({
+              taskId: row.id,
+              title: row.title,
+              catId,
+              catName,
+              dueDate,
+              completed: completed.has(`${row.id}|${catId}|${dueDate}`),
+            }),
+          ];
+        }),
+      ),
+    );
+    items.sort(
+      (a, b) =>
+        a.dueDate.localeCompare(b.dueDate) ||
+        a.taskId.localeCompare(b.taskId) ||
+        a.catId.localeCompare(b.catId),
+    );
     return c.json(items);
   })
   .get("/:id", async (c) => {
