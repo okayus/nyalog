@@ -79,7 +79,15 @@ describe("PAT route table (default deny)", () => {
       allowed: true,
       scope: "toilet:write",
     });
+    expect(patRouteScope("DELETE", `/api/cats/${CAT}/toilet-records/${CAT}`)).toEqual({
+      allowed: true,
+      scope: "toilet:write",
+    });
     expect(patRouteScope("GET", "/api/tasks/due")).toEqual({ allowed: true, scope: "tasks:read" });
+    expect(patRouteScope("DELETE", `/api/tasks/${CAT}/completions/${CAT}`)).toEqual({
+      allowed: true,
+      scope: "tasks:write",
+    });
     expect(patRouteScope("POST", `/api/tasks/${CAT}/completions`)).toEqual({
       allowed: true,
       scope: "tasks:write",
@@ -88,9 +96,11 @@ describe("PAT route table (default deny)", () => {
 
   test("表に無いものは method 違いも含めて拒否", () => {
     expect(patRouteScope("GET", `/api/cats/${CAT}/toilet-records`)).toEqual({ allowed: false });
-    expect(patRouteScope("DELETE", `/api/cats/${CAT}/toilet-records/x`)).toEqual({
+    expect(patRouteScope("PUT", `/api/cats/${CAT}/toilet-records/${CAT}`)).toEqual({
       allowed: false,
     });
+    expect(patRouteScope("DELETE", `/api/cats/${CAT}`)).toEqual({ allowed: false });
+    expect(patRouteScope("DELETE", `/api/tasks/${CAT}`)).toEqual({ allowed: false });
     expect(patRouteScope("GET", "/api/cats")).toEqual({ allowed: false });
     expect(patRouteScope("GET", "/api/tasks")).toEqual({ allowed: false });
     expect(patRouteScope("GET", "/api/tasks/today")).toEqual({ allowed: false });

@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/okayus/nyalog/main/docs/senders/toilet-record.schema.json",
+  "title": "toilet-records の応答 (201 / 200)",
+  "description": "作成した記録。取り消しは id で DELETE する",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "記録の UUID。DELETE /api/cats/{catId}/toilet-records/{id} に使う"
+        },
+        "catId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "猫の UUID"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC Z 表記に正規化済み"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "作成時刻 (UTC Z)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "更新時刻 (UTC Z)"
+        },
+        "type": {
+          "type": "string",
+          "const": "urination",
+          "description": "urination か defecation"
+        }
+      },
+      "required": [
+        "id",
+        "catId",
+        "timestamp",
+        "createdAt",
+        "updatedAt",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "記録の UUID。DELETE /api/cats/{catId}/toilet-records/{id} に使う"
+        },
+        "catId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "猫の UUID"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "UTC Z 表記に正規化済み"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "作成時刻 (UTC Z)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "更新時刻 (UTC Z)"
+        },
+        "type": {
+          "type": "string",
+          "const": "defecation",
+          "description": "urination か defecation"
+        },
+        "condition": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "soft",
+            "diarrhea",
+            "hard",
+            "bloody"
+          ],
+          "description": "defecation のときだけ"
+        }
+      },
+      "required": [
+        "id",
+        "catId",
+        "timestamp",
+        "createdAt",
+        "updatedAt",
+        "type",
+        "condition"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

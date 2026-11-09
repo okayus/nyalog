@@ -19,7 +19,7 @@ okayus-skills の cloudflare-workers-pat-bearer-auth（mazuoboeru で稼働中�
 - `PAT_PEPPER` は Worker Secret。本番（`ORIGIN` が localhost でない）で未設定なら発行は 503 `pat_unavailable`、検証は 401。pepper を後から入れると既発行のトークンが全部死ぬので、未設定のまま発行できないようにする。dev / CI は未設定で動く
 - `Authorization: Bearer` があるリクエストは PAT の経路だけを通る（cookie や dev bypass に落ちない）。無ければ従来のセッション
 - scope は `toilet:write` / `tasks:read` / `tasks:write`。MVP は全トークンに 3 つとも付ける
-- PAT で呼べるルートは `worker/domain/pat.ts` の表に列挙し、表に無いルートは 403 `insufficient_scope`（既定拒否）。初期の表: `GET /api/auth/me`（scope 不問、疎通確認用）、`POST /api/cats/:catId/toilet-records`（toilet:write）、`GET /api/tasks/due`（tasks:read）、`POST /api/tasks/:id/completions`（tasks:write）
+- PAT で呼べるルートは `worker/domain/pat.ts` の表に列挙し、表に無いルートは 403 `insufficient_scope`（既定拒否）。初期の表: `GET /api/auth/me`（scope 不問、疎通確認用）、`POST` と `DELETE` の `/api/cats/:catId/toilet-records[/:id]`（toilet:write。DELETE は kakitome docs/06 §4 の取り消し用）、`GET /api/tasks/due`（tasks:read）、`POST` と `DELETE` の `/api/tasks/:id/completions[/:completionId]`（tasks:write）
 - `/api/tokens/*`、`/api/auth/logout`、`/api/auth/credentials/*` はセッション限定。PAT には 403 `session_required`
 - `last_used_at` の更新は 1 時間に 1 回。`expires_at` は列だけ用意し、発行 API からは設定しない（無期限）
 - 設定 UI（アカウントメニュー「API トークン」）: 名前を付けて発行 → 一度だけ表示 → 一覧（名前、作成、最終使用、状態）→ 失効。失効は行を残して `revoked_at` を立てる

@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/okayus/nyalog/main/docs/senders/toilet-record-create.schema.json",
+  "title": "POST /api/cats/{catId}/toilet-records の body",
+  "description": "トイレ記録を 1 件作る。type で形が変わる (urination は condition を持たない)。Idempotency-Key ヘッダで再送を 1 件にできる",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "urination",
+          "description": "urination (排尿) か defecation (排便)。both は送れない。2 回に分ける"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339。オフセット付き可。未来は 60 秒まで。保存と応答は UTC の Z 表記 (ミリ秒付き)"
+        }
+      },
+      "required": [
+        "type",
+        "timestamp"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "defecation",
+          "description": "urination (排尿) か defecation (排便)。both は送れない。2 回に分ける"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339。オフセット付き可。未来は 60 秒まで。保存と応答は UTC の Z 表記 (ミリ秒付き)"
+        },
+        "condition": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "soft",
+            "diarrhea",
+            "hard",
+            "bloody"
+          ],
+          "description": "defecation のときだけ必須。便の状態"
+        }
+      },
+      "required": [
+        "type",
+        "timestamp",
+        "condition"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
