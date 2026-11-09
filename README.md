@@ -95,11 +95,12 @@ ADR-003 のとおり、本アプリはパスキーのみ + 招待制。登録の
 
 ochanoma のような機械が本人として記録を書く経路 ([ADR-009](./docs/adr/009-machine-callers-pat-idempotency-due.md))。アカウントメニュー「API トークン」で名前を付けて発行し、一度だけ表示される `nyalog_pat_…` を呼び出し側に渡す。呼べるルートと scope は `worker/domain/pat.ts` の表が正。
 
-発行の前に 1 回だけ pepper を投入する (後から入れると既発行が全部死ぬ。未設定の間は発行が 503 で止まる):
+発行の前に 1 回だけ、ホストで pepper を投入する (後から入れると既発行が全部死ぬ。未設定の間は発行が 503 で止まる):
 
 ```bash
-openssl rand -hex 32          # 値を控える
-pnpm exec wrangler secret put PAT_PEPPER   # packages/web で。プロンプトに貼る
+cd packages/web
+openssl rand -hex 32                                # 値を控える
+./node_modules/.bin/wrangler secret put PAT_PEPPER  # プロンプトに貼る
 ```
 
 ### 家族を招待する (アプリ内、wrangler 不要)
