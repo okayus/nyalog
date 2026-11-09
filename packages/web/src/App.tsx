@@ -8,6 +8,7 @@ import { clearInviteLocation, readInviteToken } from "./invite-link";
 import { MedicalRecordsView } from "./components/MedicalRecordsView";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
+import { TokensView } from "./components/TokensView";
 import { ToiletRecordView } from "./components/ToiletRecordView";
 import { VetCalendar } from "./components/VetCalendar";
 import { WeightRecordView } from "./components/WeightRecordView";
@@ -20,7 +21,8 @@ type View =
   | { kind: "weight"; catId: string; catName: string; themeColor: string }
   | { kind: "tasks" }
   | { kind: "credentials" }
-  | { kind: "invites" };
+  | { kind: "invites" }
+  | { kind: "tokens" };
 
 type AuthState =
   | { status: "loading" }
@@ -42,6 +44,8 @@ function pageTitle(auth: AuthState, view: View, onInvitePage: boolean): string {
       return "パスキー管理 | nyalog";
     case "invites":
       return "メンバーを招待 | nyalog";
+    case "tokens":
+      return "API トークン | nyalog";
     case "toilet":
       return `${view.catName} のトイレ記録 | nyalog`;
     case "medical":
@@ -177,6 +181,14 @@ export function App() {
             type="button"
             popoverTarget="account-menu"
             popoverTargetAction="hide"
+            onClick={() => goTo({ kind: "tokens" })}
+          >
+            API トークン
+          </button>
+          <button
+            type="button"
+            popoverTarget="account-menu"
+            popoverTargetAction="hide"
             onClick={handleLogout}
           >
             ログアウト
@@ -245,6 +257,7 @@ export function App() {
         <CredentialsView onBack={() => goTo({ kind: "today" })} />
       ) : null}
       {view.kind === "invites" ? <SpaceInvitesView onBack={() => goTo({ kind: "today" })} /> : null}
+      {view.kind === "tokens" ? <TokensView onBack={() => goTo({ kind: "today" })} /> : null}
     </main>
   );
 }

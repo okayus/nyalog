@@ -32,6 +32,8 @@ pnpm dev                           # http://localhost:5173/
 
 `.dev.vars` は gitignore 済み。コミットされないので、マシンごとに用意する。
 
+`PAT_PEPPER` (API トークンの hash に混ぜる値、[ADR-009](./adr/009-machine-callers-pat-idempotency-due.md)) はローカルでは省略できる。`ORIGIN` が localhost のときだけ未設定でも発行できる。入れるなら `openssl rand -hex 32` の値を 1 行足す。
+
 ## パスキー認証を dev でバイパスする
 
 本番の認証経路はパスキーのみ (ADR-003)。ローカルでも本番 URL を使えば同じパスキーでログインできるが、以下のような場面では毎回パスキー UI を通すのは煩雑:

@@ -36,7 +36,12 @@ import {
   type ChallengeState,
 } from "../middleware/challenge-cookie";
 import { authRateLimit } from "../middleware/rate-limit";
-import { issueSession, revokeSession, sessionMiddleware } from "../middleware/session";
+import {
+  authMiddleware,
+  issueSession,
+  revokeSession,
+  sessionMiddleware,
+} from "../middleware/session";
 import { registerInitialUser, registerInvitedUser, validateInvite } from "../spaces/registration";
 import type { Env } from "../types";
 
@@ -300,7 +305,8 @@ export const authRoutes = new Hono<Env>()
     await revokeSession(c);
     return c.json({});
   })
-  .get("/me", sessionMiddleware(), (c) => {
+  // PAT でも呼べる唯一の auth ルート (疎通確認用。domain/pat.ts の表に載っている)
+  .get("/me", authMiddleware(), (c) => {
     return c.json({ id: c.get("userId"), displayName: c.get("displayName") });
   })
   .get("/credentials", sessionMiddleware(), async (c) => {

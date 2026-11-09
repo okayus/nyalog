@@ -14,3 +14,9 @@ INITIAL_REGISTRATION_TOKEN=<random-token-or-leave-unset>
 # Never set either in a production secret. See docs/local-dev.md for details.
 # DEV_BYPASS_USER_ID=00000000-0000-4000-8000-000000000000
 # ORIGIN=http://localhost:5173
+
+# PAT_PEPPER: mixed into personal access token hashes, sha256(token + PAT_PEPPER) (ADR-009).
+# Production: `openssl rand -hex 32 | wrangler secret put PAT_PEPPER`, BEFORE minting the first
+# token (setting it later invalidates every token minted without it). Local dev may leave it
+# unset; the Worker refuses to mint only when ORIGIN is not localhost.
+PAT_PEPPER=
