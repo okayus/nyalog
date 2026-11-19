@@ -130,7 +130,7 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 # Pin PLAYWRIGHT_VERSION to the repo's @playwright/test and bump both together,
 # then rebuild — a version mismatch shows up as "Executable doesn't exist at
 # .../chromium-XXXX" when running e2e.
-ARG PLAYWRIGHT_VERSION=1.59.1
+ARG PLAYWRIGHT_VERSION=1.62.1
 RUN if [ "$INSTALL_BROWSER_DEPS" = "true" ]; then \
       npx -y playwright@${PLAYWRIGHT_VERSION} install chromium ; \
     fi
