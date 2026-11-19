@@ -28,7 +28,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1",
     "@cloudflare/workers-types": "^4",
-    "@playwright/test": "^1.59.1",
+    "@playwright/test": "^1.62.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.30",
