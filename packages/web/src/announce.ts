@@ -4,8 +4,8 @@
 // 支援技術が拾い損ねることがある。accessibility ガイドの「Centralize live regions」に
 // 従い、常設の region を 1 つ持ってそこへ書き込む。
 //
-// urgency は assertive (role="alert")。ここへ流すのは API 失敗だけで、ガイドの
-// urgency table が Critical に置いている種類にあたる。読み込み中などの
+// urgency は assertive (role="alert")。ここへ流すのは API 失敗と描画の失敗 (FatalScreen)
+// だけで、ガイドの urgency table が Critical に置いている種類にあたる。読み込み中などの
 // interstitial state は流さない (ノイズにしかならない、と同ガイドの DON'T)。
 
 const region = document.createElement("div");
