@@ -63,3 +63,13 @@ okayus-skills の cloudflare-workers-pat-bearer-auth（mazuoboeru で稼働中�
 - スナップショットの固定は CI（check.yml）の `pnpm test` で効く。起案の時点の check.yml は vitest を走らせていなかったので、#90（2026-11-09）で足した
 - PAT で届くルートの rate limit は未対応。`AUTH_RATE_LIMITER`（30 req / 60 s）とは別の binding が要る。[plans/security-remaining.md](../plans/security-remaining.md) に積む
 - Worker 同士が同じ zone で `fetch` すると 1042 で届かない罠（skill）は、ochanoma が NucBox 上の Rust なので該当しない
+
+## Addendum (2026-11-22): `toilet:read` と発行時の scope 選択
+
+§1 の「MVP は全トークンに 3 つとも付ける」を改める。
+
+- scope に `toilet:read` を足し、表に `GET /api/cats/{catId}/toilet-records` を載せた。一覧だけで、1 件の GET は開けない。ochanoma の「猫の今日」のトイレの回数と、kakitome の `query_litter_count`（ochanoma が中継する）が読む
+- scope は発行時に選ぶ（`POST /api/tokens` の `scopes`）。省略と空は 400 にし、設定 UI の既定も何も選ばない形にした。選ばずに全権のトークンができる既定を置かないため
+- 選べるようにしたのは、ochanoma の開発コンテナに `toilet:read` と `tasks:read` だけのトークンを渡すため。コンテナの中ではエージェントと依存のコードが動くので、本番に書けるトークンを置かない。全 scope のトークンは NucBox の `LoadCredential=` にだけ置く
+- write は read を含まない。含めると表の照合が scope の包含関係を持つことになり、既定拒否の表を読むだけでは何が通るか分からなくなる
+- 足した scope は既発行のトークンに付かない（DB の JSON を書き換える data migration はしない）。2026-11-20 に発行した ochanoma 用トークンは `toilet:read` を持たないので、発行し直して古いものを失効する

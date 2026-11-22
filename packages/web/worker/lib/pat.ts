@@ -9,7 +9,6 @@ import {
   type Scope,
   type TokenName,
   PAT_PREFIX,
-  SCOPES,
   isPatTokenShape,
   parseScopes,
   patUsability,
@@ -52,11 +51,11 @@ export async function createPat(
   env: Pick<Bindings, "PAT_PEPPER">,
   userId: UserId,
   name: TokenName,
+  scopes: Scope[],
 ): Promise<IssuedToken> {
   const token = PAT_PREFIX + randomTokenHex(32);
   const id = crypto.randomUUID() as PatId;
   const createdAt = new Date().toISOString();
-  const scopes: Scope[] = [...SCOPES]; // MVP: 全 scope。picker は要るようになってから
   await db.insert(personalAccessTokens).values({
     id,
     userId,

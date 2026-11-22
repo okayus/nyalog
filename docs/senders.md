@@ -6,6 +6,7 @@ nyalog に利用者の代わりに書く機械（いまは ochanoma）向けの�
 
 - 設定 UI（アカウントメニュー「API トークン」）で発行した `nyalog_pat_…` を `Authorization: Bearer` に付ける。cookie も Origin も要らない
 - PAT は発行した利用者として振る舞う。記録の `createdBy` / `completedBy` はその人
+- scope は発行時に選ぶ（下の表の scope 列）。渡す先に要るものだけを付ける。write は read を含まない。scope を足しても既発行のトークンには付かないので、要るなら発行し直す
 - `Authorization` を付けたリクエストは PAT としてだけ判定する。失効・期限切れ・偽トークンはどれも 401 で、理由は返さない
 - 呼べるルートは下の表だけ。表に無いルートは 403 `insufficient_scope`、`/api/tokens` と `/api/auth/*` は 403 `session_required`
 - 疎通確認: `GET /api/auth/me` → `{ "id", "displayName" }`
@@ -15,6 +16,7 @@ nyalog に利用者の代わりに書く機械（いまは ochanoma）向けの�
 | ルート | scope | body の schema | 応答の schema |
 |---|---|---|---|
 | `GET /api/auth/me` | なし | | `{ id, displayName }` |
+| `GET /api/cats/{catId}/toilet-records?since&limit&offset` | toilet:read | | [toilet-records-response](senders/toilet-records-response.schema.json) |
 | `POST /api/cats/{catId}/toilet-records` | toilet:write | [toilet-record-create](senders/toilet-record-create.schema.json) | [toilet-record](senders/toilet-record.schema.json) |
 | `DELETE /api/cats/{catId}/toilet-records/{id}` | toilet:write | | `{}` |
 | `GET /api/tasks/due?from&to` | tasks:read | | [tasks-due-response](senders/tasks-due-response.schema.json) |
@@ -28,7 +30,7 @@ nyalog に利用者の代わりに書く機械（いまは ochanoma）向けの�
 | コード | 意味 | 送信側の扱い |
 |---|---|---|
 | 201 | 作った | 成功。`id` を控える（取り消しに使う） |
-| 200 | 既に処理済み（同じ `Idempotency-Key` の再送、または同じ (task, cat, dueDate) の完了） | 成功 |
+| 200 | GET の成功。POST では既に処理済み（同じ `Idempotency-Key` の再送、または同じ (task, cat, dueDate) の完了） | 成功 |
 | 400 | body、ヘッダ、クエリの形が違う | 再送しても直らない。要確認に落とす |
 | 401 | トークンが無効 | キューに残す。トークンを直せば後から送れる |
 | 403 | scope 不足、または表に無いルート | 再送しても直らない |
@@ -51,6 +53,7 @@ nyalog に利用者の代わりに書く機械（いまは ochanoma）向けの�
 - 時刻（`timestamp`、`completedAt`）は RFC 3339。オフセット付きで送ってよい。未来は 60 秒まで。保存と応答は UTC の `Z` 表記（ミリ秒付き）に正規化する
 - `dueDate`、`from`、`to` は `YYYY-MM-DD`。実在しない日は 400
 - `GET /api/tasks/due` は `from` と `to` が両方必須、`from <= to`、両端含めて 62 日まで。並びは dueDate、taskId、catId
+- `GET /api/cats/{catId}/toilet-records` の `since` は RFC 3339（オフセット付き可）で、その時刻を含む以降を返す。クエリの `+` は空白に読まれて 400 になるので、`%2B` にエンコードするか UTC の `Z` で送る。`limit` は 1〜500、`offset` は `limit` と一緒にだけ使える。どれも省けば全件。並びは timestamp の新しい順（同時刻は id の降順）
 - `type: both` は無い。排尿と排便を 1 件ずつ送る。取り消しも 2 件とも消す
 - `DELETE` は 200 `{}`。無い id は 404（既に消えているなら成功として扱ってよい）
 
@@ -68,6 +71,8 @@ curl -s -X POST "$BASE/api/cats/$CAT_ID/toilet-records" \
   -d '{"type":"urination","timestamp":"2026-10-30T21:03:11+09:00"}'
 
 curl -s "$BASE/api/tasks/due?from=2026-11-01&to=2026-11-30" -H "Authorization: Bearer $NYALOG_PAT"
+
+curl -s "$BASE/api/cats/$CAT_ID/toilet-records?since=2026-11-21T15:00:00Z" -H "Authorization: Bearer $NYALOG_PAT"
 
 curl -s -X POST "$BASE/api/tasks/$TASK_ID/completions" \
   -H "Authorization: Bearer $NYALOG_PAT" -H 'content-type: application/json' \
@@ -92,4 +97,5 @@ Draft-07。zod の `.refine`（未来の拒否、期間上限）と `.transform`
 
 ## 変更履歴
 
+- 2026-11-22 `toilet:read` と `GET /api/cats/{catId}/toilet-records` を足し、scope を発行時に選ぶようにした（ADR-009 Addendum）。2026-11-20 までに発行したトークンは `toilet:read` を持たない
 - 2026-10-30 初版（ADR-009）。PAT、`Idempotency-Key`、`GET /api/tasks/due`、timestamp の正規化

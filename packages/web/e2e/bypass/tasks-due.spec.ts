@@ -68,7 +68,9 @@ test("GET /api/tasks/due enumerates (task × cat × dueDate) with completion sta
   expect((await request.get("/api/tasks/due?from=2026-10-01&to=2026-12-01")).status()).toBe(200);
 
   // PAT: tasks:read で due は読めるが、一覧 (/api/tasks) は表に無い
-  const mint = await request.post("/api/tokens", { data: { name: `e2e-due-${Date.now()}` } });
+  const mint = await request.post("/api/tokens", {
+    data: { name: `e2e-due-${Date.now()}`, scopes: ["tasks:read", "tasks:write"] },
+  });
   const { id: tokenId, token } = (await mint.json()) as { id: string; token: string };
   const headers = { Authorization: `Bearer ${token}` };
   const viaPat = await request.get("/api/tasks/due?from=2026-10-01&to=2026-10-07", { headers });

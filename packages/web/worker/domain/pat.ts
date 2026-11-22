@@ -7,7 +7,8 @@ import { ok, err, type Result } from "neverthrow";
 // --- Scopes ---
 // const tuple から Scope 型を導く。綴り違いはコンパイルで落ちる。
 // scope の改名は DB の JSON を書き換える data migration になる (unknown は parse で落とすため)。
-export const SCOPES = ["toilet:write", "tasks:read", "tasks:write"] as const;
+// 足した scope は既発行のトークンに付かない。要る送信側は発行し直す。
+export const SCOPES = ["toilet:read", "toilet:write", "tasks:read", "tasks:write"] as const;
 export type Scope = (typeof SCOPES)[number];
 
 export function isScope(s: string): s is Scope {
@@ -51,7 +52,14 @@ export const TokenName = z
   .max(100)
   .transform((v) => v as TokenName);
 
-export const CreateTokenSchema = z.object({ name: TokenName });
+// 発行時に選ぶ scope。省略と空は 400 にして、選ばずに全権のトークンができる既定を置かない。
+// 重複を落として SCOPES の並びに揃える (DB の値と一覧の表示を安定させる)。
+export const ScopeSelectionSchema = z
+  .array(z.enum(SCOPES))
+  .min(1)
+  .transform((selected) => SCOPES.filter((s) => selected.includes(s)));
+
+export const CreateTokenSchema = z.object({ name: TokenName, scopes: ScopeSelectionSchema });
 export type CreateTokenInput = z.infer<typeof CreateTokenSchema>;
 
 // last_used_at は 1 時間に 1 回しか書かない。再送の多い送信側が 1 call = 1 D1 write に
@@ -119,6 +127,8 @@ type PatRoute = { method: string; pattern: RegExp; scope: Scope | null };
 
 const PAT_ROUTES: readonly PatRoute[] = [
   { method: "GET", pattern: /^\/api\/auth\/me$/, scope: null },
+  // 一覧だけ (ochanoma の「猫の今日」のトイレの回数、kakitome の query_litter_count)。1 件の GET は開けない
+  { method: "GET", pattern: /^\/api\/cats\/[^/]+\/toilet-records$/, scope: "toilet:read" },
   { method: "POST", pattern: /^\/api\/cats\/[^/]+\/toilet-records$/, scope: "toilet:write" },
   // 取り消し (kakitome docs/06 §4): 送信側が自分で作った記録を id で消す
   {

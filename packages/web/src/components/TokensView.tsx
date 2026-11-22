@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
+import { SCOPES, type Scope } from "../../worker/domain/pat";
 import { type IssuedToken, type TokenSummary, describeApiError, tokenApi } from "../api";
 import { ErrorText } from "./ErrorText";
+
+const SCOPE_LABELS: Record<Scope, string> = {
+  "toilet:read": "トイレ記録を読む",
+  "toilet:write": "トイレ記録を付ける・取り消す",
+  "tasks:read": "タスクの予定を読む",
+  "tasks:write": "タスクを完了にする・取り消す",
+};
+
+function toggleScope(selected: readonly Scope[], scope: Scope): Scope[] {
+  return selected.includes(scope) ? selected.filter((s) => s !== scope) : [...selected, scope];
+}
 
 type Props = {
   onBack: () => void;
@@ -11,6 +23,8 @@ type Props = {
 export function TokensView({ onBack }: Props) {
   const [tokens, setTokens] = useState<TokenSummary[]>([]);
   const [name, setName] = useState("");
+  // 既定は何も選ばない。渡す先に要るものだけを選んでもらう
+  const [scopes, setScopes] = useState<Scope[]>([]);
   const [issued, setIssued] = useState<IssuedToken | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -30,7 +44,7 @@ export function TokensView({ onBack }: Props) {
     setBusy(true);
     setError(null);
     setCopied(false);
-    const result = await tokenApi.create(name.trim());
+    const result = await tokenApi.create(name.trim(), scopes);
     if (result.isErr()) {
       setError(describeApiError(result.error));
       setBusy(false);
@@ -38,6 +52,7 @@ export function TokensView({ onBack }: Props) {
     }
     setIssued(result.value);
     setName("");
+    setScopes([]);
     await refresh();
     setBusy(false);
   }
@@ -75,8 +90,8 @@ export function TokensView({ onBack }: Props) {
         API トークン
       </h2>
       <p>
-        ochanoma などの機械が、あなたとして記録を書くための Bearer
-        トークンです。発行直後に一度だけ表示されます。
+        ochanoma などの機械が、あなたとして記録を読み書きするための Bearer
+        トークンです。発行直後に一度だけ表示されます。権限は渡す先に要るものだけを選んでください。
       </p>
 
       <form onSubmit={handleCreate}>
@@ -91,7 +106,22 @@ export function TokensView({ onBack }: Props) {
             required
           />
         </label>
-        <button type="submit" disabled={busy || !name.trim()}>
+        <fieldset>
+          <legend>権限</legend>
+          {SCOPES.map((s) => (
+            <label key={s}>
+              <input
+                type="checkbox"
+                checked={scopes.includes(s)}
+                onChange={() => setScopes((prev) => toggleScope(prev, s))}
+              />
+              <span>
+                {SCOPE_LABELS[s]} <code>{s}</code>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <button type="submit" disabled={busy || !name.trim() || scopes.length === 0}>
           発行
         </button>
       </form>
@@ -110,7 +140,7 @@ export function TokensView({ onBack }: Props) {
           <button type="button" onClick={handleCopy}>
             {copied ? "コピーしました" : "コピー"}
           </button>
-          <p>スコープ: {issued.scopes.join(", ")}</p>
+          <p>権限: {issued.scopes.join(", ")}</p>
         </div>
       )}
 
@@ -120,7 +150,8 @@ export function TokensView({ onBack }: Props) {
         {tokens.map((t) => (
           <li key={t.id}>
             <strong>{t.name}</strong>
-            <span> 作成: {new Date(t.createdAt).toLocaleString()}</span>
+            <span> 権限: {t.scopes.join(", ")}</span>
+            <span> / 作成: {new Date(t.createdAt).toLocaleString()}</span>
             <span>
               {" "}
               / 最終使用: {t.lastUsedAt ? new Date(t.lastUsedAt).toLocaleString() : "未使用"}

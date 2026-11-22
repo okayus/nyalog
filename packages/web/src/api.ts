@@ -10,6 +10,7 @@ import type {
   BloodTestValue,
   ValueFlag,
 } from "../worker/domain/blood-test-analysis";
+import type { Scope } from "../worker/domain/pat";
 import type { Cat, ThemeColor } from "../worker/domain/cat";
 import type { CatTask, Recurrence, TaskCompletion } from "../worker/domain/cat-task";
 import type { MedicalRecord, MedicalRecordAttachment } from "../worker/domain/medical-record";
@@ -543,7 +544,7 @@ export const authApi = {
 export type TokenSummary = {
   id: string;
   name: string;
-  scopes: string[];
+  scopes: Scope[];
   createdAt: string;
   lastUsedAt: string | null;
   expiresAt: string | null;
@@ -555,7 +556,7 @@ export type IssuedToken = {
   id: string;
   name: string;
   token: string;
-  scopes: string[];
+  scopes: Scope[];
   createdAt: string;
 };
 
@@ -564,10 +565,10 @@ export const tokenApi = {
     return request<TokenSummary[]>("/api/tokens");
   },
 
-  create(name: string): Promise<Result<IssuedToken, ApiError>> {
+  create(name: string, scopes: readonly Scope[]): Promise<Result<IssuedToken, ApiError>> {
     return request<IssuedToken>("/api/tokens", {
       method: "POST",
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, scopes }),
     });
   },
 
