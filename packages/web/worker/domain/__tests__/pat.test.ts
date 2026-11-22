@@ -75,6 +75,10 @@ describe("PAT route table (default deny)", () => {
 
   test("表にあるルートと scope", () => {
     expect(patRouteScope("GET", "/api/auth/me")).toEqual({ allowed: true, scope: null });
+    expect(patRouteScope("GET", `/api/cats/${CAT}/toilet-records`)).toEqual({
+      allowed: true,
+      scope: "toilet:read",
+    });
     expect(patRouteScope("POST", `/api/cats/${CAT}/toilet-records`)).toEqual({
       allowed: true,
       scope: "toilet:write",
@@ -95,7 +99,10 @@ describe("PAT route table (default deny)", () => {
   });
 
   test("表に無いものは method 違いも含めて拒否", () => {
-    expect(patRouteScope("GET", `/api/cats/${CAT}/toilet-records`)).toEqual({ allowed: false });
+    expect(patRouteScope("GET", `/api/cats/${CAT}/toilet-records/${CAT}`)).toEqual({
+      allowed: false,
+    });
+    expect(patRouteScope("GET", `/api/cats/${CAT}/toilet-records/`)).toEqual({ allowed: false });
     expect(patRouteScope("PUT", `/api/cats/${CAT}/toilet-records/${CAT}`)).toEqual({
       allowed: false,
     });
@@ -122,6 +129,19 @@ describe("PAT route table (default deny)", () => {
       type: "insufficient_scope",
       scope: "toilet:write",
     });
+    // 読み取り専用のトークンは読めるが書けない
+    const readOnly = ["toilet:read", "tasks:read"] as const;
+    expect(authorizePatRoute("GET", `/api/cats/${CAT}/toilet-records`, readOnly).isOk()).toBe(true);
+    expect(authorizePatRoute("GET", "/api/tasks/due", readOnly).isOk()).toBe(true);
+    expect(
+      authorizePatRoute("POST", `/api/cats/${CAT}/toilet-records`, readOnly)._unsafeUnwrapErr(),
+    ).toMatchObject({ type: "insufficient_scope", scope: "toilet:write" });
+    // 書けても読めるとは限らない (write は read を含まない)
+    expect(
+      authorizePatRoute("GET", `/api/cats/${CAT}/toilet-records`, [
+        "toilet:write",
+      ])._unsafeUnwrapErr(),
+    ).toMatchObject({ type: "insufficient_scope", scope: "toilet:read" });
     const denied = authorizePatRoute("GET", "/api/cats", [...SCOPES]);
     expect(denied._unsafeUnwrapErr()).toMatchObject({ type: "insufficient_scope", scope: null });
   });
@@ -144,12 +164,30 @@ describe("PAT route table (default deny)", () => {
 
 describe("parsers", () => {
   test("name は trim して 1〜100 文字", () => {
-    expect(parseCreateToken({ name: "  ochanoma  " })._unsafeUnwrap()).toEqual({
+    const scopes = ["tasks:read"];
+    expect(parseCreateToken({ name: "  ochanoma  ", scopes })._unsafeUnwrap()).toEqual({
       name: "ochanoma",
+      scopes: ["tasks:read"],
     });
-    expect(parseCreateToken({ name: "   " }).isErr()).toBe(true);
-    expect(parseCreateToken({ name: "x".repeat(101) }).isErr()).toBe(true);
+    expect(parseCreateToken({ name: "   ", scopes }).isErr()).toBe(true);
+    expect(parseCreateToken({ name: "x".repeat(101), scopes }).isErr()).toBe(true);
     expect(parseCreateToken(undefined).isErr()).toBe(true);
+  });
+
+  test("scope は選んだものだけ。省略・空・未知は 400、重複は落として SCOPES の並びに", () => {
+    const name = "ochanoma-dev";
+    expect(parseCreateToken({ name }).isErr()).toBe(true);
+    expect(parseCreateToken({ name, scopes: [] }).isErr()).toBe(true);
+    expect(parseCreateToken({ name, scopes: ["toilet:read", "quiz:write"] }).isErr()).toBe(true);
+    expect(
+      parseCreateToken({
+        name,
+        scopes: ["tasks:read", "toilet:read", "tasks:read"],
+      })._unsafeUnwrap().scopes,
+    ).toEqual(["toilet:read", "tasks:read"]);
+    expect(
+      parseCreateToken({ name, scopes: [...SCOPES].reverse() })._unsafeUnwrap().scopes,
+    ).toEqual([...SCOPES]);
   });
 
   test("id は uuid でなければ not_found (存在を漏らさない)", () => {

@@ -26,7 +26,8 @@ export const tokenRoutes = new Hono<Env>()
       return c.json(body, status);
     }
     const db = drizzle(c.env.DB);
-    const issued = await createPat(db, c.env, c.get("userId"), parsed.value.name);
+    const { name, scopes } = parsed.value;
+    const issued = await createPat(db, c.env, c.get("userId"), name, scopes);
     // 平文はこのレスポンスにしか出ない。log には id だけ。
     console.log("[tokens] issued", issued.id);
     return c.json(issued, 201);

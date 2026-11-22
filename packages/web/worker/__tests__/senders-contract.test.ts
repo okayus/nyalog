@@ -70,6 +70,16 @@ function generate(schema: z.ZodTypeAny, file: string, doc: Doc): string {
 const TIMESTAMP_DOC =
   "RFC 3339。オフセット付き可。未来は 60 秒まで。保存と応答は UTC の Z 表記 (ミリ秒付き)";
 
+const TOILET_RECORD_FIELDS = {
+  id: "記録の UUID。DELETE /api/cats/{catId}/toilet-records/{id} に使う",
+  catId: "猫の UUID",
+  type: "urination か defecation",
+  timestamp: "UTC Z 表記に正規化済み",
+  condition: "defecation のときだけ",
+  createdAt: "作成時刻 (UTC Z)",
+  updatedAt: "更新時刻 (UTC Z)",
+};
+
 const CONTRACTS: ReadonlyArray<{ file: string; schema: z.ZodTypeAny; doc: Doc }> = [
   {
     file: "toilet-record-create.schema.json",
@@ -91,15 +101,17 @@ const CONTRACTS: ReadonlyArray<{ file: string; schema: z.ZodTypeAny; doc: Doc }>
     doc: {
       title: "toilet-records の応答 (201 / 200)",
       description: "作成した記録。取り消しは id で DELETE する",
-      fields: {
-        id: "記録の UUID。DELETE /api/cats/{catId}/toilet-records/{id} に使う",
-        catId: "猫の UUID",
-        type: "urination か defecation",
-        timestamp: "UTC Z 表記に正規化済み",
-        condition: "defecation のときだけ",
-        createdAt: "作成時刻 (UTC Z)",
-        updatedAt: "更新時刻 (UTC Z)",
-      },
+      fields: TOILET_RECORD_FIELDS,
+    },
+  },
+  {
+    file: "toilet-records-response.schema.json",
+    schema: ToiletRecordRowSchema.array(),
+    doc: {
+      title: "GET /api/cats/{catId}/toilet-records の応答",
+      description:
+        "その猫のトイレ記録。timestamp の新しい順 (同時刻は id の降順)。発行者以外が付けた記録も含む",
+      fields: TOILET_RECORD_FIELDS,
     },
   },
   {
